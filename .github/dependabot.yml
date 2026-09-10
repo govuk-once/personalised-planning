@@ -1,0 +1,78 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait for at least 3 days after a new dependency release before raising a dependabot PR
+    cooldown:
+      default-days: 3
+    # The default is 5, which can lead to missing important updates if they're blocked by
+    # the limit - therefore increasing to 15
+    open-pull-requests-limit: 15
+    allow:
+      - dependency-type: direct
+    groups:
+      test:
+        patterns:
+          - "jest"
+          - "jest-*"
+          - "@types/jest"
+      lint:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "prettier"
+          - "standard"
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 15
+    allow:
+      - dependency-type: direct
+    groups:
+      test:
+        patterns:
+          - "pytest"
+          - "pytest-*"
+          - "coverage"
+      lint:
+        patterns:
+          - "ruff"
+          - "mypy"
+          - "black"
+          - "isort"
+          - "flake8*"
+      aws:
+        patterns:
+          - "boto3"
+          - "botocore"
+          - "aioboto3"
+          - "aws-*"
+  - package-ecosystem: terraform
+    directory: /
+    schedule:
+      interval: weekly
+      time: "10:30"
+      timezone: "Europe/London"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      time: "10:30"
+      timezone: "Europe/London"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      time: "10:30"
+      timezone: "Europe/London"
+    cooldown:
+      default-days: 7

@@ -1,0 +1,18 @@
+[project]
+name = "plan-generation"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12.10"
+dependencies = [
+    "boto3>=1.43.57",
+    "pre-commit>=4.6.0",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "E9", "B", "ARG", "SIM", "RET", "C4", "D", "W"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

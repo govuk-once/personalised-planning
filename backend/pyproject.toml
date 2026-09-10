@@ -1,0 +1,40 @@
+[project]
+name = "planner-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "boto3>=1.40",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    # log_utils is your shared internal module — either publish it as a
+    # package and add it here, or copy log_utils.py into ./app for now.
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = ["E501"]  # Ignore line-too-long errors
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

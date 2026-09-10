@@ -1,0 +1,70 @@
+# Pre-commit hooks for Python project quality and security checks
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-toml
+        name: Check TOML syntax
+      - id: check-json
+        name: Check JSON syntax
+      - id: check-ast
+        name: Check Python syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=500']
+        exclude: '(uv\.lock|package-lock\.json)'
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: check-case-conflict
+        name: Check for case conflicts
+      - id: debug-statements
+        name: Check for debug statements
+      - id: name-tests-test
+        name: Check test naming
+        args: ['--pytest-test-first']
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: ['--fix=lf']
+
+  # Python code quality - Ruff (linting and formatting)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.2
+    hooks:
+      - id: ruff-format
+        name: Run Ruff formatter
+      - id: ruff
+        name: Run Ruff linter
+        args: [--fix]
+
+  # Secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        args: ['--baseline', '.secrets.baseline']
+        # Only scan staged files, not entire repo
+        stages: [commit]
+        # Exclude directories that don't need scanning
+        exclude: |
+          (?x)^(
+              package-lock.json|
+              \.gitkeep|
+              data/.*|
+          )$
+
+  # Docker file linting (optional - uncomment to enable)
+  # Requires hadolint to be installed: https://github.com/hadolint/hadolint
+  # - repo: https://github.com/hadolint/hadolint
+  #   rev: v2.12.0
+  #   hooks:
+  #     - id: hadolint-docker
+  #       name: Lint Dockerfiles
+  #       args: ['--ignore', 'DL3008', '--ignore', 'DL3009']

@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+lib64/
+# !frontend/lib/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Allow .gitignore and .gitkeep
+!.gitignore
+!.gitkeep
+
+# Allow README files
+!README.md
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Linting
+.ruff_cache/
+
+# Misc
+.DS_Store
+*.log
+.env
+.env.local
+pyvenv.cfg
+
+# Docker
+docker-compose.override.yml
+
+# AWS
+.aws-sam/
+
+# UV
+.uv/
+
+# Prompts
+prompts/*
+!prompts/.gitkeep
+
+
+# Local files
+local-*
+local_*
+
+# Frontend- local
+# frontend/
+**/node_modules/
+
+data/**
+!data/.gitkeep
+
+agentcore/aws-targets.json
+
+function.zip
+dist/
+
+**/data/*

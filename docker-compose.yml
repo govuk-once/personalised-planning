@@ -1,0 +1,31 @@
+services:
+  agent:
+    # This is the AgentCore CLI-managed Dockerfile — the one that actually
+    # gets built/pushed on `agentcore launch`, not the root-level one.
+    build:
+      context: ./agent/app
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-west-2}
+      # Passed through from whatever exports them in your shell —
+      # run docker compose under `aws-vault exec` so these are populated.
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+    depends_on:
+      - agent

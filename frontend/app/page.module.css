@@ -1,0 +1,505 @@
+.page, .taskPage {
+  --background: #fafafa;
+  --foreground: #fff;
+
+  --text-primary: #000;
+  --text-secondary: #666;
+
+  --button-primary-hover: #383838;
+  --button-secondary-hover: #f2f2f2;
+  --button-secondary-border: #ebebeb;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-geist-sans);
+  background-color: var(--background);
+}
+
+.taskPage {
+  --background: #ffffff;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  max-width: 800px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 120px 60px;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 24px;
+  width: 100%;
+  margin-bottom: 40px;
+}
+
+.intro h1, .intro h2 {
+  font-weight: bold;
+  text-wrap: balance;
+  color: var(--text-primary);
+}
+
+.intro h1 {
+  font-size: 40px;
+}
+
+.intro h2 {
+  font-size: 21px;
+}
+
+.intro p {
+  font-size: 16px;
+  line-height: 32px;
+}
+
+.intro a {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ctaButton, .formSubmit {
+  background-color: #1D70B8;
+  color: #ffffff;
+  border: 2px solid #1D70B8;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 15px;
+  margin: auto;
+  width: 100%;
+  padding: 15px;
+}
+
+.ctaButton--complete {
+  background-color: #0F7A52;
+  border: 2px solid #0F7A52;
+}
+
+.editButton {
+  background: none;
+  color: #1D70B8;
+  border: none;
+}
+
+.editButton:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ctaButton:hover, .formSubmit:hover {
+  cursor: pointer;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.backButtonLink {
+  width: auto;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.backButtonLink svg {
+  margin-right: 15px;
+}
+
+.backButtonLink.backButtonLink--grey svg rect {
+  fill: #F2F2F7;
+}
+
+.backButtonLink:hover span {
+  text-decoration: underline;
+}
+
+.backButtonLink:hover svg {
+  outline: 3px solid #1D70B8;
+  border-radius: 100%;
+}
+
+.ctas {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 440px;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.ctas a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 128px;
+  border: 1px solid transparent;
+  transition: 0.2s;
+  cursor: pointer;
+  width: fit-content;
+  font-weight: 500;
+}
+
+a.primary {
+  background: var(--text-primary);
+  color: var(--background);
+  gap: 8px;
+}
+
+a.secondary {
+  border-color: var(--button-secondary-border);
+}
+
+/* Enable hover only on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  a.primary:hover {
+    background: var(--button-primary-hover);
+    border-color: transparent;
+  }
+
+  a.secondary:hover {
+    background: var(--button-secondary-hover);
+    border-color: transparent;
+  }
+}
+
+@media (max-width: 600px) {
+  .main {
+    padding: 48px 24px;
+  }
+
+  .intro {
+    gap: 16px;
+  }
+
+  .intro h1 {
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: -1.92px;
+  }
+}
+
+
+@media (prefers-color-scheme: dark) {
+  .logo {
+    filter: invert();
+  }
+
+  .page {
+    --background: #E8F1F8;
+    --foreground: #F9F9F9;
+
+    --text-primary: #000;
+    --text-secondary: #000;
+
+    --button-primary-hover: #ccc;
+    --button-secondary-hover: #1a1a1a;
+    --button-secondary-border: #1a1a1a;
+  }
+}
+
+/* Custom styling */
+
+.svgStyles {
+  min-height: 20px;
+  min-width: 20px;
+  margin: 0 5px -3px 0;
+  align-self: center;
+}
+
+.priorityTag {
+  display: inline-block;
+  padding: 5px;
+  font-size: 16px;
+  border-radius: 5px;
+  text-transform: capitalize;
+  margin: 10px 0;
+}
+
+.priorityTag--high {
+  background: #FABB9C;
+}
+
+.list {
+  width: 100%;
+}
+
+.lockedList {
+  border-left: 4px solid #1d70b8;
+  padding: 20px;
+  list-style: none;
+  margin: 20px 0 0 -20px;
+}
+
+.hintsList {
+  border-left: 4px solid #0F7A52;
+  padding: 20px;
+  list-style: none;
+  margin: 20px 0 0 -20px;
+}
+
+.lockedList li, .hintsList li {
+  display: flex;
+}
+
+.lockedList ~.hintsList {
+  margin-top: 5px;
+}
+
+.card, .stepCard {
+  background: #ffffff;
+  border-radius: 15px;
+  padding-top: 20px;
+  width: 100%;
+  list-style: none;
+  margin-bottom: 20px;
+}
+
+.card > *, .stepCard > * {
+  padding: 0 20px;
+}
+
+.cardBody, .stepCardBody {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.stepCard--padding-btm-0 {
+  padding-bottom: 0;
+}
+
+.stepCardFlexContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  border-top: 1px solid #e8f1f8;
+}
+
+.stepCardStatus {
+  border-right: 1px solid #e8f1f8;
+}
+
+.stepCardStatusIcon, .taskCardStatusIcon {
+  height: 36px;
+  width: 36px;
+  border-radius: 100%;
+  margin-right: 20px;
+}
+
+.stepCardStatusIcon--notStarted {
+  background-color: #CECECE;
+}
+
+.stepCardStatusIcon--inProgress {
+  background-color: #0088FF;
+}
+
+.stepCardStatusIcon--done {
+  background-color: #0F7A52;
+}
+
+.stepCardProgressIcon {
+  margin-right: 20px;
+  padding-left: 10px;
+}
+
+.stepCardStatus, .stepCardProgress {
+  width: 50%;
+  display: flex;
+  padding: 15px 0;
+}
+
+.cardLink, .stepCardLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 15px;
+  padding-bottom: 20px;
+  border-top: 1px solid #e8f1f8;
+}
+
+.cardLink:hover, .stepCardLink:hover {
+  outline: 3px solid #1D70B8;
+  border-radius: 0 0 15px 15px;
+}
+
+.taskCard {
+  background: #ffffff;
+  border-radius: 15px;
+  width: 100%;
+  list-style: none;
+  margin-bottom: 20px;
+}
+
+.taskCardLink {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+}
+
+.taskCardLink:hover, .linkCardLink:hover {
+  outline: 3px solid #1D70B8;
+  border-radius: 15px;
+}
+
+.taskStatus {
+  height: 36px;
+  width: 36px;
+  border-radius: 100%;
+  margin-right: 20px;
+}
+
+.taskStatus--complete {
+  background-color: #0F7A52;
+}
+
+.taskStatus--incomplete {
+  background-color: #CECECE;
+}
+
+.taskTable {
+  width: 100%;
+}
+
+.tableHeader {
+  padding-right: 15px;
+}
+
+.tableRow {
+  border-bottom: 1px solid #DADADA;
+  padding: 20px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.taskTable .tableRow:last-of-type {
+  border-bottom: none;
+}
+
+.infoCard {
+  background-color: #F7F7F7;
+  border-radius: 15px;
+  padding: 20px;
+}
+
+.listCard {
+  background-color: #FFFFFF;
+  border-radius: 15px;
+  width: 100%;
+}
+
+.listCard.listCard--grey {
+  background-color: #F7F7F7;
+}
+
+.listCard .listCardHeadingContainer {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 20px 0 20px;
+}
+
+.listCard .listCardHeadingContainer .listCardEditButton {
+  width: auto;
+}
+
+.listCard .listCardHeading {
+  font-size: 24px;
+}
+
+.listCardList {
+  list-style: none;
+  padding: 0 20px;
+}
+
+.listCardList .listCardListItem {
+  border-bottom: 1px solid #999999;
+  padding: 20px 0;
+}
+
+.listCardList .listCardListItem:last-of-type {
+  border-bottom: none;
+}
+
+.linkCard {
+  background-color: #E8F1F8;
+  width: 100%;
+  border-radius: 15px;
+}
+
+.linkCard .linkCardLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  color: #1D70B8;
+  width: 100%;
+}
+
+.callout {
+  background: #F2F2F7;
+  width: 100%;
+  border-left: 4px solid #FEBC2F;
+  border-radius: 5px;
+}
+
+.calloutBody {
+  padding: 20px;
+}
+
+.descriptionForm {
+  width: 100%;
+}
+
+.textarea {
+  font-weight: 400;
+  font-size: 1.1875rem;
+  line-height: 1.25;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 250px;
+  margin: 20px 0;
+  padding: 5px;
+  resize: vertical;
+  border: 2px solid;
+  border-radius: 0;
+  border-color: #0b0c0c;
+  -webkit-appearance: none;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.chatContainer {
+  height: 100%;
+}
+
+.planButtonLinkContainer {
+  margin: 20px 0;
+}
+
+.planButtonLink {
+  background: #0F7A52;
+  padding: 10px;
+  color: #FFFFFF;
+}
+
+.planButtonLink:hover {
+  text-decoration: underline;
+}
+
+.cardHeading, .stepCardHeading {
+  font-size: 21px;
+  font-weight: bold;
+}
+
+.stepCardStatusHeading, .stepCardProgressHeading {
+  font-weight: bold;
+}

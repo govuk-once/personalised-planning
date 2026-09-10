@@ -1,0 +1,229 @@
+{
+  "meta": {
+    "profiles": 83,
+    "guides": [
+      "/learn-to-drive-a-car"
+    ]
+  },
+  "spines": {
+    "/learn-to-drive-a-car": [
+      {
+        "step": 1,
+        "title": "Check you're allowed to drive",
+        "intro": "Most people can start learning to drive when they\u2019re 17.",
+        "links": [
+          "/vehicles-can-drive",
+          "/legal-obligations-drivers-riders",
+          "/driving-eyesight-rules"
+        ]
+      },
+      {
+        "step": 2,
+        "title": "Get a provisional licence",
+        "intro": "",
+        "links": [
+          "/apply-first-provisional-driving-licence"
+        ]
+      },
+      {
+        "step": 3,
+        "title": "Driving lessons and practice",
+        "intro": "You need a provisional driving licence to take lessons or practise.",
+        "links": [
+          "/guidance/the-highway-code",
+          "/driving-lessons-learning-to-drive",
+          "/find-driving-schools-and-lessons",
+          "/government/publications/car-show-me-tell-me-vehicle-safety-questions"
+        ]
+      },
+      {
+        "step": 4,
+        "title": "Prepare for your theory test",
+        "intro": "",
+        "links": [
+          "/theory-test/revision-and-practice",
+          "/take-practice-theory-test",
+          "https://onelink.to/858uyu"
+        ]
+      },
+      {
+        "step": 5,
+        "title": "Book and manage your theory test",
+        "intro": "You need a provisional driving licence to book your theory test.",
+        "links": [
+          "/book-theory-test",
+          "/theory-test/what-to-take",
+          "/change-theory-test",
+          "/check-theory-test",
+          "/cancel-theory-test"
+        ]
+      },
+      {
+        "step": 6,
+        "title": "Book and manage your driving test",
+        "intro": "You must pass your theory test before you can book your driving test.",
+        "links": [
+          "/book-driving-test",
+          "/driving-test/what-to-take",
+          "/change-driving-test",
+          "/check-driving-test",
+          "/cancel-driving-test"
+        ]
+      },
+      {
+        "step": 7,
+        "title": "When you pass",
+        "intro": "You can start driving as soon as you pass your driving test. You must have an insurance policy that allows you to drive without supervision.",
+        "links": [
+          "/pass-plus"
+        ]
+      }
+    ]
+  },
+  "truths": [
+    {
+      "profile_id": "P011",
+      "step_by_step": "/learn-to-drive-a-car",
+      "verdicts": [
+        {
+          "step": 1,
+          "title": "Check you're allowed to drive",
+          "verdict": "required",
+          "why": "applies to everyone"
+        },
+        {
+          "step": 2,
+          "title": "Get a provisional licence",
+          "verdict": "blocked",
+          "why": "no permission to live in GB; guide states a provisional is needed before lessons"
+        },
+        {
+          "step": 3,
+          "title": "Driving lessons and practice",
+          "verdict": "blocked",
+          "why": "no permission to live in GB; guide states a provisional is needed before lessons"
+        },
+        {
+          "step": 4,
+          "title": "Prepare for your theory test",
+          "verdict": "blocked",
+          "why": "no permission to live in GB; guide states a provisional is needed before lessons"
+        },
+        {
+          "step": 5,
+          "title": "Book and manage your theory test",
+          "verdict": "blocked",
+          "why": "no permission to live in GB; guide states a provisional is needed before lessons"
+        },
+        {
+          "step": 6,
+          "title": "Book and manage your driving test",
+          "verdict": "blocked",
+          "why": "no permission to live in GB; guide states a provisional is needed before lessons"
+        },
+        {
+          "step": 7,
+          "title": "When you pass",
+          "verdict": "required",
+          "why": "applies to everyone"
+        }
+      ]
+    },
+    {
+      "profile_id": "P053",
+      "step_by_step": "/learn-to-drive-a-car",
+      "verdicts": [
+        {
+          "step": 1,
+          "title": "Check you're allowed to drive",
+          "verdict": "required",
+          "why": "applies to everyone"
+        },
+        {
+          "step": 2,
+          "title": "Get a provisional licence",
+          "verdict": "not_required",
+          "why": "needs_new_provisional=false"
+        },
+        {
+          "step": 3,
+          "title": "Driving lessons and practice",
+          "verdict": "required",
+          "why": "applies to everyone"
+        },
+        {
+          "step": 4,
+          "title": "Prepare for your theory test",
+          "verdict": "required",
+          "why": "theory_ahead decides this"
+        },
+        {
+          "step": 5,
+          "title": "Book and manage your theory test",
+          "verdict": "required",
+          "why": "theory_ahead decides this"
+        },
+        {
+          "step": 6,
+          "title": "Book and manage your driving test",
+          "verdict": "required",
+          "why": "practical_ahead decides this"
+        },
+        {
+          "step": 7,
+          "title": "When you pass",
+          "verdict": "required",
+          "why": "applies to everyone"
+        }
+      ]
+    },
+    {
+      "profile_id": "P474",
+      "step_by_step": "/learn-to-drive-a-car",
+      "verdicts": [
+        {
+          "step": 1,
+          "title": "Check you're allowed to drive",
+          "verdict": "required",
+          "why": "applies to everyone"
+        },
+        {
+          "step": 2,
+          "title": "Get a provisional licence",
+          "verdict": "not_required",
+          "why": "needs_new_provisional=false"
+        },
+        {
+          "step": 3,
+          "title": "Driving lessons and practice",
+          "verdict": "required",
+          "why": "applies to everyone"
+        },
+        {
+          "step": 4,
+          "title": "Prepare for your theory test",
+          "verdict": "required",
+          "why": "theory_ahead decides this"
+        },
+        {
+          "step": 5,
+          "title": "Book and manage your theory test",
+          "verdict": "required",
+          "why": "theory_ahead decides this"
+        },
+        {
+          "step": 6,
+          "title": "Book and manage your driving test",
+          "verdict": "required",
+          "why": "practical_ahead decides this"
+        },
+        {
+          "step": 7,
+          "title": "When you pass",
+          "verdict": "required",
+          "why": "applies to everyone"
+        }
+      ]
+    }
+  ]
+}

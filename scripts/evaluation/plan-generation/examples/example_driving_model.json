@@ -1,0 +1,209 @@
+{
+ "questions": [
+  {
+   "id": "q1_vehicle",
+   "order": 1,
+   "text": "What do you want to learn to drive or ride?",
+   "type": "single_select",
+   "ask_if": true,
+   "options": [
+    {
+     "id": "car",
+     "label": "Car (category B)"
+    },
+    {
+     "id": "moped",
+     "label": "Moped or scooter (category AM or P)"
+    },
+    {
+     "id": "motorbike_a1",
+     "label": "Light motorbike up to 125cc (category A1)"
+    },
+    {
+     "id": "motorbike_a2",
+     "label": "Medium motorbike (category A2)"
+    },
+    {
+     "id": "motorbike_a",
+     "label": "Any size motorbike (category A)"
+    },
+    {
+     "id": "trike",
+     "label": "Motor tricycle"
+    },
+    {
+     "id": "quad_bike",
+     "label": "Quad bike (category B1)"
+    },
+    {
+     "id": "trailer_be",
+     "label": "Car with a trailer or caravan (category BE)"
+    },
+    {
+     "id": "c1",
+     "label": "Medium-sized vehicle or 7.5t lorry (category C1)"
+    },
+    {
+     "id": "c",
+     "label": "Large lorry (category C)"
+    },
+    {
+     "id": "d1",
+     "label": "Minibus (category D1)"
+    },
+    {
+     "id": "d",
+     "label": "Bus or coach (category D)"
+    },
+    {
+     "id": "tractor",
+     "label": "Agricultural tractor (category F)"
+    },
+    {
+     "id": "specialist_ghk",
+     "label": "Other specialist vehicle (categories G, H, K)"
+    },
+    {
+     "id": "unsure",
+     "label": "Not sure yet"
+    }
+   ],
+   "source": [
+    "/vehicles-can-drive",
+    "/driving-licence-categories"
+   ],
+   "notes": "Motorbike is split into A1/A2/A rather than offered as one option, because the A1-to-A2 theory exemption and the direct/progressive access routes cannot be resolved without the target category."
+  },
+  {
+   "id": "q2_licence",
+   "order": 2,
+   "text": "What driving licence do you hold today?",
+   "type": "single_select",
+   "ask_if": true,
+   "options": [
+    {
+     "id": "none",
+     "label": "None"
+    },
+    {
+     "id": "gb_provisional",
+     "label": "GB provisional licence"
+    },
+    {
+     "id": "gb_full_car_manual",
+     "label": "Full GB car licence (manual)"
+    },
+    {
+     "id": "gb_full_car_auto",
+     "label": "Full GB car licence (automatic only)"
+    },
+    {
+     "id": "full_moped",
+     "label": "Full moped licence (category AM)"
+    },
+    {
+     "id": "full_motorcycle_a1",
+     "label": "Full motorcycle licence (category A1)"
+    },
+    {
+     "id": "full_motorcycle_a2",
+     "label": "Full motorcycle licence (category A2)"
+    },
+    {
+     "id": "full_motorcycle_a",
+     "label": "Full motorcycle licence (category A)"
+    },
+    {
+     "id": "full_c1",
+     "label": "Full medium-sized vehicle licence (category C1)"
+    },
+    {
+     "id": "full_c",
+     "label": "Full large lorry licence (category C)"
+    },
+    {
+     "id": "full_d1",
+     "label": "Full minibus licence (category D1)"
+    },
+    {
+     "id": "full_d",
+     "label": "Full bus licence (category D)"
+    },
+    {
+     "id": "ni_licence",
+     "label": "Northern Ireland licence"
+    },
+    {
+     "id": "eu_eea_licence",
+     "label": "EU, EEA, Switzerland, Norway, Iceland or Liechtenstein licence"
+    },
+    {
+     "id": "other_foreign_licence",
+     "label": "Licence from another country"
+    },
+    {
+     "id": "expired",
+     "label": "An expired licence"
+    },
+    {
+     "id": "revoked_disqualified",
+     "label": "A revoked or disqualified licence"
+    }
+   ],
+   "source": [
+    "/driving-licence-categories",
+    "/view-driving-licence"
+   ],
+   "notes": "Motorcycle and lorry/bus holdings are split by category rather than grouped, because the C1-to-C, D1-to-D and A1-to-A2 theory exemptions each depend on the specific category held."
+  },
+  {
+   "id": "q2a_car_pass_date",
+   "order": 3,
+   "text": "When did you pass your car driving test?",
+   "type": "single_select",
+   "ask_if": {
+    "==": [
+     "has_full_car_licence",
+     true
+    ]
+   },
+   "options": [
+    {
+     "id": "before_1997",
+     "label": "Before 1 January 1997"
+    },
+    {
+     "id": "1997_to_2001",
+     "label": "Between 1 January 1997 and 31 January 2001"
+    },
+    {
+     "id": "from_feb_2001",
+     "label": "On or after 1 February 2001"
+    }
+   ],
+   "source": [
+    "/vehicles-can-drive",
+    "/towing-rules",
+    "/motorcycle-cbt/car-driving-licence"
+   ],
+   "notes": "A pre-1997 pass grants C1, D1 and heavier towing entitlements automatically, which can remove the entire journey. A pre-February-2001 pass exempts the holder from CBT for a 50cc moped."
+  },
+  {
+   "attribute": "age",
+   "kind": "derived",
+   "applies_if": {
+    "==": [
+     "q3c_stage_lorry_bus",
+     "requalifying"
+    ]
+   },
+   "min": {
+    "value": 23
+   },
+   "reason": "Requalifying after a break implies prior qualification and time elapsed.",
+   "source": [
+    "/become-lorry-bus-driver"
+   ]
+  }
+ ]
+}
