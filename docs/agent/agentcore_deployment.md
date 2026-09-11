@@ -138,4 +138,6 @@ aws iam list-roles --query "Roles[?contains(RoleName, 'PersonalisedPla') && cont
 aws iam put-role-policy --role-name <role-name> --policy-name AllowPlannerSecretAccess --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"secretsmanager:GetSecretValue","Resource":"arn:aws:secretsmanager:eu-west-2:<account-id>:secret:planner-agent*"}]}'
 ```
 
+Also do this step for the conversational agent.
+
 7. `agentcore invoke --runtime planner --prompt "your prompt here"`
