@@ -112,6 +112,23 @@ cd PersonalisedPlanning/agentcore/cdk
 npm install
 ```
 
+---
+
+4. Create `agentcore/aws-targets.json`
+
+Note that: `gds-cli aws <role> -d` prints the account number:
+
+```json
+[
+  {
+    "name": "default",
+    "description": "Default target (eu-west-2)",
+    "account": "<aws-account-id>",
+    "region": "eu-west-2"
+  }
+]
+```
+
 ### Run agent locally
 
 1. Configure AWS credentials using `gds cli`

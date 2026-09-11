@@ -4,7 +4,7 @@ export function getDescription() {
   if(sessionStorage.getItem("description")) {
     description = sessionStorage.getItem("description")
   }
-  else if(process.env.MOCK_MODE) {
+  else if(process.env.MOCK_MODE === "true") {
     description = "Mock description"
   }
   return description;

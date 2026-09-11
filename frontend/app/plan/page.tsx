@@ -39,7 +39,7 @@ export default function Plan() {
     let url;
     let payload;
 
-    if(process.env.MOCK_MODE) {
+    if(process.env.MOCK_MODE === "true") {
       url = "http://localhost:8000/mock"
 
       payload = {
