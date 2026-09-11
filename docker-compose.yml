@@ -1,9 +1,10 @@
 services:
   agent:
-    # This is the AgentCore CLI-managed Dockerfile — the one that actually
-    # gets built/pushed on `agentcore launch`, not the root-level one.
+    # Planner runtime. Build context is agent/ (shared/ + app/ + chat/ live
+    # under it); the Dockerfile runs app/main.py. Same layout AgentCore builds.
     build:
-      context: ./agent/app
+      context: ./agent
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     env_file:
@@ -12,6 +13,23 @@ services:
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-west-2}
       # Passed through from whatever exports them in your shell —
       # run docker compose under `aws-vault exec` so these are populated.
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+
+  chat-agent:
+    # Conversational information-gathering runtime. Same build context as the
+    # planner (shared code), but Dockerfile.chat runs chat/main.py.
+    build:
+      context: ./agent
+      dockerfile: Dockerfile.chat
+    ports:
+      # Host 8081 → container 8080 (avoids clashing with the planner's 8080).
+      - "8081:8080"
+    env_file:
+      - .env
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-west-2}
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
@@ -29,3 +47,4 @@ services:
       - AWS_SESSION_TOKEN
     depends_on:
       - agent
+      - chat-agent

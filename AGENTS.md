@@ -10,9 +10,11 @@ Personalised Planning is a GOV.UK service that helps users plan through complex 
 
 The system has four main components:
 
-1. **Agent** (`agent/app/`) — A Strands Agents Python app deployed via AWS Bedrock AgentCore. Receives a user situation, queries the service graph via MCP, and returns a structured plan (Pydantic `ResultPayload` model). Entry point: `main.py` → `planner_logic.py` → `planner_agent.py`.
+1. **Agents** (`agent/`) — Two Python agent runtimes deployed via AWS Bedrock AgentCore, sharing common code in `agent/shared/`:
+   - **Planner** (`agent/app/`) — receives a user situation, queries the service graph via MCP, and returns a structured plan (Pydantic `ResultPayload` model). Entry point: `main.py` → `planner_logic.py` → `planner_agent.py`.
+   - **Conversation** (`agent/chat/`) — an information-gathering agent that takes the conversation so far and returns the next question plus collected facts, looping until it has enough to plan (a `ConversationTurn` with a `complete` flag). Entry point: `main.py` → `chat_logic.py` → `chat_agent.py`.
 
-2. **Backend** (`backend/`) — FastAPI service that acts as a gateway between the frontend and the agent. Supports two modes: `LOCAL_MODE=true` calls the agent over HTTP; `LOCAL_MODE=false` invokes the deployed AgentCore runtime via boto3.
+2. **Backend** (`backend/`) — FastAPI service that acts as a gateway between the frontend and the two agents. Exposes `POST /chat` (→ conversation agent) and `POST /plan` (→ planner agent). Supports two modes: `LOCAL_MODE=true` calls each agent over HTTP; `LOCAL_MODE=false` invokes the deployed AgentCore runtimes via boto3.
 
 3. **Frontend** (`frontend/`) — Next.js 16 app (React 19, pnpm). **Important**: This version of Next.js has breaking changes from training data — always read guides in `node_modules/next/dist/docs/` before writing frontend code.
 
@@ -76,10 +78,21 @@ uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ### Agent (local)
+
+Dependencies and the lockfile now live at `agent/` (shared by both `app/` and `chat/`).
+Sync once from there, then run whichever agent from its subdirectory — `PYTHONPATH=..`
+makes `shared/` importable and running from the subdir lets `./system_prompt.md` resolve
+(this mirrors the Dockerfiles' `WORKDIR` + `PYTHONPATH=/app`).
+
 ```bash
-cd agent/app
-uv sync
-uv run python main.py       # Starts BedrockAgentCoreApp on port 8080
+cd agent
+uv sync                                     # deps + lockfile at agent/
+
+# Planner (port 8080):
+(cd app && PYTHONPATH=.. uv run python main.py)
+
+# Conversation agent (run separately):
+(cd chat && PYTHONPATH=.. uv run python main.py)
 ```
 
 ### Frontend
@@ -111,9 +124,11 @@ Run under `aws-vault exec` to pass AWS credentials to the containers.
 
 ## Key Environment Variables
 
-See `.env.example` for the full list. Critical ones:
-- `LOCAL_MODE` — `true`/`false` to toggle local vs deployed agent
-- `ANTHROPIC_MODEL` — Bedrock model ID for the agent
+The backend and agents are configured via environment variables (set in `.env`). Critical ones:
+- `LOCAL_MODE` — `true`/`false` to toggle local HTTP agents vs deployed AgentCore runtimes
+- `AGENT_URL` / `CHAT_AGENT_URL` — planner / conversation agent HTTP endpoints (local mode)
+- `AGENT_RUNTIME_ARN` / `CHAT_AGENT_RUNTIME_ARN` — deployed runtime ARNs (AgentCore mode)
+- `ANTHROPIC_MODEL` — Bedrock model ID for the agents
 - `MCP_MODE` — `local` (stdio) or `remote` (HTTP gateway)
 - `GRAPH_SERVER_PATH` — path to MCP server source (local mode)
 - `GRAPH_GATEWAY_URL` — deployed MCP gateway URL (remote mode)

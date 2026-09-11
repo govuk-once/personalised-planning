@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "boto3>=1.43.67",
+    "pre-commit>=4.6.0",
 ]
 
 [project.urls]

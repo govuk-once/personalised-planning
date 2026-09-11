@@ -1,6 +1,8 @@
+import asyncio
 import os
 import time
 
+import boto3
 from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
@@ -18,7 +20,7 @@ from strands.hooks import (
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
 from strands.types.exceptions import StructuredOutputException
-from structured_outputs import ResultPayload
+from structured_outputs import ConversationTurn
 
 load_dotenv()
 
@@ -33,13 +35,26 @@ else:
     GRAPH_MCP_URL = os.getenv("GRAPH_GATEWAY_URL")
 
 SYSTEM_PROMPT = read_file_content("./system_prompt.md")
+# One-shot summarisation prompt, used once the conversation is complete to distil
+# the whole conversation into a single sentence for the planner's `situation`.
+SUMMARY_SYSTEM_PROMPT = read_file_content("./summary_prompt.md")
+
+# boto3 clients are thread-safe and cheap to reuse across invocations.
+_bedrock_runtime_client = None
 
 
-class PlannerObservabilityHooks(HookProvider):
+def _get_bedrock_runtime_client():
+    global _bedrock_runtime_client
+    if _bedrock_runtime_client is None:
+        _bedrock_runtime_client = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+    return _bedrock_runtime_client
+
+
+class ChatObservabilityHooks(HookProvider):
     """
-    Strands fires typed hook events instead of
-    streaming raw message blocks, so tool-use / tool-result / timing logging
-    becomes a handful of callbacks rather than an if/elif ladder.
+    Strands fires typed hook events instead of streaming raw message blocks, so
+    tool-use / tool-result / timing logging becomes a handful of callbacks
+    rather than an if/elif ladder.
     """
 
     def __init__(self, logger: StructuredLogger):
@@ -96,8 +111,9 @@ class PlannerObservabilityHooks(HookProvider):
 
 def _build_mcp_client_service_graph() -> MCPClient:
     """
-    Stdio for local dev against the TS graph-server directly, streamable HTTP for the deployed AgentCore
-    Gateway URL.
+    Stdio for local dev against the TS graph-server directly, streamable HTTP for
+    the deployed AgentCore Gateway URL. Identical wiring to the planner — both
+    agents talk to the same service-graph MCP server.
     """
     if GRAPH_MCP_URL and GRAPH_MCP_URL.startswith("http"):
         return MCPClient(lambda: streamablehttp_client(GRAPH_MCP_URL))
@@ -113,15 +129,19 @@ def _build_mcp_client_service_graph() -> MCPClient:
     )
 
 
-class PlannerAgentRunner:
+class ChatAgentRunner:
     """
-    Runs the personalised planning agent using the UK government services
-    graph MCP server to generate a personalised service journey plan.
+    Runs the conversational information-gathering agent. It interviews the user
+    to work out which government services apply and what facts those services
+    need, then asks questions until nothing is outstanding.
+
+    Stateless: the caller holds the whole message history and replays it every
+    turn via Strands' `Agent(messages=...)`, so the agent re-derives everything
+    from the transcript each invocation.
     """
 
-    def __init__(self, auth_token: str = None, logger: StructuredLogger | None = None):
+    def __init__(self, logger: StructuredLogger | None = None):
         self.logger = logger
-        self.auth_token = auth_token
 
         if logger:
             logger.log("INFO", f"Utilising Model: {MODEL_ID}")
@@ -132,25 +152,28 @@ class PlannerAgentRunner:
                 step="mcp_config",
             )
 
-    async def run(self, prompt: str) -> dict:
+    async def run(self, prompt: str, history: list[dict] | None = None) -> dict:
         model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION)
         mcp_client = _build_mcp_client_service_graph()
 
-        # Managed integration — passing the MCPClient into tools=[] handles
-        # connection lifecycle automatically, no `with mcp_client:` needed.
+        # Seed prior turns so the invocation is stateless — the caller-held
+        # transcript is the single source of truth.
+        hooks = [ChatObservabilityHooks(self.logger)] if self.logger else []
         agent = Agent(
             model=model,
             tools=[mcp_client],
             system_prompt=SYSTEM_PROMPT,
-            hooks=[PlannerObservabilityHooks(self.logger)],
+            messages=history or [],
+            hooks=hooks,
         )
 
-        self.logger.log("INFO", "Starting Planner Agent", model=MODEL_ID, prompt_length=len(prompt))
+        if self.logger:
+            self.logger.log(
+                "INFO", "Starting Chat Agent", model=MODEL_ID, prompt_length=len(prompt)
+            )
 
         try:
-            # structured_output_model=ResultPayload asks Strands to generate a
-            # tool directly from ResultPayload's schema and force the model to call it
-            result = await agent.invoke_async(prompt, structured_output_model=ResultPayload)
+            result = await agent.invoke_async(prompt, structured_output_model=ConversationTurn)
         except StructuredOutputException as e:
             self.logger.log(
                 "WARNING",
@@ -158,7 +181,7 @@ class PlannerAgentRunner:
                 error=str(e),
                 step="structured_output_failed",
             )
-            return {"plan": None, "agent_help": None}
+            return None
         except Exception as e:
             self.logger.log(
                 "ERROR",
@@ -169,26 +192,13 @@ class PlannerAgentRunner:
             )
             raise
 
-        parsed: ResultPayload | None = getattr(result, "structured_output", None)
+        parsed: ConversationTurn | None = getattr(result, "structured_output", None)
 
         if parsed is None:
             self.logger.log(
                 "WARNING", "No structured output returned by agent", step="completion_check"
             )
-            return {"plan": None, "agent_help": None}
-
-        missing = [
-            key
-            for key, value in (("plan", parsed.plan), ("agent_help", parsed.agent_help))
-            if value is None
-        ]
-        if missing:
-            self.logger.log(
-                "WARNING",
-                "Agent completed with missing structured outputs",
-                missing=missing,
-                step="completion_check",
-            )
+            return None
 
         self.logger.log(
             "DEBUG",
@@ -197,7 +207,48 @@ class PlannerAgentRunner:
             step="structured_output_received",
         )
 
-        return {
-            "plan": parsed.plan.model_dump() if parsed.plan else None,
-            "agent_help": parsed.agent_help.model_dump() if parsed.agent_help else None,
-        }
+        return parsed.model_dump()
+
+    async def summarise_situation(self, transcript: str) -> str:
+        """
+        Distil the whole conversation into a single sentence describing what the
+        user wants help with, suitable for the planner's `situation` input.
+
+        A one-shot Bedrock `converse` call rather than a full Strands Agent —
+        there are no tools or multi-turn state to manage here. A summarisation
+        failure must never break an otherwise-complete turn, so on any error we
+        log and return an empty string.
+        """
+        client = _get_bedrock_runtime_client()
+
+        def _invoke() -> str:
+            resp = client.converse(
+                modelId=MODEL_ID,
+                system=[{"text": SUMMARY_SYSTEM_PROMPT}],
+                messages=[{"role": "user", "content": [{"text": transcript}]}],
+                inferenceConfig={"maxTokens": 100, "temperature": 0},
+            )
+            return resp["output"]["message"]["content"][0]["text"].strip()
+
+        try:
+            # converse() is a blocking boto3 call — keep it off the event loop.
+            situation = await asyncio.to_thread(_invoke)
+        except Exception as e:
+            if self.logger:
+                self.logger.log(
+                    "ERROR",
+                    "Situation summarisation failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    step="summarise_situation",
+                )
+            return ""
+
+        if self.logger:
+            self.logger.log(
+                "INFO",
+                "Situation summary generated",
+                situation=situation,
+                step="summarise_situation",
+            )
+        return situation

@@ -14,9 +14,10 @@ INSTANCE_ID = str(uuid.uuid4())
 
 load_dotenv()  # must come before secrets_manager call
 
+# Reuse the planner's secret — both runtimes share the same Secrets Manager entry.
 load_secrets_into_env("planner-agent", region="eu-west-2")
 
-from planner_logic import run_planner  # noqa: E402
+from chat_logic import run_chat  # noqa: E402
 
 app = BedrockAgentCoreApp()
 
@@ -51,16 +52,10 @@ async def main(payload: dict | None = None, context: RequestContext | None = Non
     request_start = time.perf_counter()
 
     data = payload or {}
-    situation = data.get("situation") or data.get("prompt") or ""
-    user_context = data.get("user_context")
-    auth_token = None
-    if context and context.request_headers:
-        auth_token = context.request_headers.get("Authorization")
+    messages = data.get("messages") or []
 
-    output = await run_planner(
-        situation=situation,
-        auth_token=auth_token,
-        user_context=user_context,
+    output = await run_chat(
+        messages=messages,
         logger=logger,
     )
 
@@ -84,6 +79,6 @@ async def main(payload: dict | None = None, context: RequestContext | None = Non
 
 if __name__ == "__main__":
     startup_logger.log(
-        "INFO", "Starting Planner AgentCore app", instance_id=INSTANCE_ID, step="startup"
+        "INFO", "Starting Chat AgentCore app", instance_id=INSTANCE_ID, step="startup"
     )
     app.run()
