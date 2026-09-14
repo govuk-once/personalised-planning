@@ -17,9 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = [
-    "pre-commit>=4.6.0",
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/govuk-once/personalised-planning"
