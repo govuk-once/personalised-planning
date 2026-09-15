@@ -3,7 +3,6 @@ import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
-from agent_mock_response import mock_response
 
 import boto3
 import httpx
@@ -15,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from agent_mock_response import mock_response
 from log_utils import StructuredLogger
 
 # --- Configuration ---
@@ -32,6 +32,13 @@ AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8080/invocations")
 # output, or the bedrock_agentcore: section of .bedrock_agentcore.yaml).
 AGENT_RUNTIME_ARN = os.getenv("AGENT_RUNTIME_ARN")
 AGENT_ENDPOINT_NAME = os.getenv("AGENT_ENDPOINT_NAME")
+
+# Conversational information-gathering agent — a second AgentCore runtime fronted
+# by this same backend. Only the runtime ARN / local URL differ from the planner;
+# the bedrock-agentcore client itself is shared (see _get_agentcore_client).
+CHAT_AGENT_URL = os.getenv("CHAT_AGENT_URL", "http://localhost:8081/invocations")
+CHAT_AGENT_RUNTIME_ARN = os.getenv("CHAT_AGENT_RUNTIME_ARN")
+CHAT_AGENT_ENDPOINT_NAME = os.getenv("CHAT_AGENT_ENDPOINT_NAME")
 
 app = FastAPI(title="Planner Backend", version="1.0.0")
 
@@ -89,12 +96,50 @@ def unwrap_agent_output(result: dict[str, Any], logger: StructuredLogger) -> dic
     }
 
 
+def unwrap_chat_output(result: dict[str, Any], logger: StructuredLogger) -> dict[str, Any]:
+    """
+    Unwrap a ConversationTurn from the chat agent's InvocationResponse(output=...).
+    Mirrors unwrap_agent_output but for the conversational contract.
+    """
+    output = result.get("output", result) or {}
+
+    if not isinstance(output, dict) or "message" not in output:
+        logger.log(
+            "WARN",
+            "Chat output missing expected keys",
+            keys=list(output.keys()) if isinstance(output, dict) else type(output).__name__,
+            step="unwrap",
+        )
+
+    return {
+        "message": output.get("message", ""),
+        "life_event_ids": output.get("life_event_ids", []),
+        "collected_facts": output.get("collected_facts", {}),
+        "outstanding": output.get("outstanding", []),
+        "complete": output.get("complete", False),
+        "situation": output.get("situation"),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "status": "success",
+    }
+
+
 class PlanRequest(BaseModel):
     situation: str = Field(
         ..., description="The user's current situation or query to create a plan for"
     )
     user_context: dict[str, Any] | None = Field(
         default=None, description="Optional additional user facts, such as location"
+    )
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict[str, Any]] = Field(
+        ...,
+        description="The full conversation so far ([{role, content}, ...]); the caller "
+        "holds this state and replays it each turn, ending with the newest user message.",
+    )
+    user_context: dict[str, Any] | None = Field(
+        default=None, description="Optional facts already known about the user."
     )
 
 
@@ -165,6 +210,64 @@ async def _invoke_agentcore(
     return json.loads(body)
 
 
+async def _invoke_chat_local(
+    session_id: str,
+    messages: list[dict[str, Any]],
+    user_context: dict[str, Any] | None,
+    logger: StructuredLogger,
+) -> dict[str, Any]:
+    payload = {
+        "session_id": session_id,
+        "messages": messages,
+        "user_context": user_context,
+    }
+
+    logger.log("INFO", "Calling local chat agent", agent_url=CHAT_AGENT_URL, step="agent_call")
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(CHAT_AGENT_URL, json=payload, timeout=480.0)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def _invoke_chat_agentcore(
+    session_id: str,
+    messages: list[dict[str, Any]],
+    user_context: dict[str, Any] | None,
+    logger: StructuredLogger,
+) -> dict[str, Any]:
+    if not CHAT_AGENT_RUNTIME_ARN:
+        raise RuntimeError(
+            "CHAT_AGENT_RUNTIME_ARN environment variable is required in AgentCore mode."
+        )
+
+    payload = json.dumps(
+        {
+            "session_id": session_id,
+            "messages": messages,
+            "user_context": user_context,
+        }
+    ).encode()
+
+    logger.log(
+        "INFO",
+        "Calling chat AgentCore runtime",
+        runtime_arn=CHAT_AGENT_RUNTIME_ARN,
+        step="agent_call",
+    )
+
+    client = _get_agentcore_client()
+    # boto3 is synchronous — push it to a thread so we don't block the event loop.
+    response = await run_in_threadpool(
+        client.invoke_agent_runtime,
+        agentRuntimeArn=CHAT_AGENT_RUNTIME_ARN,
+        runtimeSessionId=session_id,
+        qualifier=CHAT_AGENT_ENDPOINT_NAME,
+        payload=payload,
+    )
+    body = await run_in_threadpool(response["response"].read)
+    return json.loads(body)
+
+
 @app.post(
     "/plan",
     responses={
@@ -228,6 +331,83 @@ async def plan(request: Request, body: PlanRequest):
     # The agent entrypoint returns InvocationResponse(output=...), so the
     # actual plan/agent_help payload sits under the "output" key.
     payload = unwrap_agent_output(result, logger)
+
+    response = JSONResponse(content=payload)
+    response.set_cookie(
+        "sessionId",
+        session_id,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return response
+
+
+@app.post(
+    "/chat",
+    responses={
+        424: {"description": "The chat agent is temporarily unavailable (upstream HTTP error)."},
+        502: {
+            "description": "Unable to reach the chat agent or the AgentCore runtime returned an error."
+        },
+    },
+)
+async def chat(request: Request, body: ChatRequest):
+    session_id = request.headers.get("x-session-id") or str(uuid.uuid4())
+
+    logger = StructuredLogger(
+        session_id=session_id,
+        user_id=(body.user_context or {}).get("user_id", "unknown"),
+        agent_name="chat-backend",
+    )
+    logger.log(
+        "INFO",
+        "Chat request received",
+        mode="local" if LOCAL_MODE else "agentcore",
+        turns=len(body.messages),
+        step="chat_request",
+    )
+
+    try:
+        if LOCAL_MODE:
+            result = await _invoke_chat_local(session_id, body.messages, body.user_context, logger)
+        else:
+            result = await _invoke_chat_agentcore(
+                session_id, body.messages, body.user_context, logger
+            )
+    except httpx.RequestError as e:
+        logger.log(
+            "ERROR", "Agent connection error", error_type=type(e).__name__, step="agent_call"
+        )
+        raise HTTPException(
+            status_code=502, detail="Unable to reach the chat agent. Please try again."
+        ) from e
+    except httpx.HTTPStatusError as e:
+        logger.log(
+            "ERROR",
+            "Agent HTTP error",
+            status_code=e.response.status_code,
+            error_body=e.response.text,
+            step="agent_call",
+        )
+        raise HTTPException(
+            status_code=424, detail="The chat agent is temporarily unavailable."
+        ) from e
+    except ClientError as e:
+        logger.log(
+            "ERROR",
+            "AgentCore invocation error",
+            error_code=e.response.get("Error", {}).get("Code"),
+            error_message=e.response.get("Error", {}).get("Message"),
+            step="agent_call",
+        )
+        raise HTTPException(
+            status_code=502, detail="The AgentCore runtime returned an error."
+        ) from e
+
+    # The agent entrypoint returns InvocationResponse(output=...), so the
+    # ConversationTurn payload sits under the "output" key.
+    payload = unwrap_chat_output(result, logger)
 
     response = JSONResponse(content=payload)
     response.set_cookie(

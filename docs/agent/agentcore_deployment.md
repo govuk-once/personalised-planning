@@ -138,4 +138,14 @@ aws iam list-roles --query "Roles[?contains(RoleName, 'PersonalisedPla') && cont
 aws iam put-role-policy --role-name <role-name> --policy-name AllowPlannerSecretAccess --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"secretsmanager:GetSecretValue","Resource":"arn:aws:secretsmanager:eu-west-2:<account-id>:secret:planner-agent*"}]}'
 ```
 
-7. `agentcore invoke --runtime planner --prompt "your prompt here"`
+Also do this step for the conversational agent.
+
+7. Test each runtime:
+
+```bash
+# Planner — plain text prompt
+agentcore invoke --runtime planner --prompt "I want to apply for tax-free childcare"
+
+# Conversation agent — pass messages as a JSON object
+agentcore invoke --runtime conversation --prompt '{"messages": [{"role":"user","content":"I just had a baby and lost my job"}]}'
+```

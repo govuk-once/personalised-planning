@@ -24,6 +24,9 @@ govuk-graph-lambda-target___list_life_events
 govuk-graph-lambda-target___plan_journey
 govuk-graph-lambda-target___get_service
 govuk-graph-lambda-target___check_eligibility
+govuk-graph-lambda-target___get_required_information
+
+**Note:** `get_required_information` was added to `graph-server.ts` after the initial Lambda deploy. The Lambda must be redeployed (steps below) before the conversation agent can use it in AgentCore mode.
 
 ## Redeployment
 1. Build and bundle

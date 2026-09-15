@@ -8,10 +8,12 @@
  * ─── PRIMITIVES ────────────────────────────────────────────────────────────
  *
  * TOOLS (what Claude calls at runtime)
- *   1. list_life_events    — discover the 16 supported life events
- *   2. plan_journey        — compute a full service journey (lean, with signals)
- *   3. get_service         — drill into a single service for full eligibility
- *   4. check_eligibility   — run structured rules against user facts for a journey
+ *   1. list_life_events         — discover the 16 supported life events
+ *   2. plan_journey             — compute a full service journey (lean, with signals)
+ *   3. get_service              — drill into a single service for full eligibility
+ *   4. check_eligibility        — run structured rules against user facts for a journey
+ *   5. get_required_information — deduped union of everything a journey needs to
+ *                                 know about the user (upfront question checklist)
  *
  * RESOURCES (static context Claude can read)
  *   graph://life-events    — all 16 life events with entry nodes
@@ -68,7 +70,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { buildJourney, getServiceWithContext } from './graph-engine.js';
 import { LIFE_EVENTS, NODES } from './graph-data.js';
-import { evaluateJourney, type UserContext } from './rules.js';
+import { evaluateJourney, type UserContext, type Rule } from './rules.js';
 
 // ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────
 // ── Helper: flatten + rank services from a JourneyResult ─────────────────────
@@ -410,6 +412,147 @@ Use trigger_dates for deadline-sensitive services: { birth_date: "2025-02-01" } 
 
     return {
       content: [{ type: 'text', text: JSON.stringify({ summary, services: lean }, null, 2) }],
+    };
+  }
+);
+
+
+// ── Tool 5: get_required_information ────────────────────────────────────────
+//
+// Aggregation tool for the conversational information-gathering agent. Given one
+// or more life events (and any facts already known), it returns the DEDUPLICATED
+// union of everything the whole journey needs to know about the user — one
+// upfront checklist instead of interrogating service-by-service.
+//
+// Where a service has structured rules, each information item carries the exact
+// UserContext field name so answers can be stored under stable keys and later
+// passed straight to plan_journey / check_eligibility as user_context. Services
+// without structured rules fall back to their text keyQuestions (no field).
+
+interface InfoItem {
+  question: string;         // natural-language question to ask the user
+  field:    string | null;  // UserContext field name when known (structured rules)
+  factors:  string[];       // eligibility factor categories this relates to
+  neededBy: string[];       // service IDs that need this information
+}
+
+/** Recursively pull { field, question } pairs out of a structured rule tree. */
+function collectRuleFields(rule: Rule): { field: string; question: string }[] {
+  switch (rule.type) {
+    case 'comparison':
+    case 'boolean':
+    case 'enum':
+      return [{ field: rule.field, question: rule.label }];
+    case 'deadline':
+      return [{ field: `trigger_dates.${rule.triggerEvent}`, question: `What is the ${rule.triggerLabel}?` }];
+    case 'dependency':
+      return []; // graph-state dependency, not a user-facing question
+    case 'all':
+    case 'any':
+    case 'not':
+      return rule.rules.flatMap(collectRuleFields);
+  }
+}
+
+/** Resolve a (possibly dotted) UserContext field path against known facts. */
+function factIsKnown(facts: UserContext | undefined, field: string | null): boolean {
+  if (!field || !facts) return false;
+  const val = field.split('.').reduce((obj: any, key) => obj?.[key], facts as any);
+  return val !== undefined && val !== null;
+}
+
+server.tool(
+  'get_required_information',
+  `Return the deduplicated union of everything a whole journey needs to know about the user, as a single upfront question checklist.
+
+Purpose-built for a conversational information-gathering agent: instead of interrogating the user service-by-service, call this once with the identified life event IDs to get every distinct question the journey requires, deduplicated across services.
+
+Each question item includes:
+  question  — the natural-language question to ask the user
+  field     — the stable UserContext field name to store the answer under (null
+              when the source service only has free-text keyQuestions). Answers
+              stored under these keys can be passed straight back to
+              plan_journey / check_eligibility as user_context.
+  factors   — eligibility factor categories the question relates to (age, income,
+              disability, caring, residency, …)
+  neededBy  — the service IDs that need this piece of information
+
+Pass known_facts with whatever the user has already told you (same shape as check_eligibility's user_context). Any item whose field is already answered is dropped, so the returned questions list is always exactly what is still OUTSTANDING. When the list is empty, you have everything the journey needs.
+
+Services without structured rules contribute their text keyQuestions (field: null); these are never auto-dropped, so use judgement to skip ones the conversation has already covered.`,
+  {
+    life_event_ids: z.array(z.string()).min(1).describe(
+      'One or more life event IDs from list_life_events (same as plan_journey).'
+    ),
+    known_facts: UserContextSchema.optional().describe(
+      'Facts already gathered about the user. Items whose field is already answered here are dropped from the returned questions list.'
+    ),
+  },
+  async ({ life_event_ids, known_facts }) => {
+    const validIds = new Set(LIFE_EVENTS.map(e => e.id));
+    const unknown  = life_event_ids.filter(id => !validIds.has(id));
+    if (unknown.length) {
+      return {
+        content: [{
+          type: 'text',
+          text: `Unknown life event IDs: ${unknown.join(', ')}. Call list_life_events to see valid IDs.`,
+        }],
+      };
+    }
+
+    const journey  = buildJourney(life_event_ids);
+    const services = journey.phases.flatMap(p => p.services);
+
+    // Dedup key: the UserContext field when known, else the question text.
+    const items = new Map<string, InfoItem>();
+    const add = (key: string, question: string, field: string | null, factors: string[], serviceId: string) => {
+      const existing = items.get(key);
+      if (existing) {
+        if (!existing.neededBy.includes(serviceId)) existing.neededBy.push(serviceId);
+        factors.forEach(f => { if (!existing.factors.includes(f)) existing.factors.push(f); });
+        return;
+      }
+      items.set(key, { question, field, factors: [...new Set(factors)], neededBy: [serviceId] });
+    };
+
+    for (const svc of services) {
+      const node = NODES[svc.id];
+      if (!node) continue;
+      const elig    = node.eligibility;
+      const factors = elig.criteria.map(c => c.factor);
+
+      if (elig.rules && elig.rules.length) {
+        // Structured rules → precise field + question, deduped within the service
+        const seen = new Set<string>();
+        for (const { field, question } of elig.rules.flatMap(collectRuleFields)) {
+          if (seen.has(field)) continue;
+          seen.add(field);
+          add(field, question, field, factors, svc.id);
+        }
+      } else {
+        // Fall back to free-text keyQuestions (no stable field to key on)
+        for (const question of elig.keyQuestions) {
+          add(`q:${question}`, question, null, factors, svc.id);
+        }
+      }
+    }
+
+    const all         = [...items.values()];
+    const outstanding = all.filter(i => !factIsKnown(known_facts, i.field));
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          summary: {
+            totalServices:  services.length,
+            totalQuestions: all.length,
+            answered:       all.length - outstanding.length,
+            outstanding:    outstanding.length,
+          },
+          questions: outstanding,
+        }, null, 2),
+      }],
     };
   }
 );

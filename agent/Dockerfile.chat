@@ -4,6 +4,8 @@ WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/home/agentuser/.local/bin:$PATH"
+# shared/ lives at /app; make it importable from either agent subdir (app/, chat/)
+ENV PYTHONPATH=/app
 
 # uv bundles its own CA certs by default and ignores the system
 # trust store, so it won't trust the corporate proxy CA installed
@@ -30,6 +32,9 @@ COPY . .
 
 USER agentuser
 
+# Run from the chat subdir so relative reads (./system_prompt.md) resolve;
+# uv discovers the project + .venv by walking up to /app.
+WORKDIR /app/chat
+
 EXPOSE 8080
 CMD ["uv", "run", "--no-sync", "opentelemetry-instrument", "python", "main.py"]
-# CMD ["uv", "run", "--no-sync", "opentelemetry-instrument", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

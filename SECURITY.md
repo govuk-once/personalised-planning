@@ -38,7 +38,7 @@ When investigating, please do not:
 ## Secrets in this repository
 
 This repository is intended to contain **no credentials of any kind**. Secrets are held in AWS
-Secrets Manager and injected at runtime — see `agent/app/secrets_manager.py`.
+Secrets Manager and injected at runtime — see `agent/shared/secrets_manager.py`.
 
 If you believe a credential has been committed here, please report it through the route above rather
 than opening an issue. Per

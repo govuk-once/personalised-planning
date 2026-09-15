@@ -17,9 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = [
-    "boto3>=1.43.67",
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/govuk-once/personalised-planning"

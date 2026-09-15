@@ -13,3 +13,5 @@ cdk/node_modules/
 
 # Exception: Commit the State
 # !.cli/deployed-state.json
+/agentcore.json
+/aws-targets.json

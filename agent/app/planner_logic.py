@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
-from log_utils import StructuredLogger
 from planner_agent import PlannerAgentRunner
+from shared.log_utils import StructuredLogger
 
 
 async def run_planner(
