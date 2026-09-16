@@ -97,6 +97,7 @@ curl -X POST http://localhost:8000/plan \
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
+  -H "x-session-id: my-session-123" \
   -d '{"messages": [{"role":"user","content":"I just had a baby and lost my job"}]}'
 ```
 

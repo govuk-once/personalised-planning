@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import time
 
@@ -8,7 +9,7 @@ from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from shared.log_utils import StructuredLogger
 from shared.utils import read_file_content
-from strands import Agent
+from strands import Agent, tool
 from strands.hooks import (
     AfterInvocationEvent,
     AfterToolCallEvent,
@@ -34,7 +35,17 @@ if MCP_MODE == "local":
 else:
     GRAPH_MCP_URL = os.getenv("GRAPH_GATEWAY_URL")
 
-SYSTEM_PROMPT = read_file_content("./system_prompt.md")
+# "graph" (default)  — live service-graph MCP, same as the planner.
+# "static_questions" — fixed question set from ./questions.json; no MCP server needed.
+QUESTION_SOURCE = os.getenv("QUESTION_SOURCE", "graph").lower()
+
+if QUESTION_SOURCE == "static_questions":
+    SYSTEM_PROMPT = read_file_content("./system_prompt_static_questions.md")
+else:
+    SYSTEM_PROMPT = read_file_content("./system_prompt.md")
+
+# Loaded at import in both modes — small, and avoids a conditional read.
+QUESTIONS = json.loads(read_file_content("./questions.json"))["questions"]
 # One-shot summarisation prompt, used once the conversation is complete to distil
 # the whole conversation into a single sentence for the planner's `situation`.
 SUMMARY_SYSTEM_PROMPT = read_file_content("./summary_prompt.md")
@@ -129,6 +140,29 @@ def _build_mcp_client_service_graph() -> MCPClient:
     )
 
 
+@tool
+def ask_static_questions(known_facts: dict | None = None) -> dict:
+    """Return the questions still outstanding for the user's plan.
+
+    Filters the static question set against facts already gathered. When
+    `questions` is empty every required fact has been collected.
+
+    Args:
+        known_facts: Facts established so far, keyed by UserContext field name
+            (e.g. {"age": 34, "nation": "England"}).
+    """
+    known = known_facts or {}
+    outstanding = [q for q in QUESTIONS if q["field"] not in known]
+    return {
+        "summary": {
+            "totalQuestions": len(QUESTIONS),
+            "answered": len(QUESTIONS) - len(outstanding),
+            "outstanding": len(outstanding),
+        },
+        "questions": outstanding,
+    }
+
+
 class ChatAgentRunner:
     """
     Runs the conversational information-gathering agent. It interviews the user
@@ -145,23 +179,37 @@ class ChatAgentRunner:
 
         if logger:
             logger.log("INFO", f"Utilising Model: {MODEL_ID}")
-            logger.log(
-                "INFO",
-                f"Configuring MCP ({MCP_MODE})",
-                mcp_target=GRAPH_MCP_URL,
-                step="mcp_config",
-            )
+            if QUESTION_SOURCE == "static_questions":
+                logger.log(
+                    "INFO",
+                    "Question source: static_questions",
+                    question_count=len(QUESTIONS),
+                    step="questions_config",
+                )
+            else:
+                logger.log(
+                    "INFO",
+                    f"Question source: graph (MCP {MCP_MODE})",
+                    mcp_target=GRAPH_MCP_URL,
+                    step="questions_config",
+                )
 
     async def run(self, prompt: str, history: list[dict] | None = None) -> dict:
         model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION)
-        mcp_client = _build_mcp_client_service_graph()
+
+        # static_questions: single in-process tool over the fixed question set.
+        # graph (default): live service-graph MCP (list_life_events + get_required_information).
+        if QUESTION_SOURCE == "static_questions":
+            tools = [ask_static_questions]
+        else:
+            tools = [_build_mcp_client_service_graph()]
 
         # Seed prior turns so the invocation is stateless — the caller-held
         # transcript is the single source of truth.
         hooks = [ChatObservabilityHooks(self.logger)] if self.logger else []
         agent = Agent(
             model=model,
-            tools=[mcp_client],
+            tools=tools,
             system_prompt=SYSTEM_PROMPT,
             messages=history or [],
             hooks=hooks,
