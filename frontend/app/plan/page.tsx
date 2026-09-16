@@ -8,6 +8,7 @@ import StepCard from "@/app/components/shared/StepCard";
 import BackButton from "@/app/components/shared/BackButton";
 import { saveToSessionStorage } from "@/lib/utils/saveToSessionStorage";
 import { getDescription } from "@/lib/utils/getDescription";
+import ProfileIconSvg from "../icons/profileIcon";
 
 export default function Plan() {
   const [description, setDescription] = useState("");
@@ -68,12 +69,17 @@ export default function Plan() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <header className={styles.header}>
         <BackButton
           url={"/"}
           text={"Home"}
         />
 
+        <a className={styles.profileIconLink} href="/end-session">
+          <ProfileIconSvg />
+        </a>
+      </header>
+      <main className={styles.main}>
         <div className={styles.intro}>
           {planSaved ? (
             <Heading
