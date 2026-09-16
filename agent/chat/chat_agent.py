@@ -270,10 +270,20 @@ class ChatAgentRunner:
         client = _get_bedrock_runtime_client()
 
         def _invoke() -> str:
+            # Wrap the transcript in XML tags so the model treats it as data to
+            # summarise rather than a conversation to continue, then restate the
+            # instruction after the closing tag — a trailing directive is harder
+            # to override than a system-only prompt.
+            user_text = (
+                "<transcript>\n" + transcript + "\n</transcript>\n\n"
+                "Summarise the above transcript in exactly one plain-English sentence "
+                "from the person's perspective. Respond with only that sentence — "
+                "no preamble, no quotation marks, no bullet points."
+            )
             resp = client.converse(
                 modelId=MODEL_ID,
                 system=[{"text": SUMMARY_SYSTEM_PROMPT}],
-                messages=[{"role": "user", "content": [{"text": transcript}]}],
+                messages=[{"role": "user", "content": [{"text": user_text}]}],
                 inferenceConfig={"maxTokens": 100, "temperature": 0},
             )
             return resp["output"]["message"]["content"][0]["text"].strip()
