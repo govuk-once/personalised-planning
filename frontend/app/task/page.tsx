@@ -75,13 +75,14 @@ export default function TaskPage() {
 
   return (
     <div className={styles.taskPage}>
-      <main className={styles.main}>
+      <header className={styles.header}>
         <BackButton
           url={`/step?stepId=${stepId}`}
           text={"Back to Step"}
           greyVariant={true}
         />
-
+      </header>
+      <main className={styles.main}>
         {taskSelected ? (
           <>
             <div className={styles.intro}>
