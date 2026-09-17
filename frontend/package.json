@@ -15,7 +15,7 @@
     "@assistant-ui/react-markdown": "^0.14.13",
     "@base-ui/react": "^1.7.0",
     "@tailwindcss/postcss": "^4.3.3",
-    "ai": "^7.0.87",
+    "ai": "^7.0.100",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.38.0",
