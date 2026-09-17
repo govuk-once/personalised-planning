@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.46",
+    "@ai-sdk/anthropic": "^4.0.53",
     "@assistant-ui/ai-sdk": "^0.0.3",
     "@assistant-ui/react": "^0.15.17",
     "@assistant-ui/react-markdown": "^0.14.13",
