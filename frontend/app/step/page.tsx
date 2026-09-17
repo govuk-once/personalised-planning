@@ -46,12 +46,13 @@ export default function StepPage() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <header className={styles.header}>
         <BackButton
           url={"/plan"}
           text={"Back to Plan"}
         />
-
+      </header>
+      <main className={styles.main}>
         <div className={styles.intro}>
           {stepReceived ? (
             <>

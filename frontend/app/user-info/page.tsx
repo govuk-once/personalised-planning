@@ -7,12 +7,13 @@ import BackButton from "@/app/components/shared/BackButton";
 export default function UserInfo() {
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <header className={styles.header}>
         <BackButton
           url={"/plan"}
           text={"Back to Plan"}
         />
-
+      </header>
+      <main className={styles.main}>
         <div className={styles.intro}>
           <ListCard
             heading={"What you've told us"}
