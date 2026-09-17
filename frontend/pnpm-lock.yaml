@@ -27,8 +27,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       ai:
-        specifier: ^7.0.87
-        version: 7.0.87(zod@4.6.4)
+        specifier: ^7.0.100
+        version: 7.0.100(zod@4.6.4)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -108,6 +108,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/gateway@4.0.81':
+    resolution: {integrity: sha512-9TdKEg2l/qfaK7L4gC1FkrHNBrEXQjZSV3DvkRLCXkOSJTzojmarCn19ROWBbrlHqFVbW7OSOwQqz1n7ku9HQA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/mcp@2.0.41':
     resolution: {integrity: sha512-1u3HJYmgehXl1cz7ipi3NO8HrT6SdozZ7DNEh9MXdQE7knAnq70yhD8DIqfRdk/iZ3Net7QRmECUC+R5ISG0SQ==}
     engines: {node: '>=22'}
@@ -119,6 +125,16 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@5.0.40':
+    resolution: {integrity: sha512-zsXPwSAQ9mRJ2hvyITaLOYUyuGrBmzFhJXOg4mllGmla1PfNxZcm4GwqMiV2xQaDgcgBMdUGxXkp9xekZZNIkg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider@4.0.14':
+    resolution: {integrity: sha512-yukP2tbcQQErG5gLCMBGvpvb/rM3D3KlTKG6eKKOdNHLHqtNNDEeBxdYrY/JL+O76B2ig5dXY19H/f1HFSvRiQ==}
+    engines: {node: '>=22'}
 
   '@ai-sdk/provider@4.0.9':
     resolution: {integrity: sha512-XnGXPWiBIfqjsVEud5pOaVneRByJQOu2sYNwlSVJTPCvakdCDkVuYKKfNuStkIpMUYl7JIkBZGBx+B5YfNeVjA==}
@@ -1796,6 +1812,12 @@ packages:
     resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  ai@7.0.100:
+    resolution: {integrity: sha512-BfIPruxell8aPPW7zL0B2Vs0Pnah3icMQ7zxc/NZHJH7CXSKpeCgUHMwqYmdTdbMhgesxJIdwEgiL97cmoljPQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ai@7.0.87:
     resolution: {integrity: sha512-/hrT7toRx8vLIyr/lTKOOPDxCGdxk2tVs5viHDwIPlUsge5FBaLe9h3BhPAr7cOmEAXkN/Cf2+2N8HYGCjJbHg==}
@@ -4253,6 +4275,13 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.6.4
 
+  '@ai-sdk/gateway@4.0.81(zod@4.6.4)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.14
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.6.4)
+      '@vercel/oidc': 3.2.0
+      zod: 4.6.4
+
   '@ai-sdk/mcp@2.0.41(zod@4.6.4)':
     dependencies:
       '@ai-sdk/provider': 4.0.9
@@ -4269,6 +4298,19 @@ snapshots:
       eventsource-parser: 3.1.1
       undici: 7.29.0
       zod: 4.6.4
+
+  '@ai-sdk/provider-utils@5.0.40(zod@4.6.4)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.14
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.1
+      undici: 7.29.0
+      zod: 4.6.4
+
+  '@ai-sdk/provider@4.0.14':
+    dependencies:
+      json-schema: 0.4.0
 
   '@ai-sdk/provider@4.0.9':
     dependencies:
@@ -4295,7 +4337,7 @@ snapshots:
       '@assistant-ui/core': 0.3.16(@assistant-ui/store@0.3.11(@assistant-ui/tap@0.9.15(@types/react@19.2.17)(react@19.2.4))(@types/react@19.2.17)(react@19.2.4))(@assistant-ui/tap@0.9.15(@types/react@19.2.17)(react@19.2.4))(@types/react@19.2.17)(assistant-cloud@0.1.42)(react@19.2.4)(zustand@5.0.15(@types/react@19.2.17)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))
       '@assistant-ui/store': 0.3.11(@assistant-ui/tap@0.9.15(@types/react@19.2.17)(react@19.2.4))(@types/react@19.2.17)(react@19.2.4)
       '@assistant-ui/tap': 0.9.15(@types/react@19.2.17)(react@19.2.4)
-      ai: 7.0.87(zod@4.6.4)
+      ai: 7.0.100(zod@4.6.4)
       assistant-cloud: 0.1.42
       assistant-stream: 0.3.40
     optionalDependencies:
@@ -5975,6 +6017,13 @@ snapshots:
       acorn: 8.17.0
 
   acorn@8.17.0: {}
+
+  ai@7.0.100(zod@4.6.4):
+    dependencies:
+      '@ai-sdk/gateway': 4.0.81(zod@4.6.4)
+      '@ai-sdk/provider': 4.0.14
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.6.4)
+      zod: 4.6.4
 
   ai@7.0.87(zod@4.6.4):
     dependencies:
