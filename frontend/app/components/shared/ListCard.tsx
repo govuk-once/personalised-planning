@@ -7,6 +7,7 @@ interface ListCardProps {
   listItems: Array<string>;
   editable?: boolean;
   greyVariant?: boolean;
+  onEdit?: () => void;
 }
 
 export default function ListCard(props: Readonly<ListCardProps>) {
@@ -36,7 +37,7 @@ export default function ListCard(props: Readonly<ListCardProps>) {
         <div className={styles.listCardHeadingContainer}>
           { headingHtml(props.headingLevel, props.heading) }
           {props.editable && (
-            <Button type={"edit"} text={"Edit"} onClick={() => {}} />
+            <Button type={"edit"} text={"Edit"} onClick={props.onEdit ?? (() => {})} />
           )}
         </div>
       )}

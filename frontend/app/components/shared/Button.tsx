@@ -4,7 +4,7 @@ interface ButtonProps {
   type: string;
   text: string;
   complete?: boolean;
-  onClick: any;
+  onClick: () => void;
 }
 
 export default function Button(props: Readonly<ButtonProps>) {

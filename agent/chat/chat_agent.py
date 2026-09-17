@@ -152,7 +152,7 @@ class ChatAgentRunner:
                 step="mcp_config",
             )
 
-    async def run(self, prompt: str, history: list[dict] | None = None) -> dict:
+    async def run(self, prompt: str, history: list[dict] | None = None, context: str = "") -> dict:
         model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION)
         mcp_client = _build_mcp_client_service_graph()
 
@@ -162,7 +162,9 @@ class ChatAgentRunner:
         agent = Agent(
             model=model,
             tools=[mcp_client],
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=f"{SYSTEM_PROMPT}\n\n### Known context\n{context}"
+            if context
+            else SYSTEM_PROMPT,
             messages=history or [],
             hooks=hooks,
         )

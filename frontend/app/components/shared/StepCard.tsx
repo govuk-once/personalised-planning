@@ -11,7 +11,7 @@ interface StepCardProps {
   progress: string;
   totalTasks: number;
   completedTasks: number;
-  link?: any;
+  link?: { url: string; text: string };
 }
 
 export default function StepCard(props: Readonly<StepCardProps>) {
