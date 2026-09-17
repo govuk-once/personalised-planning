@@ -2,7 +2,7 @@
 
 import styles from "@/app/page.module.css";
 import { useState } from "react";
-import Button from "../components/shared/Button";
+import Button from "@/app/components/shared/Button";
 import BackButton from "@/app/components/shared/BackButton";
 import { endSession } from "@/lib/utils/endSession";
 

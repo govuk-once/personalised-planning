@@ -8,7 +8,7 @@ import StepCard from "@/app/components/shared/StepCard";
 import BackButton from "@/app/components/shared/BackButton";
 import { saveToSessionStorage } from "@/lib/utils/saveToSessionStorage";
 import { getDescription } from "@/lib/utils/getDescription";
-import ProfileIconSvg from "../icons/profileIcon";
+import ProfileIconSvg from "@/app/icons/profileIcon";
 
 export default function Plan() {
   const [description, setDescription] = useState("");
