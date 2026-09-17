@@ -8,7 +8,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-The chat on `/` needs `ANTHROPIC_API_KEY`.
+`.env.local` needs `BACKEND_URL`. See `backend/README.md`.
 
 ## Getting Started
 

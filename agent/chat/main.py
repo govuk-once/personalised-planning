@@ -67,6 +67,7 @@ async def main(payload: dict | None = None, context: RequestContext | None = Non
 
     output = await run_chat(
         messages=messages,
+        user_context=data.get("user_context"),
         logger=logger,
     )
 

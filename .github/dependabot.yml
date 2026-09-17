@@ -1,7 +1,10 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directories:
+      - "/frontend"
+      - "/agentcore/cdk"
+      - "/mcp-servers/service-graph"
     schedule:
       interval: weekly
     # Wait for at least 3 days after a new dependency release before raising a dependabot PR

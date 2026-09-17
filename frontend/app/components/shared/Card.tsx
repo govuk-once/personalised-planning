@@ -5,7 +5,7 @@ interface CardProps {
   heading: string;
   headingLevel?: number;
   text?: string;
-  link?: any;
+  link?: { url: string; text: string };
 }
 
 export default function Card(props: Readonly<CardProps>) {
