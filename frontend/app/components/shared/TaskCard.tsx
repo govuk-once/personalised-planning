@@ -3,8 +3,8 @@ import DoneSvg from "@/app/icons/done";
 import NotStartedSvg from "@/app/icons/notStarted";
 
 interface TaskCardProps {
-  link: any;
-  complete: string;
+  link: { url: string; text: string };
+  complete: boolean;
 }
 
 export default function TaskCard(props: Readonly<TaskCardProps>) {
