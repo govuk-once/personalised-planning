@@ -10,16 +10,16 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.95.2
-        version: 0.95.2(zod@4.6.4)
+        version: 0.95.2(zod@4.6.5)
       '@aws/run-mcp-servers-with-aws-lambda':
         specifier: ^0.5.19
-        version: 0.5.21(zod@4.6.4)
+        version: 0.5.21(zod@4.6.5)
       '@modelcontextprotocol/sdk':
         specifier: ^1.7.0
-        version: 1.30.0(zod@4.6.4)
+        version: 1.30.0(zod@4.6.5)
       zod:
-        specifier: ^4.6.4
-        version: 4.6.4
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.162
@@ -964,17 +964,17 @@ packages:
     peerDependencies:
       zod: ^3.25.28 || ^4
 
-  zod@4.6.4:
-    resolution: {integrity: sha512-AXSD6hvGdvRjajG/l1cC+d6IrhH+sjmPKtYeQdJIK8MFJl3LyClzS+o/YsVC+zQZPupAaeH5skwwm8YqYH7BqA==}
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
 
-  '@anthropic-ai/sdk@0.95.2(zod@4.6.4)':
+  '@anthropic-ai/sdk@0.95.2(zod@4.6.5)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
     optionalDependencies:
-      zod: 4.6.4
+      zod: 4.6.5
 
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
@@ -1138,14 +1138,14 @@ snapshots:
 
   '@aws/lambda-invoke-store@0.3.0': {}
 
-  '@aws/run-mcp-servers-with-aws-lambda@0.5.21(zod@4.6.4)':
+  '@aws/run-mcp-servers-with-aws-lambda@0.5.21(zod@4.6.5)':
     dependencies:
       '@aws-crypto/sha256-js': 5.2.0
       '@aws-sdk/client-lambda': 3.1132.0
       '@aws-sdk/credential-provider-node': 3.972.83
       '@aws-sdk/protocol-http': 3.374.0
       '@aws-sdk/types': 3.974.5
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.4)
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.5)
       '@smithy/signature-v4': 5.7.3
       winston: 3.19.0
     transitivePeerDependencies:
@@ -1247,7 +1247,7 @@ snapshots:
     dependencies:
       hono: 4.13.8
 
-  '@modelcontextprotocol/sdk@1.30.0(zod@4.6.4)':
+  '@modelcontextprotocol/sdk@1.30.0(zod@4.6.5)':
     dependencies:
       '@hono/node-server': 2.1.1(hono@4.13.8)
       ajv: 8.20.0
@@ -1264,8 +1264,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.6.4
-      zod-to-json-schema: 3.25.2(zod@4.6.4)
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
     transitivePeerDependencies:
       - supports-color
 
@@ -1930,8 +1930,8 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  zod-to-json-schema@3.25.2(zod@4.6.4):
+  zod-to-json-schema@3.25.2(zod@4.6.5):
     dependencies:
-      zod: 4.6.4
+      zod: 4.6.5
 
-  zod@4.6.4: {}
+  zod@4.6.5: {}
