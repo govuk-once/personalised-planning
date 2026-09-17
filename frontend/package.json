@@ -12,7 +12,7 @@
     "@ai-sdk/anthropic": "^4.0.46",
     "@assistant-ui/ai-sdk": "^0.0.3",
     "@assistant-ui/react": "^0.15.17",
-    "@assistant-ui/react-markdown": "^0.14.13",
+    "@assistant-ui/react-markdown": "^0.14.15",
     "@base-ui/react": "^1.7.0",
     "@tailwindcss/postcss": "^4.3.3",
     "ai": "^7.0.87",
