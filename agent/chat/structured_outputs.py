@@ -26,13 +26,10 @@ class ConversationTurn(BaseModel):
         "(from list_life_events), e.g. ['baby', 'job-loss'].",
     )
     collected_facts: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Facts gathered so far, keyed by UserContext field name "
-        "(e.g. {'age': 34, 'has_children': true}). Re-derived from the whole transcript.",
+        description="Facts gathered so far, keyed by UserContext field name. "
     )
     outstanding: list[str] = Field(
-        default_factory=list,
-        description="Information still needed before planning, from get_required_information.",
+        description="Information still needed before planning, from get_required_information. "
     )
     complete: bool = Field(
         default=False,

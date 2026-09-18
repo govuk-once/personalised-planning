@@ -1,9 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
- 
+
 @custom-variant dark (&:is(.dark *));
- 
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -48,7 +48,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #E8F1F8;
+  --background: #e8f1f8;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -79,11 +79,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --text-foreground: #FFFFFF;
-}
-
-html {
-  height: 100vh;
+  --text-foreground: #ffffff;
 }
 
 html,
@@ -93,8 +89,7 @@ body {
 }
 
 body {
-  height: 100%;
-  min-height: 100%;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   color: var(--foreground);
@@ -165,10 +160,10 @@ a {
 }
 
 .aui-user-message-content {
-  background-color: #0F385C;
-  color: #FFFFFF;
+  background-color: #0f385c;
+  color: #ffffff;
 }
 
 [data-slot="aui_assistant-message-content"] {
-  background-color: #FFFFFF;
+  background-color: #ffffff;
 }

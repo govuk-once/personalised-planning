@@ -7,7 +7,7 @@ from typing import Any
 import boto3
 import httpx
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,6 +57,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+AGENT_UNAVAILABLE = "The service is temporarily unavailable. Please try again shortly."
+
+def session_response(payload: dict[str, Any], session_id: str) -> JSONResponse:
+    response = JSONResponse(content=payload)
+    response.set_cookie(
+        "sessionId",
+        session_id,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return response
 
 
 def _get_agentcore_client():
@@ -268,6 +282,13 @@ async def _invoke_chat_agentcore(
     return json.loads(body)
 
 
+def with_today(user_context: dict[str, Any] | None) -> dict[str, Any]:
+    """Without a date the planner works out deadlines from its training cutoff."""
+    context = dict(user_context or {})
+    context.setdefault("today", datetime.now(UTC).strftime("%-d %B %Y"))
+    return context
+
+
 @app.post(
     "/plan",
     responses={
@@ -293,11 +314,13 @@ async def plan(request: Request, body: PlanRequest):
         step="plan_request",
     )
 
+    user_context = with_today(body.user_context)
+
     try:
         if LOCAL_MODE:
-            result = await _invoke_local(session_id, body.situation, body.user_context, logger)
+            result = await _invoke_local(session_id, body.situation, user_context, logger)
         else:
-            result = await _invoke_agentcore(session_id, body.situation, body.user_context, logger)
+            result = await _invoke_agentcore(session_id, body.situation, user_context, logger)
     except httpx.RequestError as e:
         logger.log(
             "ERROR", "Agent connection error", error_type=type(e).__name__, step="agent_call"
@@ -324,23 +347,25 @@ async def plan(request: Request, body: PlanRequest):
             error_message=e.response.get("Error", {}).get("Message"),
             step="agent_call",
         )
-        raise HTTPException(
-            status_code=502, detail="The AgentCore runtime returned an error."
-        ) from e
+        raise HTTPException(status_code=502, detail=AGENT_UNAVAILABLE) from e
+    except BotoCoreError as e:
+        logger.log(
+            "ERROR",
+            "AgentCore client error",
+            error_type=type(e).__name__,
+            error=str(e),
+            step="agent_call",
+        )
+        raise HTTPException(status_code=502, detail=AGENT_UNAVAILABLE) from e
 
     # The agent entrypoint returns InvocationResponse(output=...), so the
     # actual plan/agent_help payload sits under the "output" key.
     payload = unwrap_agent_output(result, logger)
 
-    response = JSONResponse(content=payload)
-    response.set_cookie(
-        "sessionId",
-        session_id,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-    )
-    return response
+    steps = len((payload.get("plan") or {}).get("steps") or [])
+    logger.log("INFO", "Plan request complete", steps=steps, step="plan_request")
+
+    return session_response(payload, session_id)
 
 
 @app.post(
@@ -368,13 +393,13 @@ async def chat(request: Request, body: ChatRequest):
         step="chat_request",
     )
 
+    user_context = with_today(body.user_context)
+
     try:
         if LOCAL_MODE:
-            result = await _invoke_chat_local(session_id, body.messages, body.user_context, logger)
+            result = await _invoke_chat_local(session_id, body.messages, user_context, logger)
         else:
-            result = await _invoke_chat_agentcore(
-                session_id, body.messages, body.user_context, logger
-            )
+            result = await _invoke_chat_agentcore(session_id, body.messages, user_context, logger)
     except httpx.RequestError as e:
         logger.log(
             "ERROR", "Agent connection error", error_type=type(e).__name__, step="agent_call"
@@ -401,20 +426,28 @@ async def chat(request: Request, body: ChatRequest):
             error_message=e.response.get("Error", {}).get("Message"),
             step="agent_call",
         )
-        raise HTTPException(
-            status_code=502, detail="The AgentCore runtime returned an error."
-        ) from e
+        raise HTTPException(status_code=502, detail=AGENT_UNAVAILABLE) from e
+    except BotoCoreError as e:
+        logger.log(
+            "ERROR",
+            "AgentCore client error",
+            error_type=type(e).__name__,
+            error=str(e),
+            step="agent_call",
+        )
+        raise HTTPException(status_code=502, detail=AGENT_UNAVAILABLE) from e
 
     # The agent entrypoint returns InvocationResponse(output=...), so the
     # ConversationTurn payload sits under the "output" key.
     payload = unwrap_chat_output(result, logger)
 
-    response = JSONResponse(content=payload)
-    response.set_cookie(
-        "sessionId",
-        session_id,
-        httponly=True,
-        secure=True,
-        samesite="lax",
+    logger.log(
+        "INFO",
+        "Chat request complete",
+        complete=payload["complete"],
+        outstanding=len(payload["outstanding"]),
+        facts=len(payload["collected_facts"]),
+        step="chat_request",
     )
-    return response
+
+    return session_response(payload, session_id)

@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -38,8 +39,33 @@ def _to_strands_history(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return history
 
 
+def _context_note(user_context: dict[str, Any] | None) -> str:
+    """Without `today` the agent dates relative times from its training cutoff."""
+    context = dict(user_context or {})
+    today = context.pop("today", None)
+    life_event_ids = context.pop("life_event_ids", None)
+
+    parts = []
+    if today:
+        parts.append(f"Today's date is {today}. Resolve every relative date against it.")
+    if life_event_ids:
+        ids_str = ", ".join(life_event_ids)
+        parts.append(
+            f"Life events already confirmed from a prior turn: {ids_str}. "
+            "Do NOT call list_life_events again unless the user describes a new situation "
+            "not covered by these IDs."
+        )
+    if context:
+        parts.append(
+            "Facts you established earlier in this conversation. Treat them as already "
+            f"answered and do not ask about them again:\n{json.dumps(context, indent=2)}"
+        )
+    return "\n\n".join(parts)
+
+
 async def run_chat(
     messages: list[dict[str, Any]],
+    user_context: dict[str, Any] | None = None,
     logger: StructuredLogger | None = None,
 ) -> dict[str, Any]:
     """
@@ -82,7 +108,7 @@ async def run_chat(
             )
 
         agent = ChatAgentRunner(logger=logger)
-        turn = await agent.run(prompt, history=history)
+        turn = await agent.run(prompt, history=history, context=_context_note(user_context))
 
         if turn is None:
             raise HTTPException(
