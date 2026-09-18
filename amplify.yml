@@ -1,0 +1,38 @@
+version: 1
+applications:
+  - appRoot: frontend
+    backend:
+      phases:
+        build:
+          commands:
+            - "[ -f amplify.yml ] || cd .."
+            - test -n "$AGENT_RUNTIME_ARN$CHAT_AGENT_RUNTIME_ARN$BACKEND_API_KEY" || { echo "This app has no configuration yet. Set amplify env"; exit 1; }
+            - npm install --no-audit --no-fund
+            - curl -LsSf https://astral.sh/uv/install.sh | sh
+            - export PATH="$HOME/.local/bin:$PATH"
+            - ./scripts/deploy/build-lambda.sh
+            - npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - "[ -f next.config.ts ] || cd frontend"
+            - npm install -g pnpm@12
+            - pnpm install --frozen-lockfile --node-linker=hoisted
+        build:
+          commands:
+            - "[ -f next.config.ts ] || cd frontend"
+            - BACKEND_URL=$(node -p "require('../amplify_outputs.json').custom.backendUrl")
+            - test -n "$BACKEND_URL" || { echo "backendUrl missing from amplify_outputs.json"; exit 1; }
+            - test -n "$BACKEND_API_KEY" || { echo "BACKEND_API_KEY is not set on this Amplify app. Set the amplify env."; exit 1; }
+            # next build puts this into the server bundle...not browser
+            - printf 'BACKEND_URL=%s\nBACKEND_API_KEY=%s\n' "$BACKEND_URL" "$BACKEND_API_KEY" > .env.production
+            - pnpm build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+          - .next/cache/**/*

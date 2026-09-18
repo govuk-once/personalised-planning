@@ -40,6 +40,11 @@ CHAT_AGENT_URL = os.getenv("CHAT_AGENT_URL", "http://localhost:8081/invocations"
 CHAT_AGENT_RUNTIME_ARN = os.getenv("CHAT_AGENT_RUNTIME_ARN")
 CHAT_AGENT_ENDPOINT_NAME = os.getenv("CHAT_AGENT_ENDPOINT_NAME")
 
+# Deployed, this service answers on a public Lambda Function URL, so every route
+# but /health needs a shared key. Unset locally, where nothing else can reach it.
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY")
+OPEN_PATHS = frozenset({"/health"})
+
 app = FastAPI(title="Planner Backend", version="1.0.0")
 
 # boto3 client is thread-safe and cheap to reuse across requests.
@@ -57,6 +62,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def require_api_key(request: Request, call_next):
+    if BACKEND_API_KEY and request.url.path not in OPEN_PATHS:
+        if request.headers.get("x-api-key") != BACKEND_API_KEY:
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    return await call_next(request)
 
 
 AGENT_UNAVAILABLE = "The service is temporarily unavailable. Please try again shortly."
