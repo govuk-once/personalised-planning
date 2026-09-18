@@ -18,7 +18,10 @@ applications:
           commands:
             - "[ -f next.config.ts ] || cd frontend"
             - npm install -g pnpm@12
+            - rm -rf node_modules
             - pnpm install --frozen-lockfile --node-linker=hoisted
+            # todo: Amplify can't copy symlinked node_modules so fail here
+            - node -e "if(require('fs').lstatSync('node_modules/react').isSymbolicLink()){console.error('node_modules is symlinked. Check nodeLinker in pnpm-workspace.yaml');process.exit(1)}"
         build:
           commands:
             - "[ -f next.config.ts ] || cd frontend"
@@ -34,5 +37,4 @@ applications:
           - "**/*"
       cache:
         paths:
-          - node_modules/**/*
           - .next/cache/**/*
