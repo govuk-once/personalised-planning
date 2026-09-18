@@ -26,6 +26,7 @@ export const chatInput = z.object({
   sessionId,
   messages: transcript,
   collectedFacts: facts.optional(),
+  lifeEventIds: z.array(z.string()).optional(),
 });
 
 export const planInput = z.object({

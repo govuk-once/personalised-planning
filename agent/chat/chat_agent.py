@@ -68,10 +68,11 @@ class ChatObservabilityHooks(HookProvider):
     rather than an if/elif ladder.
     """
 
-    def __init__(self, logger: StructuredLogger):
+    def __init__(self, logger):
         self.logger = logger
-        self._invocation_start: float | None = None
-        self._last_tool_result_at: float | None = None
+        self._invocation_start = None
+        self._last_tool_result_at = None
+        self.last_required_info_summary: dict | None = None
 
     def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
         registry.add_callback(BeforeInvocationEvent, self._on_invocation_start)
@@ -100,7 +101,7 @@ class ChatObservabilityHooks(HookProvider):
             f"TOOL USE: {tool_use.get('name')}",
             tool_use_id=tool_use.get("toolUseId"),
             tool_name=tool_use.get("name"),
-            input=str(tool_use.get("input"))[:200],
+            input=str(tool_use.get("input")),
             step="tool_use",
         )
 
@@ -115,9 +116,19 @@ class ChatObservabilityHooks(HookProvider):
             "INFO",
             "Tool result received",
             tool_use_id=event.tool_use.get("toolUseId"),
+            status=event.result.get("status"),
+            result=str(event.result.get("content"))[
+                :2000
+            ],  # untruncated enough to see known_facts/outstanding fully — bump/remove the cap for this diagnostic pass
             elapsed_since_last_tool_result_s=elapsed_since_last,
             step="tool_result",
         )
+        if event.tool_use.get("name", "").endswith("get_required_information"):
+            try:
+                text = event.result.get("content", [{}])[0].get("text", "")
+                self.last_required_info_summary = json.loads(text).get("summary")
+            except Exception:
+                pass
 
 
 def _build_mcp_client_service_graph() -> MCPClient:

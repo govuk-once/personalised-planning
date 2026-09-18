@@ -38,6 +38,7 @@ export function useIntake() {
       sessionId,
       messages: withUser.messages,
       collectedFacts: conversation.collectedFacts,
+      lifeEventIds: conversation.lifeEventIds,
     });
     setPending(false);
 
