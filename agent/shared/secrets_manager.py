@@ -11,7 +11,7 @@ def load_secrets_into_env(secret_id: str, region: str | None = None) -> None:
         region_name=region
         or os.getenv("AWS_REGION")
         or os.getenv("AWS_DEFAULT_REGION")
-        or "eu-west-1",
+        or "eu-west-2",
     )
     resp: dict[str, Any] = client.get_secret_value(SecretId=secret_id)
 

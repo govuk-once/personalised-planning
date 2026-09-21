@@ -14,7 +14,7 @@ INSTANCE_ID = str(uuid.uuid4())
 
 load_dotenv()  # must come before secrets_manager call
 
-load_secrets_into_env("planner-agent", region="eu-west-2")
+load_secrets_into_env("planner-agent")
 
 from planner_logic import run_planner  # noqa: E402
 

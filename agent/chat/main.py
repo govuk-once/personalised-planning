@@ -15,7 +15,7 @@ INSTANCE_ID = str(uuid.uuid4())
 load_dotenv()  # must come before secrets_manager call
 
 # Reuse the planner's secret — both runtimes share the same Secrets Manager entry.
-load_secrets_into_env("planner-agent", region="eu-west-2")
+load_secrets_into_env("planner-agent")
 
 from chat_logic import run_chat  # noqa: E402
 
