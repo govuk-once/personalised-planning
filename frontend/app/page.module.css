@@ -477,22 +477,229 @@ a.secondary {
   color: #000000;
 }
 
-.chatContainer {
-  height: 100%;
+.chatPage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  background-color: #E8F1F8;
 }
 
-.planButtonLinkContainer {
-  margin: 20px 0;
+.chatMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  padding: 24px 16px 32px;
+  gap: 16px;
 }
 
-.planButtonLink {
-  background: #0F7A52;
-  padding: 10px;
+.chatThread {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.assistantMessage, .userMessage {
+  max-width: 85%;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.assistantMessage {
+  align-self: flex-start;
+  background-color: #FFFFFF;
+  color: #0B0C0C;
+  border-bottom-left-radius: 4px;
+}
+
+.userMessage {
+  align-self: flex-end;
+  background-color: #0F385C;
+  color: #FFFFFF;
+  border-bottom-right-radius: 4px;
+}
+
+.assistantMessage p, .userMessage p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.thinking {
+  color: #505A5F;
+  font-style: italic;
+}
+
+.factsBlock {
+  margin-top: 12px;
+}
+
+.factsBlock p {
+  margin: 0 0 8px;
+}
+
+.factsList {
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.factsList li {
+  margin-bottom: 4px;
+}
+
+.chatError {
+  align-self: stretch;
+  padding: 16px;
+  border-left: 5px solid #D4351C;
+  background-color: #FFFFFF;
+  color: #0B0C0C;
+}
+
+.chatError p {
+  margin: 0 0 8px;
+}
+
+.startPlanCard {
+  align-self: stretch;
+  padding: 20px;
+  border-radius: 16px;
+  background-color: #FFFFFF;
+}
+
+.startPlanCard h2 {
+  margin: 0 0 8px;
+  font-size: 21px;
+  font-weight: bold;
+}
+
+.startPlanSummary {
+  margin: 0 0 16px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #383F43;
+}
+
+.startPlanButton {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background-color: #0F7A52;
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.startPlanButton:hover {
+  background-color: #0B5C3E;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0;
+  background-color: #E8F1F8;
+}
+
+.composerInput {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1px solid #B1B4B6;
+  border-radius: 999px;
+  background-color: #FFFFFF;
+  font-size: 17px;
+  color: #0B0C0C;
+}
+
+.composerSubmit {
+  padding: 0 20px;
+  border: none;
+  border-radius: 999px;
+  background-color: #0F385C;
+  color: #FFFFFF;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.composerSubmit:disabled, .composerInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.startAgain {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1D70B8;
+  font-size: 15px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.elapsed {
+  margin: 0;
+  color: #505A5F;
+  font-size: 16px;
+}
+
+.ctaLink {
+  padding: 12px 18px;
+  border-radius: 4px;
+  background-color: #1D70B8;
+  color: #FFFFFF;
+  font-weight: bold;
+}
+
+.dialog {
+  max-width: 420px;
+  padding: 24px;
+  border: none;
+  border-radius: 16px;
+  background-color: #FFFFFF;
+  color: #0B0C0C;
+}
+
+.dialog::backdrop {
+  background-color: rgba(11, 12, 12, 0.6);
+}
+
+.dialog p {
+  margin: 0 0 20px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.dialogActions {
+  display: flex;
+  gap: 12px;
+}
+
+.dialogDestructive, .dialogCancel {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.dialogDestructive {
+  background-color: #D4351C;
   color: #FFFFFF;
 }
 
-.planButtonLink:hover {
-  text-decoration: underline;
+.dialogCancel {
+  background-color: #F3F2F1;
+  color: #0B0C0C;
 }
 
 .cardHeading, .stepCardHeading {

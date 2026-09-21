@@ -1,123 +1,57 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react";
 import styles from "@/app/page.module.css";
-import Heading from "@/app/components/shared/Heading"
-import Card from "@/app/components/shared/Card";
-import StepCard from "@/app/components/shared/StepCard";
 import BackButton from "@/app/components/shared/BackButton";
-import { saveToSessionStorage } from "@/lib/utils/saveToSessionStorage";
-import { getDescription } from "@/lib/utils/getDescription";
+import Card from "@/app/components/shared/Card";
+import Heading from "@/app/components/shared/Heading";
+import ElapsedTimer from "@/app/components/plan/ElapsedTimer";
+import NoPlan from "@/app/components/plan/NoPlan";
+import PlanSteps from "@/app/components/plan/PlanSteps";
+import { usePlanGeneration } from "@/hooks/use-plan-generation";
+import { useUnloadWarning } from "@/hooks/use-unload-warning";
 
-export default function Plan() {
-  const [description, setDescription] = useState("");
-  const [plan, setPlan] = useState<any>();
-  const [planSaved, setPlanSaved] = useState(false);
-  const [planGenerated, setPlanGenerated] = useState(false);
+export default function PlanPage() {
+  const { hydrated, plan, generating, error, retry } = usePlanGeneration();
 
-  useEffect(() => {
-    const storedPlan = sessionStorage.getItem("plan") || "";
-    setDescription(getDescription() || "");
+  useUnloadWarning(generating);
 
-    if(storedPlan && !planSaved) {
-      setPlan(JSON.parse(storedPlan))
-      setPlanSaved(true)
-    }
-
-    if(plan !== undefined && !planSaved && planGenerated) {
-      saveToSessionStorage(plan);
-      setPlanSaved(true)
-    }
-
-    if(description !== "" && !planSaved) {
-      generatePlan(description);
-      setPlanGenerated(true)
-    }
-  }, [description, planSaved, planGenerated, plan])
-
-  async function generatePlan(description: string) {
-    let url;
-    let payload;
-
-    if(process.env.MOCK_MODE === "true") {
-      url = "http://localhost:8000/mock"
-
-      payload = {
-        method: 'GET',
-        headers: {
-          "Content-Type": "application/json",
-        }
-      }
-    }
-    else {
-      url = "http://localhost:8000/plan"
-
-      payload = {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify( { "situation": description } ),
-      }
-    }
-
-    const response = await fetch(url, payload)
-    const data = await response.json()
-    setPlan(data.plan);
-  }
+  if (!hydrated) return null;
+  if (!plan && !generating && !retry) return <NoPlan />;
 
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <BackButton
-          url={"/"}
-          text={"Home"}
-        />
+        <BackButton url="/" text="Home" />
 
         <div className={styles.intro}>
-          {planSaved ? (
-            <Heading
-              heading={plan.title}
-            />
-          ) : (
-            <Heading
-              heading={"Loading your plan..."}
-            />
+          <Heading heading={plan ? plan.title : "Building your plan…"} />
+          {generating && <ElapsedTimer />}
+          {error && (
+            <div className={styles.chatError} role="alert">
+              <p>{error}</p>
+              {retry && (
+                <button type="button" className={styles.ctaButton} onClick={retry}>
+                  Try again
+                </button>
+              )}
+            </div>
           )}
         </div>
 
-        {planSaved && (
+        {plan && (
           <>
             <div className={styles.intro}>
               <Card
-                heading={"Your plan"}
+                heading="Your plan"
                 headingLevel={2}
                 text={plan.summary}
-                link={{
-                  url: '/user-info',
-                  text: 'What you`ve told us'
-                }}
+                link={{ url: "/user-info", text: "What you've told us" }}
               />
             </div>
 
             <div className={styles.intro}>
               <h2>Steps</h2>
-              
-              <ul className={styles.list}>
-                {plan.steps.map((step: any, index: number) => (
-                  <StepCard
-                    heading={step.title}
-                    key={index + 1}
-                    progress={step.status}
-                    totalTasks={step.tasks.length}
-                    completedTasks={step.tasks.filter((task: any) => task.completed).length}
-                    link={{
-                      url: `/step?stepId=${index}`,
-                      text: 'Details'
-                    }}
-                  />
-                ))}
-              </ul>
+              <PlanSteps steps={plan.steps} />
             </div>
           </>
         )}
