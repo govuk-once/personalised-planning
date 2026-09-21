@@ -133,7 +133,7 @@ class PlannerAgentRunner:
             )
 
     async def run(self, prompt: str) -> dict:
-        model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION)
+        model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION, max_tokens=16348)
         mcp_client = _build_mcp_client_service_graph()
 
         # Managed integration — passing the MCPClient into tools=[] handles
@@ -151,6 +151,22 @@ class PlannerAgentRunner:
             # structured_output_model=ResultPayload asks Strands to generate a
             # tool directly from ResultPayload's schema and force the model to call it
             result = await agent.invoke_async(prompt, structured_output_model=ResultPayload)
+
+            usage = result.metrics.accumulated_usage
+            summary = result.metrics.get_summary()
+            self.logger.log(
+                "INFO",
+                "Agent token usage",
+                input_tokens=usage.get("inputTokens"),
+                output_tokens=usage.get("outputTokens"),
+                total_tokens=usage.get("totalTokens"),
+                cache_read_tokens=usage.get("cacheReadInputTokens"),
+                cache_write_tokens=usage.get("cacheWriteInputTokens"),
+                total_cycles=summary.get("total_cycles"),
+                total_duration=summary.get("total_duration"),
+                tool_usage=summary.get("tool_usage"),
+                step="token_usage",
+            )
         except StructuredOutputException as e:
             self.logger.log(
                 "WARNING",
