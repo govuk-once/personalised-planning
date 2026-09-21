@@ -17,6 +17,20 @@ from pydantic import BaseModel, Field
 from agent_mock_response import mock_response
 from log_utils import StructuredLogger
 
+from .secrets_manager import load_secrets_into_env
+
+# In AgentCore mode the runtime ARNs live in Secrets Manager rather than the
+# environment.  Load them now — before any os.getenv config reads below — so
+# they're available as if they had been set in the process environment.
+#
+# Skipped in LOCAL_MODE: the ARNs aren't used there, and skipping lets the
+# backend start without AWS credentials in a pure-local dev setup.
+#
+# Precedence (same as the agent runtimes): existing env var → .env value →
+# Secrets Manager.  The helper never overwrites a key that is already set.
+if os.getenv("LOCAL_MODE", "false").lower() != "true":
+    load_secrets_into_env("planner-agent")
+
 # --- Configuration ---
 # Set LOCAL_MODE=true to call a locally running agent process/container,
 # instead of the deployed AgentCore runtime.
@@ -60,6 +74,7 @@ app.add_middleware(
 
 
 AGENT_UNAVAILABLE = "The service is temporarily unavailable. Please try again shortly."
+
 
 def session_response(payload: dict[str, Any], session_id: str) -> JSONResponse:
     response = JSONResponse(content=payload)
