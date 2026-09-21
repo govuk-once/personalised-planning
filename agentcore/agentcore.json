@@ -22,7 +22,8 @@
         { "name": "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA", "value": "1" },
         { "name": "OTEL_TRACES_EXPORTER", "value": "otlp" },
         { "name": "OTEL_METRICS_EXPORTER", "value": "otlp" },
-        { "name": "OTEL_LOGS_EXPORTER", "value": "otlp" }
+        { "name": "OTEL_LOGS_EXPORTER", "value": "otlp" },
+        { "name": "ANTHROPIC_MODEL", "value": "eu.anthropic.claude-sonnet-5" }
       ]
     },
     {
@@ -39,7 +40,8 @@
         { "name": "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA", "value": "1" },
         { "name": "OTEL_TRACES_EXPORTER", "value": "otlp" },
         { "name": "OTEL_METRICS_EXPORTER", "value": "otlp" },
-        { "name": "OTEL_LOGS_EXPORTER", "value": "otlp" }
+        { "name": "OTEL_LOGS_EXPORTER", "value": "otlp" },
+        { "name": "ANTHROPIC_MODEL", "value": "eu.anthropic.claude-sonnet-5" }
       ]
     }
   ],
