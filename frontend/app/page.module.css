@@ -22,6 +22,11 @@
   --background: #ffffff;
 }
 
+.endSessionPage .intro {
+  margin: auto;
+  align-items: center;
+}
+
 .main {
   display: flex;
   flex: 1;
@@ -29,7 +34,16 @@
   max-width: 800px;
   flex-direction: column;
   align-items: flex-start;
-  padding: 120px 60px;
+  padding: 0px 60px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 800px;
+  padding: 120px 60px 0px 60px;
 }
 
 .intro {
@@ -89,7 +103,19 @@
   border: none;
 }
 
-.editButton:hover {
+.endSessionButton {
+  background-color: #CA3535;
+  color: #ffffff;
+  border: 2px solid #CA3535;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 15px;
+  margin: auto;
+  width: 100%;
+  padding: 15px;
+}
+
+.editButton:hover, .endSessionButton:hover {
   cursor: pointer;
   text-decoration: underline;
 }
@@ -102,7 +128,6 @@
 
 .backButtonLink {
   width: auto;
-  margin-bottom: 20px;
   display: flex;
   align-items: center;
 }
@@ -122,6 +147,17 @@
 .backButtonLink:hover svg {
   outline: 3px solid #1D70B8;
   border-radius: 100%;
+}
+
+.profileIconLink:hover .profileIconSvg {
+  background-color: #1D70B8;
+  border-radius: 100%;
+  outline: 3px solid #1D70B8;
+  outline-offset: -3px;
+}
+
+.profileIconLink:hover .profileIconSvg path {
+  fill: #E8F1F8;
 }
 
 .ctas {

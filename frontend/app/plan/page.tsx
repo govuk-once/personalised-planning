@@ -9,6 +9,7 @@ import NoPlan from "@/app/components/plan/NoPlan";
 import PlanSteps from "@/app/components/plan/PlanSteps";
 import { usePlanGeneration } from "@/hooks/use-plan-generation";
 import { useUnloadWarning } from "@/hooks/use-unload-warning";
+import ProfileIconSvg from "@/app/icons/profileIcon";
 
 export default function PlanPage() {
   const { hydrated, plan, generating, error, retry } = usePlanGeneration();
@@ -20,9 +21,17 @@ export default function PlanPage() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
-        <BackButton url="/" text="Home" />
+      <header className={styles.header}>
+        <BackButton
+          url={"/"}
+          text={"Home"}
+        />
 
+        <a className={styles.profileIconLink} href="/end-session">
+          <ProfileIconSvg />
+        </a>
+      </header>
+      <main className={styles.main}>
         <div className={styles.intro}>
           <Heading heading={plan ? plan.title : "Building your plan…"} />
           {generating && <ElapsedTimer />}

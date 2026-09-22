@@ -7,6 +7,7 @@ import styles from "@/app/page.module.css";
 import BackButton from "@/app/components/shared/BackButton";
 import ListCard from "@/app/components/shared/ListCard";
 import { clearSession, useConversation, useHydrated } from "@/lib/session";
+import ProfileIconSvg from "@/app/icons/profileIcon";
 
 export default function UserInfo() {
   const router = useRouter();
@@ -23,9 +24,14 @@ export default function UserInfo() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <header className={styles.header}>
         <BackButton url="/plan" text="Back to Plan" />
 
+        <a className={styles.profileIconLink} href="/end-session">
+          <ProfileIconSvg />
+        </a>
+      </header>
+      <main className={styles.main}>
         <div className={styles.intro}>
           {!hydrated ? null : facts.length > 0 ? (
             <ListCard

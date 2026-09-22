@@ -13,6 +13,7 @@ import ListCard from "@/app/components/shared/ListCard";
 import TaskDetails from "@/app/components/plan/TaskDetails";
 import { toggleTask, taskAt } from "@/lib/plan";
 import { savePlan, useHydrated, usePlan } from "@/lib/session";
+import ProfileIconSvg from "@/app/icons/profileIcon";
 
 function TaskDetail() {
   const hydrated = useHydrated();
@@ -28,8 +29,14 @@ function TaskDetail() {
   if (!plan || !task) {
     return (
       <div className={styles.taskPage}>
+        <header className={styles.header}>
+          <BackButton url={`/step?stepId=${stepId}`} text="Back to Step" greyVariant={true} />
+
+          <a className={styles.profileIconLink} href="/end-session">
+            <ProfileIconSvg />
+          </a>
+        </header>
         <main className={styles.main}>
-          <BackButton url="/plan" text="Back to Plan" greyVariant={true} />
           <Heading heading="Task not found" description="Go back and pick a task from your plan." />
         </main>
       </div>
@@ -43,9 +50,14 @@ function TaskDetail() {
 
   return (
     <div className={styles.taskPage}>
-      <main className={styles.main}>
+      <header className={styles.header}>
         <BackButton url={`/step?stepId=${stepId}`} text="Back to Step" greyVariant={true} />
 
+        <a className={styles.profileIconLink} href="/end-session">
+          <ProfileIconSvg />
+        </a>
+      </header>
+      <main className={styles.main}>
         <div className={styles.intro}>
           <Heading heading={task.title} description={task.summary} />
           <Button
