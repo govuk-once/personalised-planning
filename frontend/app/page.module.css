@@ -42,7 +42,7 @@
   margin-bottom: 40px;
 }
 
-.intro h1, .intro h2 {
+.intro h1, .intro h2, .intro h3 {
   font-weight: bold;
   text-wrap: balance;
   color: var(--text-primary);
@@ -54,6 +54,10 @@
 
 .intro h2 {
   font-size: 21px;
+}
+
+.intro h3 {
+  font-size: 16px;
 }
 
 .intro p {
