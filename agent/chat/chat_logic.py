@@ -9,8 +9,8 @@ from shared.log_utils import StructuredLogger
 
 # Fallback cap: once the assistant has asked this many questions (turns), force
 # the conversation to complete so the interview can't drag on indefinitely.
-MAX_ASSISTANT_TURNS = int(os.getenv("CHAT_MAX_ASSISTANT_TURNS", "5"))
-FALLBACK_COMPLETE_MESSAGE = "Thanks, that's all the info I need!"
+MAX_ASSISTANT_TURNS = int(os.getenv("CHAT_MAX_ASSISTANT_TURNS", "15"))
+FALLBACK_COMPLETE_MESSAGE = "Thanks, that's all the info I need! Click below to create your personalised plan based on the information you shared..."
 
 
 def _message_text(message: dict[str, Any]) -> str:
