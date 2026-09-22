@@ -371,6 +371,7 @@ a.secondary {
 
 .tableHeader {
   padding-right: 15px;
+  min-width: 50%;
 }
 
 .tableRow {
