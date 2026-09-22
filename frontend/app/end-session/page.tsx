@@ -3,7 +3,7 @@
 import styles from "@/app/page.module.css";
 import { useEffect, useState } from "react";
 import Button from "@/app/components/shared/Button";
-import BackButton from "@/app/components/shared/BackButton";
+import Header from "@/app/components/shared/Header";
 import { clearSession } from "@/lib/session";
 
 export default function EndSession() {
@@ -32,12 +32,10 @@ export default function EndSession() {
 
     return (
         <div className={`${styles.page} ${styles.endSessionPage}`}>
-            <header className={styles.header}>
-                <BackButton
-                    url={referrer}
-                    text={`Back to ${previousPage}`}
-                />
-            </header>
+            <Header 
+                backButtonUrl={referrer}
+                backButtonText={`Back to ${previousPage}`}
+            />
             <main className={styles.main}>
                 <div className={styles.intro}>
                     {!sessionEnded && (

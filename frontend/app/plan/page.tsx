@@ -1,15 +1,14 @@
 "use client";
 
 import styles from "@/app/page.module.css";
-import BackButton from "@/app/components/shared/BackButton";
 import Card from "@/app/components/shared/Card";
 import Heading from "@/app/components/shared/Heading";
 import ElapsedTimer from "@/app/components/plan/ElapsedTimer";
 import NoPlan from "@/app/components/plan/NoPlan";
 import PlanSteps from "@/app/components/plan/PlanSteps";
+import Header from "@/app/components/shared/Header";
 import { usePlanGeneration } from "@/hooks/use-plan-generation";
 import { useUnloadWarning } from "@/hooks/use-unload-warning";
-import ProfileIconSvg from "@/app/icons/profileIcon";
 
 export default function PlanPage() {
   const { hydrated, plan, generating, error, retry } = usePlanGeneration();
@@ -21,16 +20,10 @@ export default function PlanPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <BackButton
-          url={"/"}
-          text={"Home"}
-        />
-
-        <a className={styles.profileIconLink} href="/end-session">
-          <ProfileIconSvg />
-        </a>
-      </header>
+      <Header 
+        backButtonUrl={"/"}
+        backButtonText={"Home"}
+      />
       <main className={styles.main}>
         <div className={styles.intro}>
           <Heading heading={plan ? plan.title : "Building your plan…"} />

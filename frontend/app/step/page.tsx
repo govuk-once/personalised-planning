@@ -4,13 +4,12 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 import styles from "@/app/page.module.css";
-import BackButton from "@/app/components/shared/BackButton";
 import Heading from "@/app/components/shared/Heading";
 import StepCard from "@/app/components/shared/StepCard";
 import TaskCard from "@/app/components/shared/TaskCard";
+import Header from "@/app/components/shared/Header";
 import { completedCount, stepAt } from "@/lib/plan";
 import { useHydrated, usePlan } from "@/lib/session";
-import ProfileIconSvg from "@/app/icons/profileIcon";
 
 function StepDetail() {
   const hydrated = useHydrated();
@@ -24,13 +23,10 @@ function StepDetail() {
   if (!step) {
     return (
       <div className={styles.page}>
-        <header className={styles.header}>
-          <BackButton url="/plan" text="Back to Plan" />
-
-          <a className={styles.profileIconLink} href="/end-session">
-            <ProfileIconSvg />
-          </a>
-        </header>
+        <Header 
+          backButtonUrl={"/plan"}
+          backButtonText={"Back to Plan"}
+        />
         <main className={styles.main}>
           <div className={styles.intro}>
             <Heading heading="Step not found" description="Go back and pick a step from your plan." />
@@ -42,13 +38,10 @@ function StepDetail() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <BackButton url="/plan" text="Back to Plan" />
-
-        <a className={styles.profileIconLink} href="/end-session">
-          <ProfileIconSvg />
-        </a>
-      </header>
+      <Header 
+        backButtonUrl={"/plan"}
+        backButtonText={"Back to Plan"}
+      />
       <main className={styles.main}>
         <div className={styles.intro}>
           <Heading heading={step.title} />
