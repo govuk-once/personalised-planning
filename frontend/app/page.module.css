@@ -61,7 +61,7 @@
   line-height: 32px;
 }
 
-.intro a {
+.intro a:not(.ctaLink) {
   font-weight: 500;
   color: var(--text-primary);
 }
@@ -658,6 +658,13 @@ a.secondary {
   background-color: #1D70B8;
   color: #FFFFFF;
   font-weight: bold;
+}
+
+.ctaLink:hover {
+  background-color: #FFFFFF;
+  color: #1D70B8;
+  outline: 3px solid #1D70B8;
+  outline-offset: -3px;
 }
 
 .dialog {
