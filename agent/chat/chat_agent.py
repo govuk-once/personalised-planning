@@ -297,7 +297,7 @@ class ChatAgentRunner:
                 modelId=MODEL_ID,
                 system=[{"text": SUMMARY_SYSTEM_PROMPT}],
                 messages=[{"role": "user", "content": [{"text": user_text}]}],
-                inferenceConfig={"maxTokens": 100, "temperature": 0},
+                inferenceConfig={"maxTokens": 524},
             )
             return resp["output"]["message"]["content"][0]["text"].strip()
 
