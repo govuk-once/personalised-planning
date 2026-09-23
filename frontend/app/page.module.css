@@ -70,6 +70,13 @@
   color: var(--text-primary);
 }
 
+a:focus, button:focus:not(.ctaButton) {
+  background: #ffdd00;
+  border: none;
+  outline: none;
+  color: #000000;
+}
+
 .ctaButton, .formSubmit {
   background-color: #1D70B8;
   color: #ffffff;
@@ -85,6 +92,13 @@
 .ctaButton--complete {
   background-color: #0F7A52;
   border: 2px solid #0F7A52;
+}
+
+.ctaButton:focus-visible {
+  background: #ffdd00;
+  border: 2px solid #ffdd00;
+  outline: none;
+  color: #000000;
 }
 
 .editButton {
@@ -109,6 +123,18 @@
   margin-bottom: 20px;
   display: flex;
   align-items: center;
+}
+
+.backButtonLink:focus {
+  background: none;
+}
+
+.backButtonLink:focus span {
+  text-decoration: underline;
+}
+
+.backButtonLink:focus svg rect, .backButtonLink.backButtonLink--grey:focus svg rect {
+  fill: #ffdd00;
 }
 
 .backButtonLink svg {
@@ -335,6 +361,10 @@ a.secondary {
   border-radius: 0 0 15px 15px;
 }
 
+.cardLink:focus, .stepCardLink:focus {
+  border-radius: 0 0 15px 15px;
+}
+
 .taskCard {
   background: #ffffff;
   border-radius: 15px;
@@ -351,6 +381,10 @@ a.secondary {
 
 .taskCardLink:hover, .linkCardLink:hover {
   outline: 3px solid #1D70B8;
+  border-radius: 15px;
+}
+
+.taskCardLink:focus, .linkCardLink:focus {
   border-radius: 15px;
 }
 
