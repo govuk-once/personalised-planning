@@ -29,7 +29,7 @@ export default function PlanPage() {
             generating={generating}
           />
           {generating && <ElapsedTimer />}
-          {error && (
+          {error && !generating && (
             <div className={styles.chatError} role="alert">
               <p>{error}</p>
               {retry && (
