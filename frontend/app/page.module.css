@@ -706,6 +706,17 @@ a.secondary {
   cursor: pointer;
 }
 
+.composerSubmit:hover {
+  background-color: #ffffff;
+  color: #0F385C;
+  outline: 2px solid #0F385C;
+  outline-offset: -2px;
+}
+
+.startPlanButton:focus:hover, .composerSubmit:focus:hover {
+  text-decoration: underline;
+}
+
 .composerSubmit:disabled, .composerInput:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -718,8 +729,11 @@ a.secondary {
   background: none;
   color: #1D70B8;
   font-size: 15px;
-  text-decoration: underline;
   cursor: pointer;
+}
+
+.startAgain:hover {
+  text-decoration: underline;
 }
 
 .elapsed {
