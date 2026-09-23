@@ -4,6 +4,7 @@ import os
 import time
 
 import boto3
+from botocore.config import Config as BotocoreConfig
 from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
@@ -206,7 +207,13 @@ class ChatAgentRunner:
                 )
 
     async def run(self, prompt: str, history: list[dict] | None = None, context: str = "") -> dict:
-        model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION)
+        boto_config = BotocoreConfig(read_timeout=180)
+        model = BedrockModel(
+            model_id=MODEL_ID,
+            region_name=BEDROCK_REGION,
+            boto_client_config=boto_config,
+            max_tokens=8192,
+        )
 
         # static_questions: single in-process tool over the fixed question set.
         # graph (default): live service-graph MCP (list_life_events + get_required_information).

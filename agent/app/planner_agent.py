@@ -1,6 +1,7 @@
 import os
 import time
 
+from botocore.config import Config as BotocoreConfig
 from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
@@ -133,7 +134,13 @@ class PlannerAgentRunner:
             )
 
     async def run(self, prompt: str) -> dict:
-        model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION, max_tokens=16348)
+        boto_config = BotocoreConfig(read_timeout=180)
+        model = BedrockModel(
+            model_id=MODEL_ID,
+            region_name=BEDROCK_REGION,
+            boto_client_config=boto_config,
+            max_tokens=16348,
+        )
         mcp_client = _build_mcp_client_service_graph()
 
         # Managed integration — passing the MCPClient into tools=[] handles
