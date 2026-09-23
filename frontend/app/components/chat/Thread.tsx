@@ -28,7 +28,7 @@ export default function Thread({ messages, pending, error }: Readonly<ThreadProp
 
       {pending && (
         <div className={styles.assistantMessage}>
-          <p className={styles.thinking}>Thinking…</p>
+          <p className={styles.thinking}>Thinking<span className={styles.loadingEllipsis}>...</span></p>
         </div>
       )}
 
