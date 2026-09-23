@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import time
 
@@ -8,7 +9,7 @@ from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from shared.log_utils import StructuredLogger
 from shared.utils import read_file_content
-from strands import Agent
+from strands import Agent, tool
 from strands.hooks import (
     AfterInvocationEvent,
     AfterToolCallEvent,
@@ -34,7 +35,17 @@ if MCP_MODE == "local":
 else:
     GRAPH_MCP_URL = os.getenv("GRAPH_GATEWAY_URL")
 
-SYSTEM_PROMPT = read_file_content("./system_prompt.md")
+# "graph" (default)  — live service-graph MCP, same as the planner.
+# "static_questions" — fixed question set from ./questions.json; no MCP server needed.
+QUESTION_SOURCE = os.getenv("QUESTION_SOURCE", "graph").lower()
+
+if QUESTION_SOURCE == "static_questions":
+    SYSTEM_PROMPT = read_file_content("./system_prompt_static_questions.md")
+else:
+    SYSTEM_PROMPT = read_file_content("./system_prompt.md")
+
+# Loaded at import in both modes — small, and avoids a conditional read.
+QUESTIONS = json.loads(read_file_content("./questions.json"))["questions"]
 # One-shot summarisation prompt, used once the conversation is complete to distil
 # the whole conversation into a single sentence for the planner's `situation`.
 SUMMARY_SYSTEM_PROMPT = read_file_content("./summary_prompt.md")
@@ -57,10 +68,11 @@ class ChatObservabilityHooks(HookProvider):
     rather than an if/elif ladder.
     """
 
-    def __init__(self, logger: StructuredLogger):
+    def __init__(self, logger):
         self.logger = logger
-        self._invocation_start: float | None = None
-        self._last_tool_result_at: float | None = None
+        self._invocation_start = None
+        self._last_tool_result_at = None
+        self.last_required_info_summary: dict | None = None
 
     def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
         registry.add_callback(BeforeInvocationEvent, self._on_invocation_start)
@@ -89,7 +101,7 @@ class ChatObservabilityHooks(HookProvider):
             f"TOOL USE: {tool_use.get('name')}",
             tool_use_id=tool_use.get("toolUseId"),
             tool_name=tool_use.get("name"),
-            input=str(tool_use.get("input"))[:200],
+            input=str(tool_use.get("input")),
             step="tool_use",
         )
 
@@ -104,9 +116,19 @@ class ChatObservabilityHooks(HookProvider):
             "INFO",
             "Tool result received",
             tool_use_id=event.tool_use.get("toolUseId"),
+            status=event.result.get("status"),
+            result=str(event.result.get("content"))[
+                :2000
+            ],  # untruncated enough to see known_facts/outstanding fully — bump/remove the cap for this diagnostic pass
             elapsed_since_last_tool_result_s=elapsed_since_last,
             step="tool_result",
         )
+        if event.tool_use.get("name", "").endswith("get_required_information"):
+            try:
+                text = event.result.get("content", [{}])[0].get("text", "")
+                self.last_required_info_summary = json.loads(text).get("summary")
+            except Exception:
+                pass
 
 
 def _build_mcp_client_service_graph() -> MCPClient:
@@ -129,6 +151,29 @@ def _build_mcp_client_service_graph() -> MCPClient:
     )
 
 
+@tool
+def ask_static_questions(known_facts: dict | None = None) -> dict:
+    """Return the questions still outstanding for the user's plan.
+
+    Filters the static question set against facts already gathered. When
+    `questions` is empty every required fact has been collected.
+
+    Args:
+        known_facts: Facts established so far, keyed by UserContext field name
+            (e.g. {"age": 34, "nation": "England"}).
+    """
+    known = known_facts or {}
+    outstanding = [q for q in QUESTIONS if q["field"] not in known]
+    return {
+        "summary": {
+            "totalQuestions": len(QUESTIONS),
+            "answered": len(QUESTIONS) - len(outstanding),
+            "outstanding": len(outstanding),
+        },
+        "questions": outstanding,
+    }
+
+
 class ChatAgentRunner:
     """
     Runs the conversational information-gathering agent. It interviews the user
@@ -145,23 +190,37 @@ class ChatAgentRunner:
 
         if logger:
             logger.log("INFO", f"Utilising Model: {MODEL_ID}")
-            logger.log(
-                "INFO",
-                f"Configuring MCP ({MCP_MODE})",
-                mcp_target=GRAPH_MCP_URL,
-                step="mcp_config",
-            )
+            if QUESTION_SOURCE == "static_questions":
+                logger.log(
+                    "INFO",
+                    "Question source: static_questions",
+                    question_count=len(QUESTIONS),
+                    step="questions_config",
+                )
+            else:
+                logger.log(
+                    "INFO",
+                    f"Question source: graph (MCP {MCP_MODE})",
+                    mcp_target=GRAPH_MCP_URL,
+                    step="questions_config",
+                )
 
     async def run(self, prompt: str, history: list[dict] | None = None, context: str = "") -> dict:
         model = BedrockModel(model_id=MODEL_ID, region_name=BEDROCK_REGION)
-        mcp_client = _build_mcp_client_service_graph()
+
+        # static_questions: single in-process tool over the fixed question set.
+        # graph (default): live service-graph MCP (list_life_events + get_required_information).
+        if QUESTION_SOURCE == "static_questions":
+            tools = [ask_static_questions]
+        else:
+            tools = [_build_mcp_client_service_graph()]
 
         # Seed prior turns so the invocation is stateless — the caller-held
         # transcript is the single source of truth.
         hooks = [ChatObservabilityHooks(self.logger)] if self.logger else []
         agent = Agent(
             model=model,
-            tools=[mcp_client],
+            tools=[tools],
             system_prompt=f"{SYSTEM_PROMPT}\n\n### Known context\n{context}"
             if context
             else SYSTEM_PROMPT,
@@ -224,10 +283,20 @@ class ChatAgentRunner:
         client = _get_bedrock_runtime_client()
 
         def _invoke() -> str:
+            # Wrap the transcript in XML tags so the model treats it as data to
+            # summarise rather than a conversation to continue, then restate the
+            # instruction after the closing tag — a trailing directive is harder
+            # to override than a system-only prompt.
+            user_text = (
+                "<transcript>\n" + transcript + "\n</transcript>\n\n"
+                "Summarise the above transcript in exactly one plain-English sentence "
+                "from the person's perspective. Respond with only that sentence — "
+                "no preamble, no quotation marks, no bullet points."
+            )
             resp = client.converse(
                 modelId=MODEL_ID,
                 system=[{"text": SUMMARY_SYSTEM_PROMPT}],
-                messages=[{"role": "user", "content": [{"text": transcript}]}],
+                messages=[{"role": "user", "content": [{"text": user_text}]}],
                 inferenceConfig={"maxTokens": 100, "temperature": 0},
             )
             return resp["output"]["message"]["content"][0]["text"].strip()

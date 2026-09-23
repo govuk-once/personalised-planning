@@ -1,0 +1,34 @@
+{
+  "questions": [
+    {
+      "question": "Which UK nation are you in — England, Scotland, Wales or Northern Ireland?",
+      "field": "nation",
+      "factors": ["location"],
+      "neededBy": []
+    },
+    {
+      "question": "How old are you?",
+      "field": "age",
+      "factors": ["eligibility"],
+      "neededBy": []
+    },
+    {
+      "question": "Are you currently employed, self-employed, or not working?",
+      "field": "employment_status",
+      "factors": ["employment"],
+      "neededBy": []
+    },
+    {
+      "question": "Do you have any children or dependants?",
+      "field": "has_children",
+      "factors": ["household"],
+      "neededBy": []
+    },
+    {
+      "question": "Do you have a partner living with you?",
+      "field": "has_partner",
+      "factors": ["household"],
+      "neededBy": []
+    }
+  ]
+}

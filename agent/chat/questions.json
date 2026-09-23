@@ -1,0 +1,95 @@
+{
+  "questions": [
+    {
+      "question": "What do you want help with today?",
+      "field": "custom_facts.main_goal",
+      "factors": [
+        "goal"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Are you the birth parent or their partner?",
+      "field": "custom_facts.which_parent",
+      "factors": [
+        "parent"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Are you currently pregnant, yet to be pregnant or had the baby already?",
+      "field": "is_pregnant",
+      "factors": [
+        "birth",
+        "pregnancy_status"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Which nation do you live in?",
+      "field": "nation",
+      "factors": [
+        "location"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Was the baby born in the UK or abroad?",
+      "field": "custom_facts.born_abroad",
+      "factors": [
+        "birth",
+        "location"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "What is your employment status?",
+      "field": "employment_status",
+      "factors": [
+        "employment"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Are you or your partner currently receiving qualifying benefits (such as Universal Credit, Income Support, Pension Credit or income-related ESA)?",
+      "field": "custom_facts.receiving_qualifying_benefit",
+      "factors": [
+        "benefits"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Do you already have children?",
+      "field": "has_children",
+      "factors": [
+        "household"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "How old is your youngest child?",
+      "field": "youngest_child_age",
+      "factors": [
+        "household"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Is this a multiple birth (such as twins or triplets)?",
+      "field": "custom_facts.multiple_birth",
+      "factors": [
+        "birth",
+        "household"
+      ],
+      "neededBy": []
+    },
+    {
+      "question": "Are you married to, or in a civil partnership with, the birth parent?",
+      "field": "relationship_status",
+      "factors": [
+        "parental_rights"
+      ],
+      "neededBy": []
+    }
+  ]
+}

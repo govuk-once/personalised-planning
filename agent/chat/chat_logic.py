@@ -43,10 +43,18 @@ def _context_note(user_context: dict[str, Any] | None) -> str:
     """Without `today` the agent dates relative times from its training cutoff."""
     context = dict(user_context or {})
     today = context.pop("today", None)
+    life_event_ids = context.pop("life_event_ids", None)
 
     parts = []
     if today:
         parts.append(f"Today's date is {today}. Resolve every relative date against it.")
+    if life_event_ids:
+        ids_str = ", ".join(life_event_ids)
+        parts.append(
+            f"Life events already confirmed from a prior turn: {ids_str}. "
+            "Do NOT call list_life_events again unless the user describes a new situation "
+            "not covered by these IDs."
+        )
     if context:
         parts.append(
             "Facts you established earlier in this conversation. Treat them as already "
