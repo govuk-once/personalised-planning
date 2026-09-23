@@ -610,6 +610,10 @@ a.secondary {
   background-color: #FFFFFF;
 }
 
+.startPlanCard p {
+  padding-bottom: 15px;
+}
+
 .startPlanCard h2 {
   margin: 0 0 8px;
   font-size: 21px;
