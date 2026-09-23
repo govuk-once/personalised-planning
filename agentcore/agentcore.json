@@ -42,7 +42,8 @@
         { "name": "OTEL_METRICS_EXPORTER", "value": "otlp" },
         { "name": "OTEL_LOGS_EXPORTER", "value": "otlp" },
         { "name": "ANTHROPIC_MODEL", "value": "eu.anthropic.claude-sonnet-5" },
-        { "name": "CHAT_MAX_ASSISTANT_TURNS", "value": "15" }
+        { "name": "CHAT_MAX_ASSISTANT_TURNS", "value": "15" },
+        { "name": "QUESTION_SOURCE", "value": "graph" }
       ]
     }
   ],
