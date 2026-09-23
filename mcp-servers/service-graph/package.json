@@ -13,7 +13,7 @@
     "@anthropic-ai/sdk": "^0.95.2",
     "@aws/run-mcp-servers-with-aws-lambda": "^0.5.19",
     "@modelcontextprotocol/sdk": "^1.7.0",
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.162",
