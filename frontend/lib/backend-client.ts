@@ -1,4 +1,5 @@
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+export const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+const BACKEND_API_KEY = process.env.BACKEND_API_KEY;
 const REQUEST_TIMEOUT_MS = Number(process.env.BACKEND_TIMEOUT_MS ?? 300_000);
 
 export class BackendError extends Error {
@@ -17,6 +18,7 @@ export async function callBackend<T>(path: string, sessionId: string, body?: unk
     headers: {
       "Content-Type": "application/json",
       "X-Session-Id": sessionId,
+      ...(BACKEND_API_KEY ? { "X-Api-Key": BACKEND_API_KEY } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
