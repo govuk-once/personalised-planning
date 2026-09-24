@@ -764,6 +764,7 @@ a.secondary {
   border-radius: 16px;
   background-color: #FFFFFF;
   color: #0B0C0C;
+  margin: auto;
 }
 
 .dialog::backdrop {
