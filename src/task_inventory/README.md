@@ -14,9 +14,9 @@ Orchestrated end-to-end by **`scripts/task_inventory/run_pipeline.py`**.
 |-------|---------|--------------|--------|---------|
 | 0-1 | `sections.py` | Parses GOV.UK pages into per-sentence rows | `data/having_a_baby_subgraph.json` | `data/sentences.csv` |
 | 2 | `candidates.py` | Flags action/deadline candidates via pattern matching + LLM | `data/sentences.csv` | `data/candidates.csv` |
-| 3 | `drafts.py` | One LLM call per section → structured Draft objects | `data/sentences_extracted.csv`, `data/candidates.csv`, `prompts/section_drafts.v2.md` | `data/runs/latest/drafts.jsonl`, `drafts_rejected.jsonl`, `stage3_summary.json` |
+| 3 | `drafts.py` | One LLM call per section → structured Draft objects | `data/sentences_extracted.csv`, `data/candidates.csv`, `prompts/section_drafts.md` | `data/runs/latest/drafts.jsonl`, `drafts_rejected.jsonl`, `stage3_summary.json` |
 | 4a | `reconcile/blocking.py` | Near-duplicate pre-merge + policy-family grouping | Draft list | Groups of drafts (in memory) |
-| 4b | `reconcile/clustering.py` | LLM assigns drafts to clusters within each group | Groups, `prompts/clusters.v2.md` | `ClusterResult` objects |
+| 4b | `reconcile/clustering.py` | LLM assigns drafts to clusters within each group | Groups, `prompts/clusters.md` | `ClusterResult` objects |
 | 4c | `reconcile/merge.py` | Deterministic field-level merge of each cluster | Clusters + Draft lookup | `TaskRecord` objects |
 | 5 | `checks.py` | Semantic validation of drafts and tasks | Draft / TaskRecord objects | Error + warning lists |
 | 5 | `review.py` | CSV snapshots for human review gates | Drafts, clusters, conflicts | `drafts_review.csv`, `clusters.csv`, `conflicts.csv` |

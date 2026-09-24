@@ -25,7 +25,7 @@ Key functions:
 - singleton_result(drafts)
       Fallback: each draft becomes its own single-member cluster.
 
-Prompt template:  prompts/clusters.v2.md  (read from CWD at call time).
+Prompt template:  prompts/clusters.md  (read from CWD at call time).
 LLM cache:        data/cache/clusters/<hash16>.json.
 Requires AWS Bedrock credentials; model defaults to ANTHROPIC_MODEL env var or
 eu.anthropic.claude-sonnet-5.
@@ -36,7 +36,7 @@ from pathlib import Path
 from src.task_inventory.llm import call_structured, make_cache_key
 from src.task_inventory.schema import Cluster, ClusterResult, Draft, Member
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 VERB_LIST = [
     "Check",
     "Tell",
@@ -71,7 +71,7 @@ VERB_LIST = [
 
 def load_prompt_template() -> str:
     """Load clustering prompt template"""
-    prompt_path = Path(f"prompts/clusters.{PROMPT_VERSION}.md")
+    prompt_path = Path("prompts/clusters.md")
     with open(prompt_path) as f:
         return f.read()
 

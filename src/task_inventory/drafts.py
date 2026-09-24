@@ -17,13 +17,13 @@ Key functions:
       Runs normalise() + Pydantic + check_evidence_and_journeys + check_draft on one
       raw LLM dict; returns (TaskBody | None, errors).
 - build_prompt(base_path, section_path, parent_heading, sentences, flagged_ids, ...)
-      Renders the prompt template from prompts/section_drafts.v2.md.
+      Renders the prompt template from prompts/section_drafts.md.
 
 Run via:
     python scripts/task_inventory/run_pipeline.py --stage drafts
 
 Assumptions:
-- Prompt template must exist at  prompts/section_drafts.v2.md  (relative to CWD).
+- Prompt template must exist at  prompts/section_drafts.md  (relative to CWD).
 - Optional scope rules file at   data/scope.yaml  (exclude_sections / exclude_sentence_patterns).
 - Input:  data/sentences_extracted.csv  and  data/candidates.csv.
 - Output written to  data/runs/latest/  (or the directory passed via output_dir):
@@ -72,12 +72,12 @@ class LooseSectionDrafts(BaseModel):
         return SectionDrafts.model_json_schema(*args, **kwargs)
 
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 
 def load_prompt_template() -> str:
     """Load section drafts prompt template"""
-    prompt_path = Path(f"prompts/section_drafts.{PROMPT_VERSION}.md")
+    prompt_path = Path("prompts/section_drafts.md")
     with open(prompt_path) as f:
         return f.read()
 
