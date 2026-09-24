@@ -29,7 +29,7 @@ Assumptions:
   before running stage 3.
 - LLM mode requires AWS Bedrock credentials in the environment and a reachable
   eu-west-2 endpoint.  Disable with use_llm=False for offline/cheap runs.
-- Default model: eu.anthropic.claude-sonnet-4-0 (override via model_id arg or
+- Default model: eu.anthropic.claude-sonnet-5 (override via model_id arg or
   ANTHROPIC_MODEL env var).
 """
 
@@ -341,7 +341,7 @@ def flag_candidates_from_sentences(
     sentences_path: str = "data/sentences.csv",
     output_path: str = "data/candidates.csv",
     use_llm: bool = True,
-    model_id: str = "eu.anthropic.claude-sonnet-4-0",
+    model_id: str = "eu.anthropic.claude-sonnet-5",
     region: str = "eu-west-2",
 ) -> dict:
     """

@@ -92,7 +92,7 @@ def run_candidates_stage(args):
         sentences_path=args.sentences,
         output_path=args.candidates,
         use_llm=use_llm,
-        model_id=getattr(args, "model_id", "eu.anthropic.claude-sonnet-4-6"),
+        model_id=getattr(args, "model_id", "eu.anthropic.claude-sonnet-5"),
         region=getattr(args, "region", "eu-west-2"),
     )
 
@@ -465,7 +465,7 @@ def main():
         action="store_true",
         help="Pattern matching only (no LLM, default is pattern + LLM)",
     )
-    candidates_parser.add_argument("--model-id", default="eu.anthropic.claude-sonnet-4-0")
+    candidates_parser.add_argument("--model-id", default="eu.anthropic.claude-sonnet-5")
     candidates_parser.add_argument("--region", default="eu-west-2")
 
     # Drafts command
@@ -503,7 +503,7 @@ def main():
     all_parser.add_argument("--output-dir")
     all_parser.add_argument("--pages", nargs="+", help="Filter to specific pages")
     all_parser.add_argument("--baseline", help="Baseline tasks.json for diff")
-    all_parser.add_argument("--model-id", default="eu.anthropic.claude-sonnet-4-0")
+    all_parser.add_argument("--model-id", default="eu.anthropic.claude-sonnet-5")
     all_parser.add_argument("--region", default="eu-west-2")
     all_parser.add_argument(
         "--skip-sections",
