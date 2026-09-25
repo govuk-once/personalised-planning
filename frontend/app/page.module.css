@@ -586,6 +586,10 @@ a.secondary {
   left: 0;
   animation: ellipsis steps(1, end) 1s infinite;
   content: "";
+  color: #505a5f;
+}
+
+.loadingEllipsisBlack::after {
   color: #000000;
 }
 

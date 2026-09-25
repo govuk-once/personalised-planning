@@ -12,7 +12,7 @@ export default function Heading(props: Readonly<HeadingProps>) {
       <h1>
         {props.heading}
         {props.generating && (
-          <span className={styles.loadingEllipsis}>...</span>
+          <span className={`${styles.loadingEllipsis} ${styles.loadingEllipsisBlack}`}>...</span>
         )}
       </h1>
       
