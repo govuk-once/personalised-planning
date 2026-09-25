@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { createPlanRequest } from "@/app/actions";
+import { failedCall } from "@/lib/action-failure";
 import { getSessionId, savePlan, useConversation, useHydrated, usePlan } from "@/lib/session";
 import type { PlanRequest, PlanResult } from "@/lib/types";
 
@@ -61,7 +62,9 @@ export function usePlanGeneration() {
     startGenerating(async () => {
       setError(null);
       const sessionId = getSessionId();
-      const target = await createPlanRequest({ sessionId, situation: brief, userContext });
+      const target = await createPlanRequest({ sessionId, situation: brief, userContext }).catch(
+        failedCall
+      );
 
       if (!target.ok) {
         setError(target.error);
