@@ -1,5 +1,8 @@
+import hashlib
+import hmac
 import json
 import os
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -40,6 +43,26 @@ CHAT_AGENT_URL = os.getenv("CHAT_AGENT_URL", "http://localhost:8081/invocations"
 CHAT_AGENT_RUNTIME_ARN = os.getenv("CHAT_AGENT_RUNTIME_ARN")
 CHAT_AGENT_ENDPOINT_NAME = os.getenv("CHAT_AGENT_ENDPOINT_NAME")
 
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY")
+OPEN_PATHS = frozenset({"/health"})
+
+TICKET_PATHS = frozenset({"/plan", "/mock"})
+
+
+def ticket_is_valid(ticket: str | None, session_id: str) -> bool:
+    if not ticket or not BACKEND_API_KEY:
+        return False
+
+    expiry, _, digest = ticket.partition(".")
+    if not digest or not expiry.isdigit() or int(expiry) < time.time():
+        return False
+
+    expected = hmac.new(
+        BACKEND_API_KEY.encode(), f"{session_id}.{expiry}".encode(), hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, digest)
+
+
 app = FastAPI(title="Planner Backend", version="1.0.0")
 
 # boto3 client is thread-safe and cheap to reuse across requests.
@@ -50,13 +73,31 @@ _agentcore_client = None
 # origins currently hardcoded and set to localhost:3000 for development - to be replaced by env vars later once known
 origins = ["http://localhost:3000"]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+@app.middleware("http")
+async def require_api_key(request: Request, call_next):
+    path = request.url.path
+    if not BACKEND_API_KEY or path in OPEN_PATHS or request.method == "OPTIONS":
+        return await call_next(request)
+
+    if request.headers.get("x-api-key") == BACKEND_API_KEY:
+        return await call_next(request)
+
+    if path in TICKET_PATHS and ticket_is_valid(
+        request.headers.get("x-plan-ticket"), request.headers.get("x-session-id", "")
+    ):
+        return await call_next(request)
+
+    return JSONResponse(status_code=403, content={"detail": "Forbidden"})
 
 
 AGENT_UNAVAILABLE = "The service is temporarily unavailable. Please try again shortly."

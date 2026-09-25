@@ -1,0 +1,42 @@
+version: 1
+applications:
+  - appRoot: frontend
+    backend:
+      phases:
+        build:
+          commands:
+            - '[ -f amplify.yml ] || cd ..'
+            - test -n "$AGENT_RUNTIME_ARN$CHAT_AGENT_RUNTIME_ARN$BACKEND_API_KEY" || { echo "This app has no environment variables set"; exit 1; }
+            - npm install --no-audit --no-fund
+            - curl -LsSf https://astral.sh/uv/install.sh | sh
+            - export PATH="$HOME/.local/bin:$PATH"
+            - BUNDLE=amplify/python-backend/.build/lambda
+            - rm -rf $BUNDLE && mkdir -p $BUNDLE
+            - uv pip install --quiet --target $BUNDLE --python-platform aarch64-manylinux2014 --python-version 3.12 -r backend/pyproject.toml
+            - cp -R backend/app $BUNDLE/app
+            - cp backend/handler.py backend/log_utils.py backend/agent_mock_response.py $BUNDLE/
+            - file $(find $BUNDLE -name '_pydantic_core*.so' -print -quit) | grep -q 'ELF 64-bit.*aarch64'
+            - npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            # The backend phase leaves the shell at the repo root.
+            - '[ -f next.config.ts ] || cd frontend'
+            - npm install -g pnpm@12
+            - pnpm install --frozen-lockfile
+            - node -e "if(require('fs').lstatSync('node_modules/react').isSymbolicLink()){console.error('node_modules is symlinked; Amplify cannot bundle it');process.exit(1)}"
+        build:
+          commands:
+            - '[ -f next.config.ts ] || cd frontend'
+            - BACKEND_URL=$(node -p "require('../amplify_outputs.json').custom.backendUrl")
+            - test -n "$BACKEND_URL" || { echo "backendUrl missing from amplify_outputs.json"; exit 1; }
+            - printf 'BACKEND_URL=%s\nBACKEND_API_KEY=%s\n' "$BACKEND_URL" "$BACKEND_API_KEY" > .env.production
+            - pnpm build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - .next/cache/**/*
