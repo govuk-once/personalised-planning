@@ -106,12 +106,11 @@ class AgentHelp(BaseModel):
 class ResultPayload(BaseModel):
     model_config = {"extra": "forbid"}
     plan: Plan | None = None
-    agent_help: AgentHelp | None = None
 
     @model_validator(mode="after")
-    def at_least_one_present(self):
-        if self.plan is None and self.agent_help is None:
-            raise ValueError("ResultPayload must contain at least one of plan or agent_help")
+    def plan_present(self):
+        if self.plan is None:
+            raise ValueError("ResultPayload must contain a plan")
         return self
 
 

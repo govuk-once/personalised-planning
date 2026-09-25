@@ -184,16 +184,10 @@ class PlannerAgentRunner:
             )
             return {"plan": None, "agent_help": None}
 
-        missing = [
-            key
-            for key, value in (("plan", parsed.plan), ("agent_help", parsed.agent_help))
-            if value is None
-        ]
-        if missing:
+        if parsed.plan is None:
             self.logger.log(
                 "WARNING",
-                "Agent completed with missing structured outputs",
-                missing=missing,
+                "Agent completed without a plan",
                 step="completion_check",
             )
 
@@ -213,7 +207,9 @@ class PlannerAgentRunner:
                 for task in step.get("tasks", []):
                     task["completed"] = False
 
+        # `agent_help` is no longer generated — it is not consumed by any downstream caller.
+        # Return None as a dummy to preserve the output dict shape without spending tokens.
         return {
             "plan": plan_dict,
-            "agent_help": parsed.agent_help.model_dump() if parsed.agent_help else None,
+            "agent_help": None,
         }
