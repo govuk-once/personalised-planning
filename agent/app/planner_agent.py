@@ -201,16 +201,10 @@ class PlannerAgentRunner:
             )
             return {"plan": None, "agent_help": None}
 
-        missing = [
-            key
-            for key, value in (("plan", parsed.plan), ("agent_help", parsed.agent_help))
-            if value is None
-        ]
-        if missing:
+        if parsed.plan is None:
             self.logger.log(
                 "WARNING",
-                "Agent completed with missing structured outputs",
-                missing=missing,
+                "Agent completed without a plan",
                 step="completion_check",
             )
 
@@ -221,7 +215,18 @@ class PlannerAgentRunner:
             step="structured_output_received",
         )
 
+        # `completed` is intentionally not part of the generated Task schema (a freshly
+        # generated plan is always incomplete). Set it here so the output shape the frontend
+        # consumes is unchanged, without spending output tokens on it during generation.
+        plan_dict = parsed.plan.model_dump() if parsed.plan else None
+        if plan_dict:
+            for step in plan_dict.get("steps", []):
+                for task in step.get("tasks", []):
+                    task["completed"] = False
+
+        # `agent_help` is no longer generated — it is not consumed by any downstream caller.
+        # Return None as a dummy to preserve the output dict shape without spending tokens.
         return {
-            "plan": parsed.plan.model_dump() if parsed.plan else None,
-            "agent_help": parsed.agent_help.model_dump() if parsed.agent_help else None,
+            "plan": plan_dict,
+            "agent_help": None,
         }
