@@ -20,10 +20,11 @@ export async function sendChatTurn(input: ChatInput): Promise<ActionResult<ChatT
   const parsed = chatInput.safeParse(input);
   if (!parsed.success) return rejected("That conversation could not be sent.");
 
-  const { sessionId, messages, collectedFacts, lifeEventIds } = parsed.data;
+  const { sessionId, messages, collectedFacts, lifeEventIds, outstanding } = parsed.data;
   const userContext = {
     ...(collectedFacts ?? {}),
     ...(lifeEventIds?.length ? { life_event_ids: lifeEventIds } : {}),
+    ...(outstanding?.length ? { outstanding } : {}),
   };
   return attempt(() =>
     callBackend<ChatTurn>("/chat", sessionId, {
