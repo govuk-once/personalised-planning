@@ -69,7 +69,7 @@ class Task(BaseModel):
         default=None, description="Plain English label for service_form_url."
     )
     what_to_expect: str = Field(
-        description="A 3-4 sentence summary outlining essential information about the task."
+        description="A 1-2 paragraph summary outlining essential information about the task."
     )
     requirements: list[str] = Field(
         description="List of requirements, such as documents or items, "
