@@ -9,6 +9,7 @@ dependencies = [
     "boto3>=1.40",
     "pydantic>=2.7",
     "python-dotenv>=1.0",
+    "mangum>=0.17",
     # log_utils is your shared internal module — either publish it as a
     # package and add it here, or copy log_utils.py into ./app for now.
 ]
