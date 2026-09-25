@@ -42,7 +42,7 @@
   margin-bottom: 40px;
 }
 
-.intro h1, .intro h2 {
+.intro h1, .intro h2, .intro h3 {
   font-weight: bold;
   text-wrap: balance;
   color: var(--text-primary);
@@ -56,14 +56,25 @@
   font-size: 21px;
 }
 
+.intro h3 {
+  font-size: 16px;
+}
+
 .intro p {
   font-size: 16px;
   line-height: 32px;
 }
 
-.intro a {
+.intro a:not(.ctaLink) {
   font-weight: 500;
   color: var(--text-primary);
+}
+
+a:focus, button:focus:not(.ctaButton) {
+  background: #ffdd00;
+  border: none;
+  outline: none;
+  color: #000000;
 }
 
 .ctaButton, .formSubmit {
@@ -81,6 +92,13 @@
 .ctaButton--complete {
   background-color: #0F7A52;
   border: 2px solid #0F7A52;
+}
+
+.ctaButton:focus-visible {
+  background: #ffdd00;
+  border: 2px solid #ffdd00;
+  outline: none;
+  color: #000000;
 }
 
 .editButton {
@@ -105,6 +123,18 @@
   margin-bottom: 20px;
   display: flex;
   align-items: center;
+}
+
+.backButtonLink:focus {
+  background: none;
+}
+
+.backButtonLink:focus span {
+  text-decoration: underline;
+}
+
+.backButtonLink:focus svg rect, .backButtonLink.backButtonLink--grey:focus svg rect {
+  fill: #ffdd00;
 }
 
 .backButtonLink svg {
@@ -331,6 +361,10 @@ a.secondary {
   border-radius: 0 0 15px 15px;
 }
 
+.cardLink:focus, .stepCardLink:focus {
+  border-radius: 0 0 15px 15px;
+}
+
 .taskCard {
   background: #ffffff;
   border-radius: 15px;
@@ -347,6 +381,10 @@ a.secondary {
 
 .taskCardLink:hover, .linkCardLink:hover {
   outline: 3px solid #1D70B8;
+  border-radius: 15px;
+}
+
+.taskCardLink:focus, .linkCardLink:focus {
   border-radius: 15px;
 }
 
@@ -371,6 +409,7 @@ a.secondary {
 
 .tableHeader {
   padding-right: 15px;
+  min-width: 50%;
 }
 
 .tableRow {
@@ -516,6 +555,7 @@ a.secondary {
   background-color: #FFFFFF;
   color: #0B0C0C;
   border-bottom-left-radius: 4px;
+  position: relative;
 }
 
 .userMessage {
@@ -533,6 +573,42 @@ a.secondary {
 .thinking {
   color: #505A5F;
   font-style: italic;
+  padding-right: 16px;
+}
+
+.loadingEllipsis {
+  position: absolute;
+  color: transparent;
+}
+
+.loadingEllipsis::after {
+  position: absolute;
+  left: 0;
+  animation: ellipsis steps(1, end) 1s infinite;
+  content: "";
+  color: #505a5f;
+}
+
+.loadingEllipsisBlack::after {
+  color: #000000;
+}
+
+@keyframes ellipsis {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
+  }
+  100% {
+    content: "";
+  }
 }
 
 .factsBlock {
@@ -570,6 +646,10 @@ a.secondary {
   padding: 20px;
   border-radius: 16px;
   background-color: #FFFFFF;
+}
+
+.startPlanCard p {
+  padding-bottom: 15px;
 }
 
 .startPlanCard h2 {
@@ -630,6 +710,17 @@ a.secondary {
   cursor: pointer;
 }
 
+.composerSubmit:hover {
+  background-color: #ffffff;
+  color: #0F385C;
+  outline: 2px solid #0F385C;
+  outline-offset: -2px;
+}
+
+.startPlanButton:focus:hover, .composerSubmit:focus:hover {
+  text-decoration: underline;
+}
+
 .composerSubmit:disabled, .composerInput:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -642,8 +733,11 @@ a.secondary {
   background: none;
   color: #1D70B8;
   font-size: 15px;
-  text-decoration: underline;
   cursor: pointer;
+}
+
+.startAgain:hover {
+  text-decoration: underline;
 }
 
 .elapsed {
@@ -660,6 +754,13 @@ a.secondary {
   font-weight: bold;
 }
 
+.ctaLink:hover {
+  background-color: #FFFFFF;
+  color: #1D70B8;
+  outline: 3px solid #1D70B8;
+  outline-offset: -3px;
+}
+
 .dialog {
   max-width: 420px;
   padding: 24px;
@@ -667,6 +768,7 @@ a.secondary {
   border-radius: 16px;
   background-color: #FFFFFF;
   color: #0B0C0C;
+  margin: auto;
 }
 
 .dialog::backdrop {
