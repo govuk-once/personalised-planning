@@ -139,7 +139,7 @@ class PlannerAgentRunner:
             model_id=MODEL_ID,
             region_name=BEDROCK_REGION,
             boto_client_config=boto_config,
-            max_tokens=32000,
+            max_tokens=64000,
         )
         mcp_client = _build_mcp_client_service_graph()
 
@@ -158,6 +158,23 @@ class PlannerAgentRunner:
             # structured_output_model=ResultPayload asks Strands to generate a
             # tool directly from ResultPayload's schema and force the model to call it
             result = await agent.invoke_async(prompt, structured_output_model=ResultPayload)
+
+            usage = result.metrics.accumulated_usage
+            summary = result.metrics.get_summary()
+            self.logger.log(
+                "INFO",
+                "Agent token usage",
+                input_tokens=usage.get("inputTokens"),
+                output_tokens=usage.get("outputTokens"),
+                total_tokens=usage.get("totalTokens"),
+                cache_read_tokens=usage.get("cacheReadInputTokens"),
+                cache_write_tokens=usage.get("cacheWriteInputTokens"),
+                total_cycles=summary.get("total_cycles"),
+                total_duration=summary.get("total_duration"),
+                tool_usage=summary.get("tool_usage"),
+                step="token_usage",
+            )
+
         except StructuredOutputException as e:
             self.logger.log(
                 "WARNING",
