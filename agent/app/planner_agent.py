@@ -204,7 +204,16 @@ class PlannerAgentRunner:
             step="structured_output_received",
         )
 
+        # `completed` is intentionally not part of the generated Task schema (a freshly
+        # generated plan is always incomplete). Set it here so the output shape the frontend
+        # consumes is unchanged, without spending output tokens on it during generation.
+        plan_dict = parsed.plan.model_dump() if parsed.plan else None
+        if plan_dict:
+            for step in plan_dict.get("steps", []):
+                for task in step.get("tasks", []):
+                    task["completed"] = False
+
         return {
-            "plan": parsed.plan.model_dump() if parsed.plan else None,
+            "plan": plan_dict,
             "agent_help": parsed.agent_help.model_dump() if parsed.agent_help else None,
         }

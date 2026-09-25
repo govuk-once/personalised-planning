@@ -39,9 +39,6 @@ class Task(BaseModel):
         "e.g. online, phone, post, in-person."
     )
     dept: str = Field(description="Name of the responsible government department.")
-    completed: bool = Field(
-        default=False, description="A flag indicating if user completed the task."
-    )
     location: str | None = Field(
         default=None,
         description="Location where the task needs to be completed, e.g. 'Registry Office'. "
@@ -72,7 +69,7 @@ class Task(BaseModel):
         default=None, description="Plain English label for service_form_url."
     )
     what_to_expect: str = Field(
-        description="An extended, 2-3 paragraph summary outlining essential information about the task."
+        description="A 3-4 sentence summary outlining essential information about the task."
     )
     requirements: list[str] = Field(
         description="List of requirements, such as documents or items, "
