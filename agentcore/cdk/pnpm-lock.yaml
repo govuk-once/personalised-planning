@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@aws/agentcore-cdk':
-        specifier: 0.1.0-alpha.50
-        version: 0.1.0-alpha.50(aws-cdk-lib@2.261.0(constructs@10.7.2))(constructs@10.7.2)
+        specifier: 0.1.0-alpha.53
+        version: 0.1.0-alpha.53(aws-cdk-lib@2.261.0(constructs@10.7.2))(constructs@10.7.2)
       aws-cdk-lib:
         specifier: ~2.261.0
         version: 2.261.0(constructs@10.7.2)
@@ -127,8 +127,8 @@ packages:
     resolution: {integrity: sha512-wlFmCIGUlwF4zx/kncw+bmxTQh1HeSJq4mYV/V5cZUSJadDP3kXvGW8Rn21cimj/7y9ju+47oYWXi97vF7czaA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws/agentcore-cdk@0.1.0-alpha.50':
-    resolution: {integrity: sha512-uXFasg0mZLAotrlsTAzX0ijryhDlL9FB/3jdWVVITlSFBZ+J1Zo4cmVRe2o4GOVH+KP54BNm3wYyaWozoCJ39w==}
+  '@aws/agentcore-cdk@0.1.0-alpha.53':
+    resolution: {integrity: sha512-tIWT5s3E0TBCquKY/k55jmIbUJLUTTxmQ/Bz7nZfW72i2I9Ihjd0FCHINKWDF88MHQ0bQWT2Ls2EZUSLeqXBuQ==}
     engines: {node: '>=20'}
     peerDependencies:
       aws-cdk-lib: ^2.257.0
@@ -1951,7 +1951,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws/agentcore-cdk@0.1.0-alpha.50(aws-cdk-lib@2.261.0(constructs@10.7.2))(constructs@10.7.2)':
+  '@aws/agentcore-cdk@0.1.0-alpha.53(aws-cdk-lib@2.261.0(constructs@10.7.2))(constructs@10.7.2)':
     dependencies:
       '@aws-sdk/client-sts': 3.1129.0
       '@aws-sdk/credential-providers': 3.1129.0
