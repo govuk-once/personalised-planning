@@ -1,12 +1,12 @@
 "use client";
 
 import styles from "@/app/page.module.css";
-import BackButton from "@/app/components/shared/BackButton";
 import Card from "@/app/components/shared/Card";
 import Heading from "@/app/components/shared/Heading";
 import ElapsedTimer from "@/app/components/plan/ElapsedTimer";
 import NoPlan from "@/app/components/plan/NoPlan";
 import PlanSteps from "@/app/components/plan/PlanSteps";
+import Header from "@/app/components/shared/Header";
 import { usePlanGeneration } from "@/hooks/use-plan-generation";
 import { useUnloadWarning } from "@/hooks/use-unload-warning";
 
@@ -20,9 +20,11 @@ export default function PlanPage() {
 
   return (
     <div className={styles.page}>
+      <Header 
+        backButtonUrl={"/"}
+        backButtonText={"Home"}
+      />
       <main className={styles.main}>
-        <BackButton url="/" text="Home" />
-
         <div className={styles.intro}>
           <Heading
             heading={plan ? plan.title : "Building your plan" }
