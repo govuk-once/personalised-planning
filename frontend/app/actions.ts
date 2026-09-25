@@ -1,8 +1,9 @@
 "use server";
 
 import { chatInput, planInput, type ChatInput, type PlanInput } from "@/lib/action-input";
-import { callBackend, describeFailure } from "@/lib/backend-client";
-import type { ActionResult, ChatTurn, PlanResult } from "@/lib/types";
+import { BACKEND_URL, callBackend, describeFailure } from "@/lib/backend-client";
+import { planTicket } from "@/lib/plan-ticket";
+import type { ActionResult, ChatTurn, PlanRequest } from "@/lib/types";
 
 const MOCK_MODE = process.env.MOCK_MODE === "true";
 
@@ -33,17 +34,23 @@ export async function sendChatTurn(input: ChatInput): Promise<ActionResult<ChatT
   );
 }
 
-export async function createPlan(input: PlanInput): Promise<ActionResult<PlanResult>> {
+export async function createPlanRequest(input: PlanInput): Promise<ActionResult<PlanRequest>> {
   const parsed = planInput.safeParse(input);
   if (!parsed.success) return rejected("That plan request could not be sent.");
 
   const { sessionId, situation, userContext } = parsed.data;
-  return attempt(() =>
-    MOCK_MODE
-      ? callBackend<PlanResult>("/mock", sessionId)
-      : callBackend<PlanResult>("/plan", sessionId, {
-          situation,
-          user_context: userContext ?? null,
-        })
-  );
+  const ticket = planTicket(sessionId);
+
+  if (MOCK_MODE) {
+    return { ok: true, data: { url: `${BACKEND_URL}/mock`, ticket, body: null } };
+  }
+
+  return {
+    ok: true,
+    data: {
+      url: `${BACKEND_URL}/plan`,
+      ticket,
+      body: { situation, user_context: userContext ?? null },
+    },
+  };
 }

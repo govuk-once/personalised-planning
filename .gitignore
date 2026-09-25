@@ -92,3 +92,8 @@ function.zip
 dist/
 
 **/data/*
+
+# Amplify hosting
+amplify_outputs*.json
+.amplify/
+amplify/python-backend/.build/

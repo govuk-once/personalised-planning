@@ -54,3 +54,9 @@ export type PlanResult = {
 };
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+export type PlanRequest = {
+  url: string;
+  ticket: string;
+  body: Record<string, unknown> | null;
+};
