@@ -2,7 +2,7 @@ import styles from "@/app/page.module.css";
 import type { ChatMessage } from "@/lib/types";
 
 const WELCOME =
-  "Tell me what is going on and I will work out which government services can help, then build you a plan.";
+  "Hello. I'm here to help you find support for you and your family. Can you tell me a little about what's going on? There are no wrong answers.";
 
 type ThreadProps = {
   messages: ChatMessage[];
@@ -28,7 +28,7 @@ export default function Thread({ messages, pending, error }: Readonly<ThreadProp
 
       {pending && (
         <div className={styles.assistantMessage}>
-          <p className={styles.thinking}>Thinking…</p>
+          <p className={styles.thinking}>Thinking<span className={styles.loadingEllipsis}>...</span></p>
         </div>
       )}
 

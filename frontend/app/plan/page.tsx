@@ -24,9 +24,12 @@ export default function PlanPage() {
         <BackButton url="/" text="Home" />
 
         <div className={styles.intro}>
-          <Heading heading={plan ? plan.title : "Building your plan…"} />
+          <Heading
+            heading={plan ? plan.title : "Building your plan" }
+            generating={generating}
+          />
           {generating && <ElapsedTimer />}
-          {error && (
+          {error && !generating && (
             <div className={styles.chatError} role="alert">
               <p>{error}</p>
               {retry && (
