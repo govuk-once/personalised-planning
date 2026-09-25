@@ -44,6 +44,7 @@ def _context_note(user_context: dict[str, Any] | None) -> str:
     context = dict(user_context or {})
     today = context.pop("today", None)
     life_event_ids = context.pop("life_event_ids", None)
+    outstanding = context.pop("outstanding", None)
 
     parts = []
     if today:
@@ -59,6 +60,14 @@ def _context_note(user_context: dict[str, Any] | None) -> str:
         parts.append(
             "Facts you established earlier in this conversation. Treat them as already "
             f"answered and do not ask about them again:\n{json.dumps(context, indent=2)}"
+        )
+    if outstanding:
+        items = "\n".join(f"- {q}" for q in outstanding)
+        parts.append(
+            "Questions still outstanding from the previous turn. Remove any the user just "
+            "answered (directly or by implication), then ask the next one or two from this "
+            "list. Only call get_required_information again if this list is empty or you "
+            f"need to refresh it:\n{items}"
         )
     return "\n\n".join(parts)
 
