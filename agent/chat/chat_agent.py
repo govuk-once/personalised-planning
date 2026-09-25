@@ -220,7 +220,7 @@ class ChatAgentRunner:
         hooks = [ChatObservabilityHooks(self.logger)] if self.logger else []
         agent = Agent(
             model=model,
-            tools=[tools],
+            tools=tools,
             system_prompt=f"{SYSTEM_PROMPT}\n\n### Known context\n{context}"
             if context
             else SYSTEM_PROMPT,
@@ -236,37 +236,41 @@ class ChatAgentRunner:
         try:
             result = await agent.invoke_async(prompt, structured_output_model=ConversationTurn)
         except StructuredOutputException as e:
-            self.logger.log(
-                "WARNING",
-                "Structured output validation failed after retries",
-                error=str(e),
-                step="structured_output_failed",
-            )
+            if self.logger:
+                self.logger.log(
+                    "WARNING",
+                    "Structured output validation failed after retries",
+                    error=str(e),
+                    step="structured_output_failed",
+                )
             return None
         except Exception as e:
-            self.logger.log(
-                "ERROR",
-                "Error during agent execution",
-                error=str(e),
-                error_type=type(e).__name__,
-                step="agent_execution",
-            )
+            if self.logger:
+                self.logger.log(
+                    "ERROR",
+                    "Error during agent execution",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    step="agent_execution",
+                )
             raise
 
         parsed: ConversationTurn | None = getattr(result, "structured_output", None)
 
         if parsed is None:
-            self.logger.log(
-                "WARNING", "No structured output returned by agent", step="completion_check"
-            )
+            if self.logger:
+                self.logger.log(
+                    "WARNING", "No structured output returned by agent", step="completion_check"
+                )
             return None
 
-        self.logger.log(
-            "DEBUG",
-            "Structured output received",
-            raw_payload=parsed.model_dump(),
-            step="structured_output_received",
-        )
+        if self.logger:
+            self.logger.log(
+                "DEBUG",
+                "Structured output received",
+                raw_payload=parsed.model_dump(),
+                step="structured_output_received",
+            )
 
         return parsed.model_dump()
 

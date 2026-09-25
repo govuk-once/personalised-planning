@@ -39,6 +39,7 @@ export function useIntake() {
       messages: withUser.messages,
       collectedFacts: conversation.collectedFacts,
       lifeEventIds: conversation.lifeEventIds,
+      outstanding: conversation.outstanding,
     });
     setPending(false);
 
