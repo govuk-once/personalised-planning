@@ -130,8 +130,11 @@ async def run_chat(
         # Fallback cap: once the assistant has already asked MAX_ASSISTANT_TURNS
         # questions, force completion so the interview can't drag on. Counting
         # assistant messages in the replayed transcript is the stateless way to
-        # know how many have been asked. We override only complete and message —
-        # the agent's re-derived collected_facts / life_event_ids are kept.
+        # know how many have been asked.
+        # When the cap fires we roll collected_facts back to the baseline that
+        # was passed *into* this turn — the agent may have speculatively filled
+        # fields the user was never asked about, and those shouldn't reach the
+        # planner.
         assistant_turns = sum(1 for m in messages if m.get("role") == "assistant")
         if assistant_turns >= MAX_ASSISTANT_TURNS:
             if logger:
@@ -142,6 +145,10 @@ async def run_chat(
                     cap=MAX_ASSISTANT_TURNS,
                     step="question_cap",
                 )
+            baseline_facts = dict(user_context or {})
+            for key in ("today", "life_event_ids", "outstanding"):
+                baseline_facts.pop(key, None)
+            turn["collected_facts"] = baseline_facts
             turn["complete"] = True
             turn["message"] = FALLBACK_COMPLETE_MESSAGE
 
