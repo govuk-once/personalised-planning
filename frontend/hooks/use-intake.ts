@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { sendChatTurn } from "@/app/actions";
+import { failedCall } from "@/lib/action-failure";
 import {
   clearSession,
   getSessionId,
@@ -39,7 +40,7 @@ export function useIntake() {
       messages: withUser.messages,
       collectedFacts: conversation.collectedFacts,
       lifeEventIds: conversation.lifeEventIds,
-    });
+    }).catch(failedCall);
     setPending(false);
 
     // Restore the transcript and draft, or a retry replays two user messages
