@@ -139,7 +139,7 @@ class PlannerAgentRunner:
             model_id=MODEL_ID,
             region_name=BEDROCK_REGION,
             boto_client_config=boto_config,
-            max_tokens=16348,
+            max_tokens=32000,
         )
         mcp_client = _build_mcp_client_service_graph()
 
