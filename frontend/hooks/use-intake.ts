@@ -40,6 +40,7 @@ export function useIntake() {
       messages: withUser.messages,
       collectedFacts: conversation.collectedFacts,
       lifeEventIds: conversation.lifeEventIds,
+      outstanding: conversation.outstanding,
     }).catch(failedCall);
     setPending(false);
 

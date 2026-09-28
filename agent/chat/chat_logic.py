@@ -44,6 +44,7 @@ def _context_note(user_context: dict[str, Any] | None) -> str:
     context = dict(user_context or {})
     today = context.pop("today", None)
     life_event_ids = context.pop("life_event_ids", None)
+    outstanding = context.pop("outstanding", None)
 
     parts = []
     if today:
@@ -59,6 +60,14 @@ def _context_note(user_context: dict[str, Any] | None) -> str:
         parts.append(
             "Facts you established earlier in this conversation. Treat them as already "
             f"answered and do not ask about them again:\n{json.dumps(context, indent=2)}"
+        )
+    if outstanding:
+        items = "\n".join(f"- {q}" for q in outstanding)
+        parts.append(
+            "Questions still outstanding from the previous turn. Remove any the user just "
+            "answered (directly or by implication), then ask the next one or two from this "
+            "list. Only call get_required_information again if this list is empty or you "
+            f"need to refresh it:\n{items}"
         )
     return "\n\n".join(parts)
 
@@ -121,8 +130,11 @@ async def run_chat(
         # Fallback cap: once the assistant has already asked MAX_ASSISTANT_TURNS
         # questions, force completion so the interview can't drag on. Counting
         # assistant messages in the replayed transcript is the stateless way to
-        # know how many have been asked. We override only complete and message —
-        # the agent's re-derived collected_facts / life_event_ids are kept.
+        # know how many have been asked.
+        # When the cap fires we roll collected_facts back to the baseline that
+        # was passed *into* this turn — the agent may have speculatively filled
+        # fields the user was never asked about, and those shouldn't reach the
+        # planner.
         assistant_turns = sum(1 for m in messages if m.get("role") == "assistant")
         if assistant_turns >= MAX_ASSISTANT_TURNS:
             if logger:
@@ -133,6 +145,10 @@ async def run_chat(
                     cap=MAX_ASSISTANT_TURNS,
                     step="question_cap",
                 )
+            baseline_facts = dict(user_context or {})
+            for key in ("today", "life_event_ids", "outstanding"):
+                baseline_facts.pop(key, None)
+            turn["collected_facts"] = baseline_facts
             turn["complete"] = True
             turn["message"] = FALLBACK_COMPLETE_MESSAGE
 
