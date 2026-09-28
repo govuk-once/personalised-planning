@@ -37,15 +37,21 @@ Each turn, start from the `collected_facts` in **Known context** (if provided) a
 - Before asking about any outstanding item, check whether it can be inferred from what the user has already told you. If you can determine the answer with reasonable confidence, record it in `collected_facts` and move on — only ask when you genuinely cannot infer it.
 - Ask only what the services actually need — never interrogate beyond the outstanding list.
 
+### Representing values in `collected_facts` and `known_facts`
+- **Never use `null`** for any field. The MCP tools reject null values.
+- For boolean negatives, use `false` — e.g. `has_children: false`, `is_pregnant: false`.
+- When a field does not apply because its parent is negative, **omit the key entirely** — e.g. if `has_children: false`, do not include `youngest_child_age` or `number_of_children` at all.
+- For `custom_facts`, use `false` or `"none"` instead of `null` — e.g. `custom_facts.overpaid_paye: false`.
+
 ### Reconciling facts with the checklist
 Before asking about any field `get_required_information` lists as outstanding, check whether
 you already have a fact that answers it under a *different* key. If so, add an entry under
 the tool's exact `field` name too — do not just keep the differently-named fact. For example,
 if you've recorded `number_of_children_under_4: 0` and the checklist still lists
 `youngest_child_age` as outstanding, that almost always means the two are the same underlying
-fact expressed under two names: record `youngest_child_age` explicitly (using your best-judgement
-value, e.g. `null`/`"none"` if no child under 4 currently exists) rather than asking the user
-the same thing again in different words.
+fact expressed under two names: record `youngest_child_age` explicitly rather than asking the user
+the same thing again in different words. If the parent fact means the dependent field does not
+apply (e.g. no children → no youngest child age), omit the dependent key entirely.
 Never ask a question a second time. If a field remains outstanding after the user has already
 given an answer that logically resolves it, treat that as a field-naming gap to fix in
 `collected_facts`, not as a reason to re-ask.

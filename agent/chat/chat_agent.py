@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from shared.log_utils import StructuredLogger
-from shared.utils import read_file_content
+from shared.utils import read_file_content, strip_nulls
 from strands import Agent, tool
 from strands.hooks import (
     AfterInvocationEvent,
@@ -97,6 +97,11 @@ class ChatObservabilityHooks(HookProvider):
 
     def _on_tool_start(self, event: BeforeToolCallEvent) -> None:
         tool_use = event.tool_use
+
+        tool_input = tool_use.get("input")
+        if isinstance(tool_input, dict):
+            tool_use["input"] = strip_nulls(tool_input)
+
         self.logger.log(
             "INFO",
             f"TOOL USE: {tool_use.get('name')}",
