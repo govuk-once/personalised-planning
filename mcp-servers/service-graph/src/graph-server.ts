@@ -47,7 +47,7 @@
  *   missingBenefitId? — ID for MissingBenefit.com eligibility calculator API
  *
  * Services may also carry:
- *   financialData     — structured 2025-26 rates (weekly/monthly/annual amounts)
+ *   financialData     — structured rates, each stamped with its tax year (weekly/4-weekly/monthly/annual amounts)
  *   nations[]         — devolved services restricted to specific UK nations
  *
  * ─── SUPPORT & CONTACT LAYER ────────────────────────────────────────────
@@ -71,6 +71,7 @@ import { z } from 'zod';
 import { buildJourney, getServiceWithContext } from './graph-engine.js';
 import { LIFE_EVENTS, NODES } from './graph-data.js';
 import { evaluateJourney, type UserContext, type Rule } from './rules.js';
+import { provenanceFor, provenanceSummary, sourcingSummary, ruleValueSourcing } from './provenance-view.js';
 
 // ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────
 // ── Helper: flatten + rank services from a JourneyResult ─────────────────────
@@ -204,11 +205,13 @@ Each service includes:
   enables[]      — service IDs this service unlocks
   nations[]      — present only for devolved services (absent = UK-wide)
   triggeredBy[]  — life event IDs that caused this service to appear
+  sourcing       — { confirmed, notConfirmed }: how many factual fields are confirmed against an official page
 
 Call get_service for any service the user wants to
 explore — it returns full detail omitted here: agentInteraction (application
-methods, online form URL), financialData (2025-26 benefit rates), and
-contactInfo (helpline, opening hours, webchat).`,
+methods, online form URL), financialData (benefit rates with the tax year they
+apply to), contactInfo (helpline, opening hours, webchat), and per-field
+provenance sources.`,
   {
     life_event_ids: z.array(z.string()).min(1).describe(
       'One or more life event IDs from list_life_events ' +
@@ -229,7 +232,10 @@ contactInfo (helpline, opening hours, webchat).`,
     }
 
     const journey  = buildJourney(life_event_ids);
-    const services = rankServices(journey);
+    const services = rankServices(journey).map(svc => ({
+      ...svc,
+      sourcing: sourcingSummary(NODES[svc.id]),
+    }));
 
     return {
       content: [{
@@ -268,18 +274,22 @@ Returns:
 - Service description, deadline, GOV.UK URL, and type classification
 - Full eligibility: summary, criteria (typed factors), key questions to ask the user, auto-qualifiers (conditions that confirm eligibility immediately), common exclusions, and evidence required
 - Agent interaction: application methods, API availability, online form URLs, authentication requirements, what the agent can do step-by-step, and MissingBenefit.com calculator ID if available
-- Financial data (where applicable): structured 2025-26 rates with amounts and frequency
+- Financial data (where applicable): structured rates with amounts, frequency and the tax year they apply to
 - Nations (where applicable): which UK nations the service covers
 - Contact info: helpline phone number (with textphone, Relay UK, Welsh, BSL), opening hours, webchat URL, office locator URL. Resolved from service-specific data or department default.
 - Graph position: prerequisite services, services this unlocks, and which life events trigger it
+- Provenance (controlled by the provenance parameter): which factual fields are confirmed against an official page. The default summary lists the fields that are not; provenance: "full" adds the source URL, verbatim quote and check date for every field
 
-Use this when the user asks for more detail about a service, or when you need to assess their eligibility for it. The keyQuestions tell you exactly what to ask. The autoQualifiers let you confirm eligibility without interrogating the user further. The agentInteraction.agentSteps tell you exactly what actions you can take on the user's behalf. The contactInfo tells you the exact helpline number and hours to share when the user needs to speak to someone.`,
+Use this when the user asks for more detail about a service, or when you need to assess their eligibility for it. The keyQuestions tell you exactly what to ask. The autoQualifiers let you confirm eligibility without interrogating the user further. The agentInteraction.agentSteps tell you exactly what actions you can take on the user's behalf. The contactInfo tells you the exact helpline number and hours to share when the user needs to speak to someone. The provenance tells you which of these facts you can cite, and which you should present as unconfirmed.`,
   {
     service_id: z.string().describe(
       'The service node ID (e.g. "dwp-pip", "gro-register-birth", "hmcts-probate"). These IDs appear in plan_journey results.'
     ),
+    provenance: z.enum(['none', 'summary', 'full']).default('summary').describe(
+      'How much sourcing to return. summary (default, ~70 tokens): counts by status and the list of fields not confirmed against an official page. full (~550 tokens): adds the source URL, verbatim quote and check date for every field; use it when you need to cite a source or the user asks where something comes from. none: service data only.'
+    ),
   },
-  async ({ service_id }) => {
+  async ({ service_id, provenance }) => {
     const service = getServiceWithContext(service_id);
     if (!service) {
       return {
@@ -289,8 +299,10 @@ Use this when the user asks for more detail about a service, or when you need to
         }],
       };
     }
+    const withProvenance = provenance === 'none' ? service
+      : { ...service, provenance: provenance === 'full' ? provenanceFor(NODES[service_id]) : provenanceSummary(NODES[service_id]) };
     return {
-      content: [{ type: 'text', text: JSON.stringify(service, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(withProvenance, null, 2) }],
     };
   }
 );
@@ -359,6 +371,8 @@ Accepts life event IDs and a user context object. Returns per-service verdicts:
 
 Also flags deadline status per service: ok, overdue, or unknown_trigger_date.
 
+Where a service has rule values (ages, income limits, day counts), ruleValues gives { confirmed, total }: how many of the thresholds behind the verdict are confirmed against an official page. If confirmed < total, present the verdict as provisional.
+
 Designed for progressive disclosure:
 1. Call with whatever facts you know (even an empty object)
 2. Review the pendingQuestions for services marked needs_more_info
@@ -408,6 +422,7 @@ Use trigger_dates for deadline-sensitive services: { birth_date: "2025-02-01" } 
       verdict:         r.verdict,
       pendingQuestions: r.pendingQuestions,
       deadlineStatus:  r.deadlineStatus,
+      ...(() => { const rv = ruleValueSourcing(NODES[r.serviceId]); return rv ? { ruleValues: rv } : {}; })(),
     }));
 
     return {
