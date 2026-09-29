@@ -4,13 +4,13 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 import styles from "@/app/page.module.css";
-import BackButton from "@/app/components/shared/BackButton";
 import Button from "@/app/components/shared/Button";
 import Callout from "@/app/components/shared/Callout";
 import Heading from "@/app/components/shared/Heading";
 import LinkCard from "@/app/components/shared/LinkCard";
 import ListCard from "@/app/components/shared/ListCard";
 import TaskDetails from "@/app/components/plan/TaskDetails";
+import Header from "@/app/components/shared/Header";
 import { toggleTask, taskAt } from "@/lib/plan";
 import { savePlan, useHydrated, usePlan } from "@/lib/session";
 
@@ -28,8 +28,12 @@ function TaskDetail() {
   if (!plan || !task) {
     return (
       <div className={styles.taskPage}>
+        <Header 
+          backButtonUrl={`/step?stepId=${stepId}`}
+          backButtonText={"Back to Step"}
+          backButtonGreyVariant={true}
+        />
         <main className={styles.main}>
-          <BackButton url="/plan" text="Back to Plan" greyVariant={true} />
           <Heading heading="Task not found" description="Go back and pick a task from your plan." />
         </main>
       </div>
@@ -43,9 +47,12 @@ function TaskDetail() {
 
   return (
     <div className={styles.taskPage}>
+      <Header 
+        backButtonUrl={`/step?stepId=${stepId}`}
+        backButtonText={"Back to Step"}
+        backButtonGreyVariant={true}
+      />
       <main className={styles.main}>
-        <BackButton url={`/step?stepId=${stepId}`} text="Back to Step" greyVariant={true} />
-
         <div className={styles.intro}>
           <Heading heading={task.title} description={task.summary} />
           <Button

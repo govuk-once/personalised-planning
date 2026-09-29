@@ -2,10 +2,15 @@ import Link from "next/link";
 
 import styles from "@/app/page.module.css";
 import Heading from "@/app/components/shared/Heading";
+import Header from "@/app/components/shared/Header";
 
 export default function NoPlan() {
   return (
     <div className={styles.page}>
+      <Header
+        backButtonUrl={"/"}
+        backButtonText={"Home"}
+      />
       <main className={styles.main}>
         <div className={styles.intro}>
           <Heading

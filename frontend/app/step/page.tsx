@@ -4,10 +4,10 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 import styles from "@/app/page.module.css";
-import BackButton from "@/app/components/shared/BackButton";
 import Heading from "@/app/components/shared/Heading";
 import StepCard from "@/app/components/shared/StepCard";
 import TaskCard from "@/app/components/shared/TaskCard";
+import Header from "@/app/components/shared/Header";
 import { completedCount, stepAt } from "@/lib/plan";
 import { useHydrated, usePlan } from "@/lib/session";
 
@@ -23,8 +23,11 @@ function StepDetail() {
   if (!step) {
     return (
       <div className={styles.page}>
+        <Header 
+          backButtonUrl={"/plan"}
+          backButtonText={"Back to Plan"}
+        />
         <main className={styles.main}>
-          <BackButton url="/plan" text="Back to Plan" />
           <div className={styles.intro}>
             <Heading heading="Step not found" description="Go back and pick a step from your plan." />
           </div>
@@ -35,9 +38,11 @@ function StepDetail() {
 
   return (
     <div className={styles.page}>
+      <Header 
+        backButtonUrl={"/plan"}
+        backButtonText={"Back to Plan"}
+      />
       <main className={styles.main}>
-        <BackButton url="/plan" text="Back to Plan" />
-
         <div className={styles.intro}>
           <Heading heading={step.title} />
           <StepCard

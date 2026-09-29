@@ -4,8 +4,8 @@ import { useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import styles from "@/app/page.module.css";
-import BackButton from "@/app/components/shared/BackButton";
 import ListCard from "@/app/components/shared/ListCard";
+import Header from "@/app/components/shared/Header";
 import { clearSession, useConversation, useHydrated } from "@/lib/session";
 
 export default function UserInfo() {
@@ -23,9 +23,11 @@ export default function UserInfo() {
 
   return (
     <div className={styles.page}>
+      <Header 
+        backButtonUrl={"/plan"}
+        backButtonText={"Back to Plan"}
+      />
       <main className={styles.main}>
-        <BackButton url="/plan" text="Back to Plan" />
-
         <div className={styles.intro}>
           {!hydrated ? null : facts.length > 0 ? (
             <ListCard

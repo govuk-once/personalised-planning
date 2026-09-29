@@ -17,6 +17,9 @@ export default function Button(props: Readonly<ButtonProps>) {
     case "edit":
       buttonClassName = `${styles.editButton}`
     break;
+    case "endSession":
+      buttonClassName = `${styles.endSessionButton}`
+    break;
     default:
       buttonClassName = "";
   }
