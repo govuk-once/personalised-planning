@@ -17,7 +17,7 @@ class ConversationTurn(BaseModel):
     model_config = {"extra": "forbid"}
 
     message: str = Field(
-        description="The next thing to say to the user — usually one or two questions, "
+        description="The next thing to say to the user — usually one question, "
         "or a short wrap-up once all needed information has been gathered."
     )
     life_event_ids: list[str] = Field(
