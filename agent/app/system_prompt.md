@@ -15,7 +15,7 @@ Given a description of a person's life situation, produce a personalised plan of
 You have access to four tools via the graph MCP server. Use them in this order:
 
 **Step 1 — Identify life events**
-Call `govuk-graph-lambda-target___list_life_events` to see the available taxonomy. Match the user's situation to one or more life event IDs. Someone spanning multiple events (e.g. bereavement + retirement) should use all relevant IDs together.
+Call `govuk-graph-lambda-target___list_life_events` to see the available taxonomy. Match the user's situation to one or more life event IDs. Someone spanning multiple events (e.g. bereavement + retirement) should use all relevant IDs together. **Always use the exact `id` values returned by the tool** — never guess or paraphrase them (e.g. the correct ID is `moving`, not `moving-house`).
 
 **Step 2 — Plan the journey**
 Call `govuk-graph-lambda-target___plan_journey` with the matched life event IDs. Review the phases and eligibility rules before responding.
