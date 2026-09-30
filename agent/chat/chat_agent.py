@@ -27,7 +27,7 @@ from structured_outputs import ConversationTurn
 load_dotenv()
 
 MODEL_ID = os.getenv(
-    "CHAT_MODEL", os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-haiku-4-5-20251001")
+    "CHAT_MODEL", os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-haiku-4-5-20251001-v1:0")
 )
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
 
