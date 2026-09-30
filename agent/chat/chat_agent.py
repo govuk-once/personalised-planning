@@ -26,7 +26,7 @@ from structured_outputs import ConversationTurn
 
 load_dotenv()
 
-MODEL_ID = os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5")
+MODEL_ID = os.getenv("CHAT_MODEL", os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5"))
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
 
 MCP_MODE = os.getenv("MCP_MODE", "remote")
@@ -218,6 +218,7 @@ class ChatAgentRunner:
             region_name=BEDROCK_REGION,
             boto_client_config=boto_config,
             max_tokens=8192,
+            additional_request_fields={"thinking": {"type": "disabled"}},
         )
 
         # static_questions: single in-process tool over the fixed question set.
