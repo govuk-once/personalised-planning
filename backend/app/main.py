@@ -5,7 +5,7 @@ import os
 import time
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 import boto3
 import httpx
@@ -46,7 +46,7 @@ CHAT_AGENT_ENDPOINT_NAME = os.getenv("CHAT_AGENT_ENDPOINT_NAME")
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY")
 OPEN_PATHS = frozenset({"/health"})
 
-TICKET_PATHS = frozenset({"/plan", "/mock"})
+TICKET_PATHS = frozenset({"/plan", "/mock", "/chat"})
 
 
 def ticket_is_valid(ticket: str | None, session_id: str) -> bool:
@@ -69,20 +69,6 @@ app = FastAPI(title="Planner Backend", version="1.0.0")
 _agentcore_client = None
 
 # MIDDLEWARE
-# CORS remains unchanged
-# origins currently hardcoded and set to localhost:3000 for development - to be replaced by env vars later once known
-origins = ["http://localhost:3000"]
-
-if not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-
 @app.middleware("http")
 async def require_api_key(request: Request, call_next):
     path = request.url.path
@@ -98,6 +84,17 @@ async def require_api_key(request: Request, call_next):
         return await call_next(request)
 
     return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+
+# Local only
+if not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 AGENT_UNAVAILABLE = "The service is temporarily unavailable. Please try again shortly."
@@ -187,9 +184,16 @@ class PlanRequest(BaseModel):
     )
 
 
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., max_length=20_000)
+
+
 class ChatRequest(BaseModel):
-    messages: list[dict[str, Any]] = Field(
+    messages: list[ChatMessage] = Field(
         ...,
+        min_length=1,
+        max_length=60,
         description="The full conversation so far ([{role, content}, ...]); the caller "
         "holds this state and replays it each turn, ending with the newest user message.",
     )
@@ -435,12 +439,13 @@ async def chat(request: Request, body: ChatRequest):
     )
 
     user_context = with_today(body.user_context)
+    messages = [message.model_dump() for message in body.messages]
 
     try:
         if LOCAL_MODE:
-            result = await _invoke_chat_local(session_id, body.messages, user_context, logger)
+            result = await _invoke_chat_local(session_id, messages, user_context, logger)
         else:
-            result = await _invoke_chat_agentcore(session_id, body.messages, user_context, logger)
+            result = await _invoke_chat_agentcore(session_id, messages, user_context, logger)
     except httpx.RequestError as e:
         logger.log(
             "ERROR", "Agent connection error", error_type=type(e).__name__, step="agent_call"

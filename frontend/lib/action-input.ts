@@ -30,6 +30,8 @@ export const chatInput = z.object({
   outstanding: z.array(z.string()).optional(),
 });
 
+export const ticketInput = z.object({ sessionId });
+
 export const planInput = z.object({
   sessionId,
   situation: z.string().min(1).max(4_000),
@@ -38,3 +40,4 @@ export const planInput = z.object({
 
 export type ChatInput = z.infer<typeof chatInput>;
 export type PlanInput = z.infer<typeof planInput>;
+export type TicketInput = z.infer<typeof ticketInput>;
