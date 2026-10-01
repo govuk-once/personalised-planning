@@ -415,15 +415,18 @@ Use trigger_dates for deadline-sensitive services: { birth_date: "2025-02-01" } 
     };
 
     // Lean output: omit rule details for eligible/not_eligible to save tokens
-    const lean = results.map(r => ({
-      serviceId:       r.serviceId,
-      serviceName:     r.serviceName,
-      serviceType:     r.serviceType,
-      verdict:         r.verdict,
-      pendingQuestions: r.pendingQuestions,
-      deadlineStatus:  r.deadlineStatus,
-      ...(() => { const rv = ruleValueSourcing(NODES[r.serviceId]); return rv ? { ruleValues: rv } : {}; })(),
-    }));
+    const lean = results.map(r => {
+      const rv = ruleValueSourcing(NODES[r.serviceId]);
+      return {
+        serviceId:        r.serviceId,
+        serviceName:      r.serviceName,
+        serviceType:      r.serviceType,
+        verdict:          r.verdict,
+        pendingQuestions: r.pendingQuestions,
+        deadlineStatus:   r.deadlineStatus,
+        ...(rv && { ruleValues: rv }),
+      };
+    });
 
     return {
       content: [{ type: 'text', text: JSON.stringify({ summary, services: lean }, null, 2) }],

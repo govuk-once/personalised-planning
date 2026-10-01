@@ -387,11 +387,11 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'Required for every birth. In England, Wales and Northern Ireland it must be registered within 42 days; in Scotland within 21 days (different process). Usually done by a parent; others can register if the parents cannot.',
+      summary: 'All births in England, Wales and Northern Ireland must be registered within 42 days; there are different rules for Scotland. Parents can register; certain other people can register if the parents cannot.',
       universal: true,
       criteria: [
         { factor: 'family', description: 'Usually a parent. If the parents cannot register, someone present at the birth, someone responsible for the child, or a member of the hospital administrative staff can.' },
-        { factor: 'geography', description: 'Deadline is 42 days in England, Wales and Northern Ireland, and 21 days in Scotland.' },
+        { factor: 'geography', description: 'Deadline is 42 days in England, Wales and Northern Ireland; there are different rules for Scotland.' },
       ],
       keyQuestions: [
         'Where was the baby born (hospital, home, other)?',
@@ -718,7 +718,7 @@ export const NODES: Record<string, ServiceNode> = {
         'Does either parent or partner earn over £60,000 per year?',
         'Has the birth been registered?',
       ],
-      autoQualifiers: ['Birth registered, no parent earns over £60k'],
+      autoQualifiers: ['Responsible for a child under 16 who lives with you (higher earners can still claim and pay the High Income Child Benefit Charge)'],
       exclusions: ['If either partner\'s adjusted net income is £80,000 or more, the charge cancels the payment. Still claim and opt out of payments, to get National Insurance credits and the child\'s automatic NI number.'],
       means_tested: false,
       evidenceRequired: ['Child\'s birth or adoption certificate, if you have it (you can claim without it)', 'Bank account details', 'Your and your partner\'s National Insurance numbers'],
@@ -943,7 +943,7 @@ export const NODES: Record<string, ServiceNode> = {
       ],
       exclusions: ['Self-employed — claim Maternity Allowance instead.', 'Employed for fewer than 26 weeks with current employer — claim Maternity Allowance.'],
       means_tested: false,
-      evidenceRequired: ['MATB1 certificate from midwife or GP (issued from 20 weeks)', 'Written notice to employer of intended leave start date'],
+      evidenceRequired: ['MATB1 certificate from midwife or GP (issued from 20 weeks)', 'Notice to employer of intended leave start date (in writing if the employer asks for it)'],
       ruleIn: ['Employed 26+ weeks with same employer', 'Earnings above lower earnings limit'],
       ruleOut: ['Self-employed', 'Fewer than 26 weeks continuous employment'],      rules: [
         {
@@ -1007,7 +1007,7 @@ export const NODES: Record<string, ServiceNode> = {
       summary: '1 or 2 weeks of paternity leave and pay, to be taken within 52 weeks of the birth. Must be the baby\'s father, partner of the mother, the adopter\'s partner, or an intended parent in a surrogacy arrangement. Leave is a day-one right for employees; Paternity Pay requires 26 weeks of continuous employment by the 15th week before the due date.',
       universal: false,
       criteria: [
-        { factor: 'employment', description: 'Continuously employed with the same employer for at least 26 weeks and earning at or above the Lower Earnings Limit.' },
+        { factor: 'employment', description: 'Continuously employed with the same employer for at least 26 weeks up to the end of any day in the \'qualifying week\' (the 15th week before the baby is due), and earning an average of at least £129 a week (before tax).' },
         { factor: 'family', description: 'Must be the biological father, the mother\'s partner (including same-sex), or the co-adopter.' },
       ],
       keyQuestions: [
@@ -1083,7 +1083,7 @@ export const NODES: Record<string, ServiceNode> = {
       criteria: [
         { factor: 'employment', description: 'Both the mother/primary adopter AND the partner must each meet their respective employment and earnings tests.' },
         { factor: 'family', description: 'The mother must curtail her maternity leave to create SPL weeks to share.' },
-        { factor: 'dependency', description: 'Mother must be eligible for SMP or Maternity Allowance for SPL to be available.' },
+        { factor: 'dependency', description: 'Mother must cut short her maternity leave and pay (or Maternity Allowance), taking less than 52 weeks\' leave and 39 weeks\' pay, for SPL to be available.' },
       ],
       keyQuestions: [
         'Is the mother eligible for SMP or Maternity Allowance?',
@@ -1153,7 +1153,7 @@ export const NODES: Record<string, ServiceNode> = {
   'hmrc-free-childcare-15': {
     id: 'hmrc-free-childcare-15', name: 'Free childcare — 15 hours (3 and 4-year-olds)', dept: 'Local Authority', deptKey: 'la',
     deadline: null,
-    desc: 'Every 3 and 4-year-old in England gets 570 free hours a year (usually 15 hours a week for 38 weeks), from the term after their 3rd birthday. No income test and no application: arrange it with the childcare provider.',
+    desc: 'All 3 and 4-year-olds in England can get 570 free hours a year (usually 15 hours a week for 38 weeks), from the term after their 3rd birthday. It must be with an approved childcare provider. Contact your childcare provider or local council to find out more.',
     govuk_url: 'https://www.gov.uk/help-with-childcare-costs/free-childcare-and-education-for-3-to-4-year-olds',
     serviceType: 'entitlement',
     proactive: true,
@@ -1309,7 +1309,7 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'For every £8 a parent pays into their account, the government adds £2 (up to £500 per child per quarter, or £1,000 if disabled). Must be in work and earning at least NMW for 16 hours.',
+      summary: 'For every £8 a parent pays into their account, the government adds £2 (up to £500 per child every 3 months, or £1,000 if the child is disabled). Usually must be in work (or returning to work) and expect to earn at least the National Minimum Wage or Living Wage for 16 hours a week on average. A parent who is not working may still be eligible if their partner works and they get certain benefits.',
       universal: false,
       criteria: [
         { factor: 'employment', description: 'Both parents (or single parent) must be in work earning at least the National Minimum Wage equivalent of 16 hours/week, and neither earns over £100,000.' },
@@ -1478,7 +1478,7 @@ export const NODES: Record<string, ServiceNode> = {
       summary: 'If you were claiming Marriage Allowance and have now separated or divorced, it must be cancelled. Failure to cancel can result in an underpayment of tax.',
       universal: false,
       criteria: [
-        { factor: 'relationship_status', description: 'Previously claimed Marriage Allowance and relationship has now ended (separated, divorced, or partner died).' },
+        { factor: 'relationship_status', description: 'Previously claimed Marriage Allowance and relationship has now ended (divorced, civil partnership dissolved, or legally separated).' },
       ],
       keyQuestions: [
         'Were you or your ex-partner claiming Marriage Allowance?',
@@ -1486,7 +1486,7 @@ export const NODES: Record<string, ServiceNode> = {
       ],
       autoQualifiers: ['Marriage Allowance was in place and divorce/separation has occurred'],
       means_tested: false,
-      evidenceRequired: ['Government Gateway account or contact HMRC by phone'],
+      evidenceRequired: ['Prove your identity online using information HMRC holds about you, or contact Marriage Allowance enquiries by phone'],
       ruleIn: ['Marriage Allowance previously claimed', 'Now separated, divorced, or widowed'],
       ruleOut: [],      rules: [
         {
@@ -1788,13 +1788,13 @@ export const NODES: Record<string, ServiceNode> = {
   'hmrc-p45': {
     id: 'hmrc-p45', name: 'Obtain P45 from employer', dept: 'HMRC', deptKey: 'hmrc',
     deadline: null,
-    desc: 'Employer must provide on last day. Required for new job or benefit claim.',
+    desc: 'Employer should provide when you leave. Give to a new employer, or to Jobcentre Plus if claiming taxable benefits.',
     govuk_url: 'https://www.gov.uk/paye-forms-p45-p60-p11d/p45',
     serviceType: 'document',
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'All employees are entitled to a P45 when leaving a job. The employer is legally required to issue it. Needed for a new employer, tax refund, or benefit claim.',
+      summary: 'Employees should get a P45 from their employer when leaving a job. Give it to a new employer, or to Jobcentre Plus if claiming taxable benefits. It can also help HMRC get the details needed for a tax refund.',
       universal: true,
       criteria: [
         { factor: 'employment', description: 'Must have been employed under PAYE and left that employment.' },
@@ -1834,7 +1834,7 @@ export const NODES: Record<string, ServiceNode> = {
       universal: false,
       criteria: [
         { factor: 'employment', description: 'Overpaid income tax via PAYE, typically after job loss mid-tax year.' },
-        { factor: 'income', description: 'Unemployed for 4 weeks or more, not claiming taxable state benefits, and not returning to work or starting a taxable pension in the same tax year — if you expect to start a new job within 4 weeks, your new employer will make any repayment through your salary instead.' },
+        { factor: 'income', description: 'Unemployed for 4 weeks or more and not claiming taxable state benefits — if you expect to start a new job within 4 weeks, your new employer will make any repayment through your salary instead.' },
       ],
       keyQuestions: [
         'Did you leave your job before the end of the tax year (April 5th)?',
@@ -1870,7 +1870,7 @@ export const NODES: Record<string, ServiceNode> = {
 
     },
     agentInteraction: {
-      methods: ['online', 'phone', 'post'],
+      methods: ['online', 'post'],
       apiAvailable: false,
       onlineFormUrl: 'https://www.gov.uk/claim-tax-refund',
       authRequired: 'government-gateway',
@@ -2500,11 +2500,11 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: true,
     gated: true,
     eligibility: {
-      summary: 'After separation, only one parent can claim Child Benefit per child. If the child\'s living arrangements change, Child Benefit must be transferred to the main carer.',
+      summary: 'Only one person can get Child Benefit for a child. If you want someone else to claim, contact the Child Benefit Office, then the other person makes a new claim. If you cannot agree who gets it, HMRC decides.',
       universal: false,
       criteria: [
-        { factor: 'family', description: 'Child has moved to live primarily with a different parent after separation.' },
-        { factor: 'relationship_status', description: 'Parents have separated and current Child Benefit claimant is no longer the main carer.' },
+        { factor: 'family', description: 'The person who will claim is responsible for the child, for example because they live with the child.' },
+        { factor: 'relationship_status', description: 'The current Child Benefit claimant wants someone else to claim Child Benefit for the child.' },
       ],
       keyQuestions: [
         'Who does the child primarily live with now?',
@@ -3446,7 +3446,7 @@ export const NODES: Record<string, ServiceNode> = {
 
     },
     agentInteraction: {
-      methods: ['online', 'phone', 'post'],
+      methods: ['online', 'post'],
       apiAvailable: false,
       onlineFormUrl: 'https://www.gov.uk/attendance-allowance/how-to-claim',
       authRequired: 'none',
@@ -3796,7 +3796,7 @@ export const NODES: Record<string, ServiceNode> = {
       summary: 'Contributory benefit for jobseekers based on NI record. Paid for up to 6 months alongside Universal Credit. Usually requires Class 1 National Insurance contributions for the previous 2 tax years (NI credits can count for one of them). Paid for up to 182 days.',
       universal: false,
       criteria: [
-        { factor: 'ni_record', description: 'Must have paid Class 1 NI contributions in both of the last two complete tax years before the year of claim.' },
+        { factor: 'ni_record', description: 'Must usually have made Class 1 NI contributions for the previous 2 tax years. NI credits can count for one of these years if you did not pay contributions.' },
         { factor: 'employment', description: 'Must be unemployed or working fewer than 16 hours per week, and actively seeking work.' },
         { factor: 'age', description: 'Must be 18 or over and under State Pension age.' },
       ],
@@ -3807,7 +3807,7 @@ export const NODES: Record<string, ServiceNode> = {
       ],
       exclusions: ['Time-limited to 6 months.'],
       means_tested: false,
-      evidenceRequired: ['P45 from employer', 'NI number', 'Bank details', 'CV and job-seeking evidence'],
+      evidenceRequired: ['P45 from employer', 'NI number', 'Bank details', 'Proof of job-seeking, such as job applications and interviews, shown at regular work coach appointments'],
       ruleIn: ['Class 1 NI contributions in last two tax years', 'Actively seeking work'],
       ruleOut: ['Under State Pension age with no recent NI record'],      rules: [
         {
@@ -3842,7 +3842,7 @@ export const NODES: Record<string, ServiceNode> = {
 
     },
     agentInteraction: {
-      methods: ['online', 'phone'],
+      methods: ['online'],
       apiAvailable: false,
       onlineFormUrl: 'https://www.gov.uk/jobseekers-allowance/apply-new-style-jsa',
       authRequired: 'government-gateway',
@@ -4055,7 +4055,7 @@ export const NODES: Record<string, ServiceNode> = {
       ],
       exclusions: ['Not available if eligible for Statutory Maternity Pay from an employer.'],
       means_tested: false,
-      evidenceRequired: ['MATB1 certificate', 'Employment or self-employment evidence', 'Payslips or accounts', 'MA1 claim form'],
+      evidenceRequired: ['MATB1 certificate', 'Information about your employment in the 66 weeks before your baby is due (the Test Period)', 'Original payslips', 'MA1 claim form'],
       ruleIn: ['Not eligible for SMP', 'Self-employed or recently employed', 'Worked 26 weeks in last 66 weeks'],
       ruleOut: ['Eligible for Statutory Maternity Pay from employer'],      rules: [
         {
@@ -4091,7 +4091,7 @@ export const NODES: Record<string, ServiceNode> = {
 
     },
     agentInteraction: {
-      methods: ['online', 'post'],
+      methods: ['post'],
       apiAvailable: false,
       onlineFormUrl: 'https://www.gov.uk/maternity-allowance/how-to-claim',
       authRequired: 'none',
@@ -4526,7 +4526,7 @@ export const NODES: Record<string, ServiceNode> = {
   'dwp-access-to-work': {
     id: 'dwp-access-to-work', name: 'Access to Work', dept: 'DWP', deptKey: 'dwp',
     deadline: null,
-    desc: 'Grants for workplace adaptations, travel costs and support workers. Apply before starting job.',
+    desc: 'Grants for workplace adaptations, travel costs and support workers. Apply if you are in paid work, or about to start or return to paid work in the next 12 weeks.',
     govuk_url: 'https://www.gov.uk/access-to-work',
     serviceType: 'grant',
     proactive: true,
@@ -4712,13 +4712,13 @@ export const NODES: Record<string, ServiceNode> = {
   'dwp-child-maintenance': {
     id: 'dwp-child-maintenance', name: 'Child Maintenance Service', dept: 'DWP', deptKey: 'dwp',
     deadline: null,
-    desc: 'If parents cannot agree privately. CMS calculates based on paying parent\'s income.',
+    desc: 'An alternative to arranging child maintenance privately. CMS works out an amount to pay.',
     govuk_url: 'https://www.gov.uk/child-maintenance',
     serviceType: 'application',
     proactive: false,
     gated: true,
     eligibility: {
-      summary: 'A statutory service for parents who cannot reach a private maintenance arrangement. CMS calculates payments based on the paying parent\'s income. A fee applies to use the Collect & Pay service.',
+      summary: 'A service parents can use instead of a private arrangement to arrange child maintenance. CMS can work out an amount to pay and arrange payments.',
       universal: false,
       criteria: [
         { factor: 'family', description: 'Have children under 16 (or under 20 in qualifying education) whose parents are separated.' },
@@ -5029,78 +5029,6 @@ export const NODES: Record<string, ServiceNode> = {
       notes: 'Closed on public holidays. Pension Credit claimants and pregnant under-18s apply by phone or email, not online.',
     },
     nations: ['england', 'wales', 'northern-ireland'],
-  },
-  'nhs-free-prescriptions-pregnancy': {
-    id: 'nhs-free-prescriptions-pregnancy', name: 'Free prescriptions & dental (pregnancy)', dept: 'NHS', deptKey: 'nhs',
-    deadline: null,
-    desc: 'Automatic from positive pregnancy test. Continues until baby is 1 year old.',
-    govuk_url: 'https://www.gov.uk/help-nhs-costs/maternity-exemption-certificates',
-    serviceType: 'entitlement',
-    proactive: true,
-    gated: false,
-    eligibility: {
-      summary: 'Free NHS prescriptions and dental treatment for all pregnant women and for 12 months after the birth. Apply for a Maternity Exemption Certificate via midwife or GP.',
-      universal: true,
-      criteria: [
-        { factor: 'family', description: 'Currently pregnant or have given birth within the last 12 months.' },
-      ],
-      keyQuestions: [
-        'Are you currently pregnant?',
-        'Have you had a baby in the last 12 months?',
-        'Have you applied for your Maternity Exemption Certificate?',
-      ],
-      autoQualifiers: ['Pregnant — apply for Maternity Exemption Certificate via midwife or GP'],
-      means_tested: false,
-      evidenceRequired: ['FW8 form signed by midwife or GP — gives Maternity Exemption Certificate (valid until 12 months after due date)'],
-      ruleIn: ['Currently pregnant or given birth within 12 months'],
-      ruleOut: [],
-      rules: [
-        {
-          "type": "any",
-          "label": "Currently pregnant or gave birth within the last 12 months",
-          "rules": [
-            {
-              "type": "boolean",
-              "field": "is_pregnant",
-              "expected": true,
-              "label": "Currently pregnant"
-            },
-            {
-              "type": "boolean",
-              "field": "custom_facts.gave_birth_last_12_months",
-              "expected": true,
-              "label": "Gave birth in the last 12 months"
-            }
-          ]
-        }
-      ],
-    },
-    agentInteraction: {
-      methods: ['in-person'],
-      apiAvailable: false,
-      authRequired: 'none',
-      agentCanComplete: 'inform-only',
-      agentSteps: [
-        'Explain that a Maternity Exemption Certificate is obtained via midwife or GP',
-        'Advise that free prescriptions and dental care continue until baby is 12 months old',
-        'Remind user to ask midwife for the FW8 form at their next appointment',
-      ],
-    },
-    contactInfo: {
-      phone: { number: '+44 300 330 1341', label: 'NHS BSA (MatEx certificate queries)' },
-      hours: [
-        {
-          days: ['mon','tue','wed','thu','fri'],
-          open: '08:00',
-          close: '18:00',
-        },
-        {
-          days: ['sat'],
-          open: '09:00',
-          close: '15:00',
-        },
-      ],
-    },
   },
   'nhs-free-prescriptions': {
     id: 'nhs-free-prescriptions', name: 'Free prescriptions (disability)', dept: 'NHS', deptKey: 'nhs',
@@ -5503,7 +5431,7 @@ export const NODES: Record<string, ServiceNode> = {
       ],
       autoQualifiers: ['Marriage or civil partnership certificate received and current licence name is now incorrect'],
       means_tested: false,
-      evidenceRequired: ['D1 form (or online application)', 'Current driving licence', 'Marriage certificate or deed poll', 'Passport photo'],
+      evidenceRequired: ['D1 form (name changes must be made by post)', 'Current driving licence', 'Marriage certificate or deed poll', 'Passport photo'],
       ruleIn: ['Legal name change after marriage, civil partnership, or deed poll', 'Holds GB driving licence'],
       ruleOut: [],      rules: [
         {
@@ -5516,7 +5444,7 @@ export const NODES: Record<string, ServiceNode> = {
 
     },
     agentInteraction: {
-      methods: ['online', 'post'],
+      methods: ['post'],
       apiAvailable: false,
       onlineFormUrl: 'https://www.gov.uk/change-name-driving-licence',
       authRequired: 'government-gateway',
@@ -5703,13 +5631,13 @@ export const NODES: Record<string, ServiceNode> = {
   'dvla-sorn': {
     id: 'dvla-sorn', name: 'Make a SORN', dept: 'DVLA', deptKey: 'dvla',
     deadline: 'When tax expires',
-    desc: 'Free Statutory Off Road Notification — required when a vehicle is taken off the road and not being taxed. Tax is cancelled and remaining full months refunded. SORN stays active until the vehicle is taxed again. Driving a SORNed vehicle on a public road is a criminal offence (fine up to £1,000).',
+    desc: 'Free Statutory Off Road Notification — required when a vehicle is taken off the road and not being taxed. Tax is cancelled and remaining full months refunded. SORN stays active until the vehicle is taxed again. Using a SORNed vehicle on a public road can lead to prosecution and a fine of up to £2,500.',
     govuk_url: 'https://www.gov.uk/make-a-sorn',
     serviceType: 'obligation',
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'A free SORN must be made when a registered keeper stops taxing a vehicle and keeps it off public roads. The vehicle cannot be driven or parked on a public road — doing so is a criminal offence (fine up to £1,000, vehicle may be clamped or impounded). SORN remains in place until the vehicle is taxed again.',
+      summary: 'A free SORN must be made when a registered keeper stops taxing a vehicle and keeps it off public roads. The vehicle cannot be driven or parked on a public road — doing so can lead to prosecution and a fine of up to £2,500, and the vehicle may be clamped or impounded. SORN remains in place until the vehicle is taxed again.',
       universal: false,
       criteria: [
         { factor: 'dependency', description: 'Registered keeper of a vehicle whose tax has lapsed or is about to lapse, and which will be kept off public roads.' },
@@ -5904,10 +5832,10 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'No-fault divorce since April 2022 — no reasons needed. Apply online or on paper. Minimum timescale: 20 weeks to apply for the conditional order, then at least 43 days before applying for the final order. Fee £628. Can apply jointly or individually.',
+      summary: 'Apply online or by post. Minimum timescale: 20 weeks after the application is issued to apply for the conditional order, then at least 43 days before applying for the final order. Fee £628. Can apply jointly or on your own.',
       universal: false,
       criteria: [
-        { factor: 'relationship_status', description: 'Must have been married or in a civil partnership for at least 1 year.' },
+        { factor: 'relationship_status', description: 'Must have been married for over a year.' },
         { factor: 'residency', description: 'Either party must be domiciled in England/Wales, or habitually resident for at least 6 of the last 12 months.' },
       ],
       keyQuestions: [
@@ -5917,7 +5845,7 @@ export const NODES: Record<string, ServiceNode> = {
         'Have you thought about financial arrangements? (Strongly advised to get a Financial Consent Order.)',
       ],
       means_tested: false,
-      evidenceRequired: ['Marriage or civil partnership certificate', 'D8 application form', 'Court fee (£628, or reduced if low income)'],
+      evidenceRequired: ['Original marriage certificate or a certified copy', 'D8 application form', 'Court fee (£628, or reduced if low income)'],
       ruleIn: ['Married or in civil partnership at least 1 year', 'Domiciled or habitually resident in England/Wales'],
       ruleOut: [],      rules: [
         {
@@ -5993,7 +5921,7 @@ export const NODES: Record<string, ServiceNode> = {
         'Are you using solicitors or doing this yourself (DIY consent order)?',
       ],
       means_tested: false,
-      evidenceRequired: ['Draft consent order (D81 form)', 'Financial disclosure from both parties', 'Court fee (£62 for a consent order, £321 if contested)'],
+      evidenceRequired: ['Signed draft consent order', 'Statement of information form filled in by both parties', 'Court fee (£62 for a consent order, £321 if contested)'],
       ruleIn: ['In divorce or dissolution proceedings', 'Shared assets, property, or pensions'],
       ruleOut: [],      rules: [
         {
@@ -6006,7 +5934,7 @@ export const NODES: Record<string, ServiceNode> = {
 
     },
     agentInteraction: {
-      methods: ['online', 'post'],
+      methods: ['post'],
       apiAvailable: false,
       onlineFormUrl: 'https://www.gov.uk/money-property-when-relationship-ends/apply-for-a-financial-order',
       authRequired: 'government-gateway',
@@ -6048,7 +5976,7 @@ export const NODES: Record<string, ServiceNode> = {
       universal: false,
       criteria: [
         { factor: 'family', description: 'Parents cannot agree on living or contact arrangements for children after separation.' },
-        { factor: 'relationship_status', description: 'Separated parents with children under 16 (or up to 18 if the order already exists).' },
+        { factor: 'relationship_status', description: 'Parents with parental responsibility (for example, the child\'s mother or father) who cannot agree on child arrangements, or another relative of the child such as a grandparent, aunt or uncle.' },
       ],
       keyQuestions: [
         'Have you attempted mediation (MIAM)?',
@@ -6123,16 +6051,16 @@ export const NODES: Record<string, ServiceNode> = {
   'hmcts-legal-aid': {
     id: 'hmcts-legal-aid', name: 'Legal Aid application', dept: 'HMCTS', deptKey: 'hmcts',
     deadline: null,
-    desc: 'Means and merits tested. Available in domestic abuse cases. Applied via Legal Aid Agency.',
+    desc: 'Means tested, and the problem must be serious. Available in domestic abuse cases. A legal adviser applies for you.',
     govuk_url: 'https://www.gov.uk/legal-aid',
     serviceType: 'entitlement',
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'Government funding for legal advice and representation in certain cases. Both means-tested (income/capital) and merits-tested (strength of case). Domestic abuse cases have wider automatic eligibility. Applied via a legal aid solicitor.',
+      summary: 'Government funding for legal advice and representation in certain cases. Usually means-tested (income/capital), and the problem must be serious. Domestic abuse cases may still qualify above the income and asset limits. A legal adviser applies for you.',
       universal: false,
       criteria: [
-        { factor: 'income', description: 'Disposable income must be below £2,657/month and disposable capital below £8,000 (thresholds vary by case type).' },
+        { factor: 'income', description: 'Joint monthly income (you and your partner) must usually be £2,657 or less before tax and other deductions, and assets usually £8,000 or less.' },
         { factor: 'income', description: 'Case must pass the merits test — chances of success and proportionality to cost.' },
       ],
       keyQuestions: [
@@ -6141,9 +6069,9 @@ export const NODES: Record<string, ServiceNode> = {
         'Does your case involve domestic abuse? (Special rules may apply.)',
         'What type of legal matter is this?',
       ],
-      autoQualifiers: ['Domestic abuse victim in family proceedings with supporting evidence'],
+      autoQualifiers: ['Domestic abuse victim (you or your children) with evidence who cannot afford legal costs'],
       means_tested: true,
-      evidenceRequired: ['CW2 means test form', 'Income and savings evidence', 'Details of the case for merits assessment'],
+      evidenceRequired: ['Form CW2 (IMM), for exceptional case funding in immigration cases that go to a court or tribunal', 'Income and savings evidence', 'Details of the case for merits assessment'],
       ruleIn: ['Disposable income below £2,657/month', 'Domestic abuse victim or case with strong merits'],
       ruleOut: ['Capital above £8,000'],      rules: [
         {
@@ -6642,7 +6570,7 @@ export const NODES: Record<string, ServiceNode> = {
       universal: false,
       criteria: [
         { factor: 'income', description: 'Receiving Universal Credit (no income test from the 2026-27 academic year); or income-related ESA; or support under Part VI of the Immigration and Asylum Act 1999; or the guarantee element of Pension Credit.' },
-        { factor: 'family', description: 'Child is of compulsory school age and attends a state-funded school in England.' },
+        { factor: 'family', description: 'Child attends a government-funded school in England (children younger than compulsory school age may also qualify).' },
       ],
       keyQuestions: [
         'Are you receiving Universal Credit, income-related ESA, Pension Credit, or support under the Immigration and Asylum Act?',
@@ -8568,10 +8496,10 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'A legal entitlement for employees made compulsorily redundant after 2 or more years of continuous employment. Amount depends on age, weekly pay (capped at £751/week for redundancies on or after 6 April 2026, maximum £22,530 total), and length of service. Employer must pay — Employment Tribunal if they refuse.',
+      summary: 'A legal entitlement for employees with 2 or more years of continuous employment who are made redundant, laid off or put on short-time working. Amount depends on age, weekly pay (capped at £751/week for redundancies on or after 6 April 2026, maximum £22,530 total), and length of service. Employer must pay — Employment Tribunal if they refuse.',
       universal: false,
       criteria: [
-        { factor: 'employment', description: 'Must have been continuously employed for at least 2 years and been made compulsorily redundant.' },
+        { factor: 'employment', description: 'Must have been continuously employed for at least 2 years and been dismissed as redundant, laid off or put on short-time working.' },
         { factor: 'age', description: 'Payment multiplier depends on age: 0.5 weeks\' pay per year under 22; 1 week per year aged 22–40; 1.5 weeks per year aged 41+.' },
       ],
       keyQuestions: [
@@ -11679,7 +11607,7 @@ export const NODES: Record<string, ServiceNode> = {
       summary: 'Applies to anyone with an outstanding UK student loan whose income exceeds the threshold for their plan (Plan 1: £26,900; Plan 2: £29,385; Plan 4: £33,795; Plan 5: £25,000; Postgraduate Loan: £21,000). Repayments are 9% of income above the threshold (6% for postgraduate loans), collected via PAYE or Self Assessment automatically.',
       universal: false,
       criteria: [
-        { factor: 'income', description: 'Annual income must exceed the threshold for the applicable repayment plan before any deductions are made.' },
+        { factor: 'income', description: 'Repayments are deducted when pay goes over the weekly or monthly threshold for the repayment plan, even if annual income ends up below the yearly threshold.' },
         { factor: 'employment', description: 'Employed borrowers repay via PAYE payroll deductions; self-employed borrowers repay via their annual Self Assessment return.' },
         { factor: 'dependency', description: 'Must hold an outstanding UK government student or postgraduate loan.' },
       ],
@@ -12237,7 +12165,7 @@ export const NODES: Record<string, ServiceNode> = {
   'acas-early-conciliation': {
     id: 'acas-early-conciliation', name: 'ACAS early conciliation', dept: 'Acas', deptKey: 'other',
     deadline: '3 months minus 1 day from incident',
-    desc: 'Mandatory pre-tribunal step for most employment disputes; a free Acas conciliation service that tries to resolve disputes before a tribunal claim is lodged.',
+    desc: 'Notifying Acas is a required step before most employment tribunal claims (some claims are exempt); Acas then offers voluntary early conciliation, which tries to help resolve the dispute before a tribunal claim.',
     govuk_url: 'https://www.acas.org.uk/early-conciliation',
     nations: ['england', 'scotland', 'wales'],
     serviceType: 'legal_process',
@@ -12282,18 +12210,18 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: false,
     gated: true,
     eligibility: {
-      summary: 'Anyone can make a claim to an Employment Tribunal for a qualifying employment rights violation. Must have gone through Acas early conciliation first (in most cases). Time limit is 3 months minus 1 day from the act complained of.',
+      summary: 'You can make a claim to an Employment Tribunal if you think someone, such as your employer, has treated you unlawfully (there\'s a different way to claim in Northern Ireland). You must tell Acas first and will usually need an early conciliation certificate, though you can choose not to take part in conciliation. You usually have to claim within 3 months of your employment ending (unfair dismissal) or the problem happening.',
       universal: false,
       criteria: [
-        { factor: 'employment', description: 'Must have an employment dispute — unfair dismissal requires at least 2 years\' service; discrimination claims have no service requirement.' },
-        { factor: 'dependency', description: 'Must have an Acas EC certificate (early conciliation must be attempted first).' },
+        { factor: 'employment', description: 'Must think you have been treated unlawfully (for example unfair dismissal, discrimination, breach of contract or unauthorised pay deductions) — to claim unfair dismissal you must be an employee and normally have worked for your employer for at least 2 years.' },
+        { factor: 'dependency', description: 'Must usually have an Acas early conciliation certificate for each respondent (you must tell Acas first, but you can choose not to take part in conciliation; some exceptions apply, such as unfair dismissal claims with interim relief only).' },
       ],
       keyQuestions: [
         'Has the user completed Acas early conciliation?',
         'Do they have their Acas EC certificate reference number?',
         'What type of claim are they making?',
       ],
-      exclusions: ['No Acas EC certificate (early conciliation not completed)', 'Out of time — more than 3 months since incident'],
+      exclusions: ['No Acas EC certificate (early conciliation not completed)', 'Out of time — usually more than 3 months since employment ended (unfair dismissal) or the incident happened (discrimination or pay); the time limit is put on hold while Acas helps resolve the dispute'],
       means_tested: false,
       ruleIn: ['Has Acas EC certificate', 'Within 3-month time limit', 'Employment dispute'],
       ruleOut: ['Out of time', 'No Acas EC certificate'],
@@ -12561,7 +12489,7 @@ export const NODES: Record<string, ServiceNode> = {
       summary: 'Available to anyone who has received a decision from HMRC (on income tax, VAT, PAYE, penalties, etc.) and disagrees with it. Must appeal within 30 days of the HMRC review conclusion. No filing fee for most tax appeals.',
       universal: false,
       criteria: [
-        { factor: 'dependency', description: 'Must have received a formal decision from HMRC and exercised the right to request HMRC review first (in most cases).' },
+        { factor: 'dependency', description: 'Must have an HMRC decision to appeal. Indirect tax decisions can usually go straight to the tribunal; direct tax decisions must usually be appealed to HMRC first.' },
       ],
       keyQuestions: [
         'Has HMRC issued a formal decision letter?',
@@ -13398,7 +13326,7 @@ export const NODES: Record<string, ServiceNode> = {
   'dvsa-mot-history': {
     id: 'dvsa-mot-history', name: 'Check MOT history', dept: 'DVSA', deptKey: 'dvsa',
     deadline: null,
-    desc: 'View the complete MOT test history of any vehicle — past pass/fail results, mileage at each test and advisory notices.',
+    desc: 'View the MOT test history of a vehicle: past pass/fail results, mileage at each test and advisory notices. Results go back to 2005 for cars, motorcycles and vans, and to 2018 for HGVs, trailers, buses and coaches.',
     govuk_url: 'https://www.gov.uk/check-mot-history',
     serviceType: 'application',
     proactive: false,
@@ -13545,7 +13473,7 @@ export const NODES: Record<string, ServiceNode> = {
       summary: 'All limited companies incorporated in the UK must file annual accounts at Companies House within 9 months of their financial year end. Small companies may file abridged or micro-entity accounts. From 1 April 2028 accounts must be filed using commercial software.',
       universal: false,
       criteria: [
-        { factor: 'dependency', description: 'Must be an officer of a UK limited company (Ltd or PLC).' },
+        { factor: 'dependency', description: 'Filed for a UK company by an officer, or by anyone with the company\'s authentication code such as an accountant. Limited liability partnerships can file only certain package accounts.' },
       ],
       keyQuestions: [
         'When does the company\'s financial year end?',
@@ -13619,7 +13547,7 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: false,
     gated: false,
     eligibility: {
-      summary: 'Available to directors of a limited company that has not traded in the last 3 months and has not changed its name in the last 3 months. The application is made by all directors. HMRC must be notified separately.',
+      summary: 'Available to directors of a limited company that has not traded in the last 3 months and has not changed its name in the last 3 months. The application must be signed by a majority of the company\'s directors. HMRC must be notified separately.',
       universal: false,
       criteria: [
         { factor: 'dependency', description: 'Must be a director of a UK limited company that has not traded or otherwise been used for a purpose in the past 3 months.' },
@@ -13879,7 +13807,7 @@ export const NODES: Record<string, ServiceNode> = {
     proactive: true,
     gated: false,
     eligibility: {
-      summary: 'Available to parents who experienced the loss of a baby before 24 weeks gestation (including miscarriage and ectopic pregnancy). Free and optional. The certificate is not a legal document (it cannot be used to claim benefits) and is not added to the GP record. Losses before 1 October 1992 are covered up to 28 weeks. England only; arrives by post within 21 days.',
+      summary: 'Available to parents who experienced the loss of a baby before 24 weeks of pregnancy. Free and optional. The certificate is not a legal document (it cannot be used to claim benefits) and is not added to the GP record. Losses before 1 October 1992 are covered up to 28 weeks. England only; can take up to 21 days to arrive by post.',
       universal: false,
       criteria: [
         { factor: 'bereavement', description: 'Must have experienced pregnancy loss before 24 weeks gestation (or 28 weeks if before 1 October 1992).' },
@@ -14911,7 +14839,6 @@ export const EDGES: Edge[] = [
   { from: 'hmcts-court-fee-remission', to: 'hmcts-benefit-tribunal',        type: 'RELATED' },
 
   // Maternity Exemption
-  { from: 'nhs-free-prescriptions-pregnancy', to: 'nhs-maternity-exemption', type: 'RELATED' },
 
   // Free childcare 2yr olds
   { from: 'dwp-universal-credit',     to: 'la-free-childcare-2yr',          type: 'RELATED' },
@@ -15222,7 +15149,7 @@ export const LIFE_EVENTS: LifeEvent[] = [
   {
     id: 'baby', icon: '◦', name: 'Having a Baby',
     desc: 'Birth registration, parental leave, childcare and maternity support',
-    entryNodes: ['gro-register-birth','nhs-healthy-start','nhs-free-prescriptions-pregnancy',
+    entryNodes: ['gro-register-birth','nhs-healthy-start',
                  'hmrc-smp','dwp-maternity-allowance','hmrc-spp','dwp-sure-start-grant',
                  'nhs-maternity-exemption','la-free-childcare-2yr',
                  'sss-best-start-grant','sss-best-start-foods',
