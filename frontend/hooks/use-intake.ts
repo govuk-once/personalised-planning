@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { sendChatTurn } from "@/app/actions";
+import { createChatRequest } from "@/app/actions";
 import { failedCall } from "@/lib/action-failure";
+import { chatInput, type ChatInput } from "@/lib/action-input";
+import { chatBody } from "@/lib/chat-request";
+import { attemptDirect } from "@/lib/direct-request";
 import {
   clearSession,
   getSessionId,
@@ -12,6 +15,24 @@ import {
   useConversation,
   type StoredConversation,
 } from "@/lib/session";
+import type { ActionResult, ChatTurn } from "@/lib/types";
+
+const CHAT_TIMEOUT_MS = 300_000;
+const TOO_LONG = "The request took too long and was cancelled. Please try again.";
+
+async function requestChatTurn(input: ChatInput): Promise<ActionResult<ChatTurn>> {
+  const parsed = chatInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "That conversation could not be sent." };
+
+  const { sessionId } = parsed.data;
+  const target = await createChatRequest({ sessionId }).catch(failedCall);
+  if (!target.ok) return target;
+
+  return attemptDirect<ChatTurn>({ ...target.data, body: chatBody(parsed.data) }, sessionId, {
+    timeoutMs: CHAT_TIMEOUT_MS,
+    tooLong: TOO_LONG,
+  });
+}
 
 export function useIntake() {
   const router = useRouter();
@@ -35,7 +56,7 @@ export function useIntake() {
     saveConversation(withUser);
     setPending(true);
 
-    const result = await sendChatTurn({
+    const result = await requestChatTurn({
       sessionId,
       messages: withUser.messages,
       collectedFacts: conversation.collectedFacts,

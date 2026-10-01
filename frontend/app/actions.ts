@@ -1,41 +1,25 @@
 "use server";
 
-import { chatInput, planInput, type ChatInput, type PlanInput } from "@/lib/action-input";
-import { BACKEND_URL, callBackend, describeFailure } from "@/lib/backend-client";
+import { planInput, ticketInput, type PlanInput, type TicketInput } from "@/lib/action-input";
 import { planTicket } from "@/lib/plan-ticket";
-import type { ActionResult, ChatTurn, PlanRequest } from "@/lib/types";
+import type { ActionResult, BackendRequest } from "@/lib/types";
 
+const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 const MOCK_MODE = process.env.MOCK_MODE === "true";
 
 const rejected = <T>(error: string): ActionResult<T> => ({ ok: false, error });
 
-async function attempt<T>(call: () => Promise<T>): Promise<ActionResult<T>> {
-  try {
-    return { ok: true, data: await call() };
-  } catch (error) {
-    return { ok: false, error: describeFailure(error) };
-  }
-}
-
-export async function sendChatTurn(input: ChatInput): Promise<ActionResult<ChatTurn>> {
-  const parsed = chatInput.safeParse(input);
+export async function createChatRequest(input: TicketInput): Promise<ActionResult<BackendRequest>> {
+  const parsed = ticketInput.safeParse(input);
   if (!parsed.success) return rejected("That conversation could not be sent.");
 
-  const { sessionId, messages, collectedFacts, lifeEventIds, outstanding } = parsed.data;
-  const userContext = {
-    ...(collectedFacts ?? {}),
-    ...(lifeEventIds?.length ? { life_event_ids: lifeEventIds } : {}),
-    ...(outstanding?.length ? { outstanding } : {}),
+  return {
+    ok: true,
+    data: { url: `${BACKEND_URL}/chat`, ticket: planTicket(parsed.data.sessionId), body: null },
   };
-  return attempt(() =>
-    callBackend<ChatTurn>("/chat", sessionId, {
-      messages,
-      user_context: Object.keys(userContext).length > 0 ? userContext : null,
-    })
-  );
 }
 
-export async function createPlanRequest(input: PlanInput): Promise<ActionResult<PlanRequest>> {
+export async function createPlanRequest(input: PlanInput): Promise<ActionResult<BackendRequest>> {
   const parsed = planInput.safeParse(input);
   if (!parsed.success) return rejected("That plan request could not be sent.");
 
