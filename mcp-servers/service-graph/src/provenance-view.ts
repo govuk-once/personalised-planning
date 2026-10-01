@@ -56,7 +56,7 @@ const GUIDE =
   'inferred: an authored judgement with no published source. unverified: checked and not found, ' +
   'or the value changed after it was checked. unsourced: never checked. Treat anything other than ' +
   'confirmed as unconfirmed, and say so to the user when it matters to their decision. ' +
-  'Quotes are re-checked against the live page weekly.';
+  'Quotes are as of the last upstream sync and may not reflect the current live page.';
 
 /** Every path on a node that makes a factual claim, with a label where the path is opaque. */
 function claimFields(node: ServiceNode): { path: string; about?: string }[] {
