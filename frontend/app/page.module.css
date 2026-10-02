@@ -190,6 +190,25 @@ a:focus, button:focus:not(.ctaButton) {
   fill: #E8F1F8;
 }
 
+.profileIconLink:focus {
+  background: none;
+}
+
+.profileIconLink:focus-visible {
+  outline: none;
+}
+
+.profileIconLink:focus .profileIconSvg {
+  background-color: #1D70B8;
+  border-radius: 100%;
+  outline: 3px solid #1D70B8;
+  outline-offset: -3px;
+}
+
+.profileIconLink:focus-visible .profileIconSvg path {
+  fill: #ffdd00;
+}
+
 .ctas {
   display: flex;
   flex-direction: row;
