@@ -85,8 +85,12 @@ function TaskDetail() {
 
           <LinkCard url={task.gov_service_url} text={task.gov_service_name} />
 
-          <h3>What you&apos;ll need</h3>
-          <ListCard listItems={task.requirements} greyVariant={true} />
+          {task.requirements && (
+            <>
+              <h3>What you&apos;ll need</h3>
+              <ListCard listItems={task.requirements} greyVariant={true} />
+            </>
+          )}
         </div>
       </main>
     </div>
