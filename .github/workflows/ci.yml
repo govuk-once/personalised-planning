@@ -35,12 +35,6 @@ jobs:
       # - name: Run tests
       #   run: uv run pytest tests/ --verbose
 
-      - name: Build MCP server lambda
-        run: |
-          cd mcp-servers/service-graph
-          npm ci
-          npm run build:lambda
-
       - name: Check for secrets
         run: |
           git ls-files -z | xargs -0 uv run detect-secrets-hook \
