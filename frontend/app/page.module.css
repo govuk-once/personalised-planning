@@ -241,6 +241,10 @@ a.secondary {
     padding: 48px 24px;
   }
 
+  .header {
+    padding: 60px 24px 0px 24px;
+  }
+
   .intro {
     gap: 16px;
   }
