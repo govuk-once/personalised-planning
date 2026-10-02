@@ -456,6 +456,10 @@ a.secondary {
   text-align: right;
 }
 
+.tableCell:first-of-type::first-letter {
+  text-transform: capitalize;
+}
+
 .tableRow {
   border-bottom: 1px solid #DADADA;
   padding: 20px 0;
