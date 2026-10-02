@@ -2890,6 +2890,12 @@ export const NODES: Record<string, ServiceNode> = {
           "label": "Spouse or civil partner must have died"
         },
         {
+          "type": "enum",
+          "field": "custom_facts.deceased_relationship",
+          "oneOf": ["spouse", "civil_partner"],
+          "label": "Deceased must be your spouse or civil partner"
+        },
+        {
           "type": "any",
           "label": "Must have been married or in a civil partnership",
           "rules": [
