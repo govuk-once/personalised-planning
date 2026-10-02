@@ -218,6 +218,10 @@ class ChatAgentRunner:
             region_name=BEDROCK_REGION,
             boto_client_config=boto_config,
             max_tokens=8192,
+            additional_request_fields={
+                "thinking": {"type": "adaptive"},
+                "output_config": {"effort": "medium"},
+            },
         )
 
         # static_questions: single in-process tool over the fixed question set.
