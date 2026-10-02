@@ -8,10 +8,10 @@ class Method(StrEnum):
     Method through which a task can be completed.
     """
 
-    IN_PERSON = "in-person"
-    ONLINE = "online"
-    PHONE = "phone"
-    POST = "post"
+    IN_PERSON = "In Person"
+    ONLINE = "Online"
+    PHONE = "Phone"
+    POST = "Post"
 
 
 class StepProgress(StrEnum):
@@ -29,20 +29,25 @@ class Task(BaseModel):
     A single, detailed task used as part of a step in a personalised plan.
     """
 
-    title: str = Field(description="The title of the task.")
-    summary: str = Field(description="A short, 2-3 sentence summary suitable for the card view.")
-    callout: str = Field(
-        description="A sentence flagging an important requirement or deadline to user."
+    title: str = Field(
+        max_length=60,
+        description="The title of the task starting with the verb that best describes the nature of task e.g. 'Claim; Apply; Arrange; Check'.",
+    )
+    summary: str = Field(
+        description="A summary explaining what the task is in plain terms and what it gives the user. Do not include deadlines, cost, amounts, eligibility rules."
+    )
+    callout: str | None = Field(
+        description="An optional sentence flagging for the use either a deadline cliff or an obligation penalty."
     )
     methods: list[Method] = Field(
         description="The methods by which this task can be completed,"
-        "e.g. online, phone, post, in-person."
+        "e.g. Online, Phone, Post, In Person."
     )
     dept: str = Field(description="Name of the responsible government department.")
     location: str | None = Field(
         default=None,
         description="Location where the task needs to be completed, e.g. 'Registry Office'. "
-        "Required if 'in-person' is one of the methods, otherwise omit.",
+        "Required if 'In Person' is one of the methods, otherwise omit.",
     )
     deadline: str | None = Field(
         default=None,
@@ -51,13 +56,14 @@ class Task(BaseModel):
     grant: str | None = Field(
         default=None,
         description="Known or standard benefit that the user should qualify for"
-        "based on their circumstances, omit if not relevant",
+        "based on their circumstances. Use financialData.rates property in the service-graph as a starting point."
+        "Omit if eligibility is ambiguous or rates vary for different groups.",
     )
     gov_service_name: str = Field(
-        description="Name of the relevant government service or programme"
+        description="Name of the relevant government service or programme."
     )
     gov_service_url: str = Field(
-        description="URL link to the relevant government service or programme"
+        description="URL link to the relevant government service or programme."
     )
     cost: float = Field(description="Cost of service, or 0.0 if there are no costs.")
     service_form_url: str | None = Field(
@@ -69,7 +75,12 @@ class Task(BaseModel):
         default=None, description="Plain English label for service_form_url."
     )
     what_to_expect: str = Field(
-        description="A 1-2 paragraph summary outlining essential information about the task."
+        max_length=1000,
+        description="4-5 sentences across 2-3 short paragraphs. "
+        "Cover in order: who the user contacts or where they go, what happens during it, what happens next. "
+        "Include detail people often don't expect (e.g. a home visit, posting an original document). "
+        "Personalise using confirmed facts (council, who they're acting for). Write the general version for unknown facts. "
+        "Don't repeat deadline, method or documents shown elsewhere on the page.",
     )
     requirements: list[str] = Field(
         description="List of requirements, such as documents or items, "
@@ -82,8 +93,16 @@ class Step(BaseModel):
     A single, detailed step used in a personalised plan.
     """
 
-    title: str = Field(description="The title of the step.")
-    summary: str = Field(description="A short, 2-3 sentence summary suitable for the card view.")
+    title: str = Field(
+        max_length=100,
+        description="The title of the step concisely describing benefit or outcome the user gets from completing the step.",
+    )
+    summary: str = Field(
+        max_length=200,
+        description="2-3 sentences. Cover: (1) what the step achieves, (2) order/dependencies if relevant, "
+        "(3) the most important deadline. State eligibility only if known or sequenced. "
+        "No dates, amounts, task lists or eligibility rules — those belong on the task page.",
+    )
     status: StepProgress
     tasks: list[Task] = Field(
         description="A list of specific tasks that need to be done as part of the step."
