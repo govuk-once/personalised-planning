@@ -853,6 +853,10 @@ a.secondary {
   gap: 12px;
 }
 
+.dialogDestructive:hover, .dialogCancel:hover {
+  text-decoration: underline;
+}
+
 .dialogDestructive, .dialogCancel {
   padding: 12px 20px;
   border: none;
