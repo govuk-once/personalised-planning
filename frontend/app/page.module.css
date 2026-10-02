@@ -406,6 +406,22 @@ a.secondary {
   padding: 15px 0;
 }
 
+@media (max-width: 400px) {
+  .stepCardStatus, .stepCardProgress {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .stepCardProgress {
+    padding-left: 20px;
+  }
+
+  .stepCardProgressIcon {
+    padding-left: 0;
+    margin-right: 0;
+  }
+}
+
 .cardLink, .stepCardLink {
   display: flex;
   justify-content: space-between;
