@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -114,6 +115,41 @@ def _build_mcp_client_service_graph() -> MCPClient:
     )
 
 
+def _extract_tool_trace(messages: list) -> list[dict]:
+    """Walk agent conversation history and return one entry per tool result."""
+    tool_uses: dict[str, dict] = {}
+    for msg in messages:
+        for block in msg.get("content", []) if isinstance(msg, dict) else []:
+            if isinstance(block, dict) and "toolUse" in block:
+                tu = block["toolUse"]
+                tool_uses[tu.get("toolUseId", "")] = {
+                    "name": tu.get("name"),
+                    "input": tu.get("input"),
+                }
+
+    trace = []
+    for msg in messages:
+        for block in msg.get("content", []) if isinstance(msg, dict) else []:
+            if isinstance(block, dict) and "toolResult" in block:
+                tr = block["toolResult"]
+                tool_use_info = tool_uses.get(tr.get("toolUseId", ""), {})
+                parts = []
+                for item in tr.get("content", []):
+                    if isinstance(item, dict):
+                        if "text" in item:
+                            parts.append(item["text"])
+                        elif "json" in item:
+                            parts.append(json.dumps(item["json"]))
+                if parts:
+                    trace.append({
+                        "tool_name": tool_use_info.get("name"),
+                        "tool_input": tool_use_info.get("input"),
+                        "tool_result": "\n".join(parts),
+                    })
+
+    return trace
+
+
 class PlannerAgentRunner:
     """
     Runs the personalised planning agent using the UK government services
@@ -133,7 +169,7 @@ class PlannerAgentRunner:
                 step="mcp_config",
             )
 
-    async def run(self, prompt: str) -> dict:
+    async def run(self, prompt: str, return_trace: bool = False) -> dict:
         boto_config = BotocoreConfig(read_timeout=180)
         model = BedrockModel(
             model_id=MODEL_ID,
@@ -224,9 +260,15 @@ class PlannerAgentRunner:
                 for task in step.get("tasks", []):
                     task["completed"] = False
 
+        trace = None
+        if return_trace:
+            raw_messages = getattr(agent, "messages", None) or []
+            trace = _extract_tool_trace(raw_messages)
+
         # `agent_help` is no longer generated — it is not consumed by any downstream caller.
         # Return None as a dummy to preserve the output dict shape without spending tokens.
         return {
             "plan": plan_dict,
             "agent_help": None,
+            "trace": trace,
         }
