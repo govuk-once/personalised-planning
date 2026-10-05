@@ -819,6 +819,15 @@ a.secondary {
   text-decoration: underline;
 }
 
+.startAgain:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.startAgain:disabled:hover {
+  text-decoration: none;
+}
+
 .elapsed {
   margin: 0;
   color: #505A5F;
