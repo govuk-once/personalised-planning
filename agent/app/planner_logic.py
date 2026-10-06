@@ -6,6 +6,14 @@ from planner_agent import PlannerAgentRunner
 from shared.log_utils import StructuredLogger
 
 
+def _date_today(user_context: dict[str, Any] | None) -> str:
+    """Without `today` the agent dates relative times from its training cutoff."""
+    today = (user_context or {}).get("today")
+    if today:
+        return f"Today's date is {today}. Resolve every relative date against it."
+    return ""
+
+
 async def run_planner(
     situation: str,
     auth_token: str | None = None,
@@ -38,12 +46,20 @@ async def run_planner(
 
         agent = PlannerAgentRunner(logger=logger, auth_token=auth_token)
 
+        date_today = _date_today(user_context)
+
         # Build the prompt — include user context facts if provided, as these
         # allow check_eligibility to return more precise verdicts
         prompt = _build_prompt(situation, user_context)
-        logger.log("INFO", "Prompt sent to Agent", prompt=prompt, step="process_request")
+        logger.log(
+            "INFO",
+            "Prompt sent to Agent",
+            prompt=prompt,
+            context=date_today,
+            step="process_request",
+        )
 
-        outputs = await agent.run(prompt)
+        outputs = await agent.run(prompt, date_today=date_today)
 
         response = {
             "plan": outputs["plan"],
@@ -61,6 +77,9 @@ def _build_prompt(situation: str, user_context: dict[str, Any] | None) -> str:
     """
     Build the agent prompt from the user's situation description and any
     structured facts that can sharpen eligibility checks.
+
+    ``today`` is excluded — it is surfaced via :func:`_context_note` as a
+    system-level directive rather than a generic fact line.
     """
     prompt = f"Situation: {situation}"
 
@@ -69,6 +88,8 @@ def _build_prompt(situation: str, user_context: dict[str, Any] | None) -> str:
         # Surface any structured facts the caller has provided so check_eligibility
         # can run meaningful rules without needing to ask the user again
         for key, value in user_context.items():
+            if key == "today":
+                continue
             if value is not None:
                 facts.append(f"{key}: {value}")
         if facts:
