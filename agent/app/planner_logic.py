@@ -46,16 +46,20 @@ async def run_planner(
 
         agent = PlannerAgentRunner(logger=logger, auth_token=auth_token)
 
-        context = _context_note(user_context)
+        date_today = _context_note(user_context)
 
         # Build the prompt — include user context facts if provided, as these
         # allow check_eligibility to return more precise verdicts
         prompt = _build_prompt(situation, user_context)
         logger.log(
-            "INFO", "Prompt sent to Agent", prompt=prompt, context=context, step="process_request"
+            "INFO",
+            "Prompt sent to Agent",
+            prompt=prompt,
+            context=date_today,
+            step="process_request",
         )
 
-        outputs = await agent.run(prompt, context=context)
+        outputs = await agent.run(prompt, context=date_today)
 
         response = {
             "plan": outputs["plan"],
