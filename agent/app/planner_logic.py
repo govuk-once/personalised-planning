@@ -6,7 +6,7 @@ from planner_agent import PlannerAgentRunner
 from shared.log_utils import StructuredLogger
 
 
-def _context_note(user_context: dict[str, Any] | None) -> str:
+def _date_today(user_context: dict[str, Any] | None) -> str:
     """Without `today` the agent dates relative times from its training cutoff."""
     today = (user_context or {}).get("today")
     if today:
@@ -46,7 +46,7 @@ async def run_planner(
 
         agent = PlannerAgentRunner(logger=logger, auth_token=auth_token)
 
-        date_today = _context_note(user_context)
+        date_today = _date_today(user_context)
 
         # Build the prompt — include user context facts if provided, as these
         # allow check_eligibility to return more precise verdicts
@@ -59,7 +59,7 @@ async def run_planner(
             step="process_request",
         )
 
-        outputs = await agent.run(prompt, context=date_today)
+        outputs = await agent.run(prompt, date_today=date_today)
 
         response = {
             "plan": outputs["plan"],

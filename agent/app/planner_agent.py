@@ -133,7 +133,7 @@ class PlannerAgentRunner:
                 step="mcp_config",
             )
 
-    async def run(self, prompt: str, context: str = "") -> dict:
+    async def run(self, prompt: str, date_today: str = "") -> dict:
         boto_config = BotocoreConfig(read_timeout=180)
         model = BedrockModel(
             model_id=MODEL_ID,
@@ -144,7 +144,7 @@ class PlannerAgentRunner:
         mcp_client = _build_mcp_client_service_graph()
 
         system_prompt = (
-            f"{SYSTEM_PROMPT}\n\n### Known context\n{context}" if context else SYSTEM_PROMPT
+            f"{SYSTEM_PROMPT}\n\n### Known context\n{date_today}" if date_today else SYSTEM_PROMPT
         )
 
         # Managed integration — passing the MCPClient into tools=[] handles
