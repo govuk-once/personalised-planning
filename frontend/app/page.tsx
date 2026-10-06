@@ -42,7 +42,12 @@ export default function Home() {
         />
 
         {intake.started && (
-          <button type="button" className={styles.startAgain} onClick={intake.startAgain}>
+          <button
+            type="button"
+            className={styles.startAgain}
+            onClick={intake.startAgain}
+            disabled={intake.pending}
+          >
             Start again
           </button>
         )}

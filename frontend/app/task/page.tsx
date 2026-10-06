@@ -34,7 +34,9 @@ function TaskDetail() {
           backButtonGreyVariant={true}
         />
         <main className={styles.main}>
-          <Heading heading="Task not found" description="Go back and pick a task from your plan." />
+          <div className={styles.intro}>
+            <Heading heading="Task not found" description="Go back and pick a task from your plan." />
+          </div>
         </main>
       </div>
     );
@@ -85,8 +87,12 @@ function TaskDetail() {
 
           <LinkCard url={task.gov_service_url} text={task.gov_service_name} />
 
-          <h3>What you&apos;ll need</h3>
-          <ListCard listItems={task.requirements} greyVariant={true} />
+          {task.requirements && (
+            <>
+              <h3>What you&apos;ll need</h3>
+              <ListCard listItems={task.requirements} greyVariant={true} />
+            </>
+          )}
         </div>
       </main>
     </div>

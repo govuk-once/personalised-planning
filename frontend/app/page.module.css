@@ -190,6 +190,25 @@ a:focus, button:focus:not(.ctaButton) {
   fill: #E8F1F8;
 }
 
+.profileIconLink:focus {
+  background: none;
+}
+
+.profileIconLink:focus-visible {
+  outline: none;
+}
+
+.profileIconLink:focus .profileIconSvg {
+  background-color: #1D70B8;
+  border-radius: 100%;
+  outline: 3px solid #1D70B8;
+  outline-offset: -3px;
+}
+
+.profileIconLink:focus-visible .profileIconSvg path {
+  fill: #ffdd00;
+}
+
 .ctas {
   display: flex;
   flex-direction: row;
@@ -239,6 +258,10 @@ a.secondary {
 @media (max-width: 600px) {
   .main {
     padding: 48px 24px;
+  }
+
+  .header {
+    padding: 60px 24px 0px 24px;
   }
 
   .intro {
@@ -383,6 +406,22 @@ a.secondary {
   padding: 15px 0;
 }
 
+@media (max-width: 400px) {
+  .stepCardStatus, .stepCardProgress {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .stepCardProgress {
+    padding-left: 20px;
+  }
+
+  .stepCardProgressIcon {
+    padding-left: 0;
+    margin-right: 0;
+  }
+}
+
 .cardLink, .stepCardLink {
   display: flex;
   justify-content: space-between;
@@ -446,6 +485,10 @@ a.secondary {
 .tableHeader {
   padding-right: 15px;
   min-width: 50%;
+}
+
+.tableCell {
+  text-align: right;
 }
 
 .tableRow {
@@ -776,6 +819,15 @@ a.secondary {
   text-decoration: underline;
 }
 
+.startAgain:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.startAgain:disabled:hover {
+  text-decoration: none;
+}
+
 .elapsed {
   margin: 0;
   color: #505A5F;
@@ -820,6 +872,10 @@ a.secondary {
 .dialogActions {
   display: flex;
   gap: 12px;
+}
+
+.dialogDestructive:hover, .dialogCancel:hover {
+  text-decoration: underline;
 }
 
 .dialogDestructive, .dialogCancel {
