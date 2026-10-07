@@ -12,6 +12,7 @@ import { useUnloadWarning } from "@/hooks/use-unload-warning";
 export default function Home() {
   const intake = useIntake();
   const threadEnd = useRef<HTMLDivElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
 
   useUnloadWarning(intake.busy);
 
@@ -45,12 +46,39 @@ export default function Home() {
           <button
             type="button"
             className={styles.startAgain}
-            onClick={intake.startAgain}
+            onClick={() => dialog.current?.showModal()}
             disabled={intake.pending}
           >
             Start again
           </button>
         )}
+
+        <dialog ref={dialog} className={styles.dialog}>
+          <p>
+            This will erase your conversation history and you&apos;ll need to start
+            again and enter your information from the beginning.
+          </p>
+          <div className={styles.dialogActions}>
+            <button
+              type="button"
+              className={styles.dialogDestructive}
+              onClick={() => {
+                intake.startAgain()
+                dialog.current?.close()
+              }}
+            >
+              Start again
+            </button>
+            <button
+              type="button"
+              className={styles.dialogCancel}
+              onClick={() => dialog.current?.close()}
+              autoFocus
+            >
+              Cancel
+            </button>
+          </div>
+        </dialog>
       </main>
     </div>
   );
