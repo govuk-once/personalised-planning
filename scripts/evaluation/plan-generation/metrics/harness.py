@@ -1,4 +1,4 @@
-"""Standalone metrics harness: faithfulness, consistency, relevance.
+r"""Standalone metrics harness: faithfulness, consistency, relevance.
 
 Runs independently of the main pipeline — no truth file, no spine, no F1.
 
@@ -41,14 +41,16 @@ def _load(path: str):
     return json.loads(p.read_text())
 
 
-def _build_config(args: argparse.Namespace, situation: str) -> dict:
+def _build_config(
+    args: argparse.Namespace, situation: str, judge_model_id: str
+) -> dict:
     return {
         "G": args.G,
         "N": args.N,
         "metrics": sorted(args.metrics),
-        "judge_model": args.judge_model,
+        "judge_model": judge_model_id,
         "judge_region": args.judge_region,
-        "agent_model": args.agent_model or os.environ.get("ANTHROPIC_MODEL"),
+        "agent_model": os.environ.get("ANTHROPIC_MODEL"),
         "agent_region": args.agent_region or os.environ.get("AWS_REGION"),
         "mcp_mode": args.mcp_mode or os.environ.get("MCP_MODE"),
         "mode": args.mode,
@@ -65,41 +67,85 @@ def main(argv=None):
     )
     ap.add_argument("profiles", help="Path to profiles JSON file")
     ap.add_argument("--profile", metavar="ID", help="Run a single profile ID only")
-    ap.add_argument("-G", type=int, default=3, metavar="N_GENS",
-                    help="Plan generations per profile (default: 3)")
-    ap.add_argument("-N", type=int, default=1, metavar="N_REPEATS",
-                    help="Judge repeats per profile (default: 1)")
     ap.add_argument(
-        "--metrics", nargs="+", choices=sorted(_VALID_METRICS),
+        "-G",
+        type=int,
+        default=3,
+        metavar="N_GENS",
+        help="Plan generations per profile (default: 3)",
+    )
+    ap.add_argument(
+        "-N",
+        type=int,
+        default=1,
+        metavar="N_REPEATS",
+        help="Judge repeats per profile (default: 1)",
+    )
+    ap.add_argument(
+        "--metrics",
+        nargs="+",
+        choices=sorted(_VALID_METRICS),
         default=sorted(_VALID_METRICS),
         help="Metrics to compute (default: all)",
     )
-    ap.add_argument("--judge-model", default=None,
-                    help="Bedrock model ID for judging (default: same as run_app.py)")
-    ap.add_argument("--judge-region", default=None,
-                    help="AWS region for judge model (default: eu-west-1)")
-    ap.add_argument("--agent-model", default=None,
-                    help="Override ANTHROPIC_MODEL env var for the planner agent")
-    ap.add_argument("--agent-region", default=None,
-                    help="Override AWS_REGION env var for the planner agent")
-    ap.add_argument("--mcp-mode", choices=["local", "remote"], default=None,
-                    help="Override MCP_MODE env var")
-    ap.add_argument("--graph-server-path", default=None,
-                    help="Override GRAPH_SERVER_PATH (local MCP mode)")
-    ap.add_argument("--graph-gateway-url", default=None,
-                    help="Override GRAPH_GATEWAY_URL (remote MCP mode)")
     ap.add_argument(
-        "--mode", choices=["in-process", "endpoint"], default="in-process",
+        "--judge-model",
+        default=None,
+        help="Bedrock model ID for judging (overrides EVAL_ANTHROPIC_MODEL; required if not set)",
+    )
+    ap.add_argument(
+        "--judge-region",
+        default=None,
+        help="AWS region for judge model (default: eu-west-1)",
+    )
+    ap.add_argument(
+        "--agent-model",
+        default=None,
+        help="Bedrock model ID for plan generation (overrides ANTHROPIC_MODEL)",
+    )
+    ap.add_argument(
+        "--agent-region",
+        default=None,
+        help="Override AWS_REGION env var for the planner agent",
+    )
+    ap.add_argument(
+        "--mcp-mode",
+        choices=["local", "remote"],
+        default=None,
+        help="Override MCP_MODE env var",
+    )
+    ap.add_argument(
+        "--graph-server-path",
+        default=None,
+        help="Override GRAPH_SERVER_PATH (local MCP mode)",
+    )
+    ap.add_argument(
+        "--graph-gateway-url",
+        default=None,
+        help="Override GRAPH_GATEWAY_URL (remote MCP mode)",
+    )
+    ap.add_argument(
+        "--mode",
+        choices=["in-process", "endpoint"],
+        default="in-process",
         help="How to invoke the planner (default: in-process)",
     )
-    ap.add_argument("--endpoint", default="http://localhost:8000/plan",
-                    help="Plan API endpoint for --mode endpoint")
-    ap.add_argument("--results-out", default="results.json",
-                    help="Path for the results JSON output (default: results.json)")
-    ap.add_argument("--raw", metavar="PATH",
-                    help="Also write raw generations to this path")
-    ap.add_argument("--verbose", action="store_true",
-                    help="Print per-generation log output")
+    ap.add_argument(
+        "--endpoint",
+        default="http://localhost:8000/plan",
+        help="Plan API endpoint for --mode endpoint",
+    )
+    ap.add_argument(
+        "--results-out",
+        default="results.json",
+        help="Path for the results JSON output (default: results.json)",
+    )
+    ap.add_argument(
+        "--raw", metavar="PATH", help="Also write raw generations to this path"
+    )
+    ap.add_argument(
+        "--verbose", action="store_true", help="Print per-generation log output"
+    )
     args = ap.parse_args(argv)
 
     # --- Validate mutually exclusive constraints ---
@@ -118,6 +164,10 @@ def main(argv=None):
     # --- Apply env var overrides before any agent imports ---
     if args.agent_model:
         os.environ["ANTHROPIC_MODEL"] = args.agent_model
+    if args.mode == "in-process" and not os.environ.get("ANTHROPIC_MODEL"):
+        sys.exit(
+            "error: ANTHROPIC_MODEL is not set (required for in-process plan generation)"
+        )
     if args.agent_region:
         os.environ["AWS_REGION"] = args.agent_region
     if args.mcp_mode:
@@ -141,23 +191,27 @@ def main(argv=None):
     if _eval_dir not in sys.path:
         sys.path.insert(0, _eval_dir)
 
-    from run_app import DEFAULT_RELEVANCE_MODEL, DEFAULT_RELEVANCE_REGION, SITUATION
+    from metrics.relevance import DEFAULT_RELEVANCE_REGION
+    from run_app import SITUATION
 
-    judge_model_id = args.judge_model or DEFAULT_RELEVANCE_MODEL
+    judge_model_id = args.judge_model or os.environ.get("EVAL_ANTHROPIC_MODEL")
+    if not judge_model_id:
+        sys.exit("error: EVAL_ANTHROPIC_MODEL is not set (required for LLM judging)")
     judge_region = args.judge_region or DEFAULT_RELEVANCE_REGION
 
     # Build config now that we have SITUATION and resolved model IDs
-    config = _build_config(args, SITUATION)
+    config = _build_config(args, SITUATION, judge_model_id)
 
     from metrics.bedrock_judge import BedrockJudge
+
     judge = BedrockJudge(model_id=judge_model_id, region=judge_region)
     judge.load_model()  # fail fast if credentials are missing
 
     relevance_client = None
     relevance_template = None
     if "relevance" in args.metrics:
-        from metrics.relevance import make_bedrock_client
-        from run_app import load_relevance_prompt
+        from metrics.relevance import load_relevance_prompt, make_bedrock_client
+
         relevance_client = make_bedrock_client(judge_region)
         relevance_template = load_relevance_prompt()
 
@@ -187,6 +241,7 @@ def main(argv=None):
             gens = generate_fn(profile, args.G, log)
         else:
             from run_app import call_api, profile_context
+
             ctx = profile_context(profile)
             gens = []
             for g in range(args.G):
@@ -194,7 +249,9 @@ def main(argv=None):
                     resp = call_api(args.endpoint, ctx)
                     plan = resp.get("plan")
                     if plan:
-                        gens.append({"plan": plan, "retrieval_context": [], "context": ctx})
+                        gens.append(
+                            {"plan": plan, "retrieval_context": [], "context": ctx}
+                        )
                     else:
                         print(f"  gen {g + 1}: no plan in response", file=sys.stderr)
                 except RuntimeError as exc:
@@ -211,13 +268,17 @@ def main(argv=None):
         # --- Score N times ---
         if "faithfulness" in args.metrics:
             from metrics.faithfulness import score_faithfulness
+
             pid_faith = []
             for _ in range(args.N):
-                pid_faith.append([score_faithfulness(gen, judge, SITUATION) for gen in gens])
+                pid_faith.append(
+                    [score_faithfulness(gen, judge, SITUATION) for gen in gens]
+                )
             faithfulness_scores[pid] = pid_faith
 
         if "consistency" in args.metrics:
             from metrics.consistency import score_consistency
+
             pid_cons = []
             for _ in range(args.N):
                 pid_cons.append(score_consistency(gens, judge, SITUATION))
@@ -225,11 +286,16 @@ def main(argv=None):
 
         if "relevance" in args.metrics:
             from metrics.relevance import score_relevance
+
             pid_rel = []
             for _ in range(args.N):
                 repeat = [
                     score_relevance(
-                        gen, relevance_client, judge_model_id, relevance_template, SITUATION
+                        gen,
+                        relevance_client,
+                        judge_model_id,
+                        relevance_template,
+                        SITUATION,
                     )["tasks"]
                     for gen in gens
                 ]
@@ -238,6 +304,7 @@ def main(argv=None):
 
     # --- Aggregate and write ---
     from metrics.aggregate import compute_results
+
     results = compute_results(
         all_profiles,
         generations_by_profile,

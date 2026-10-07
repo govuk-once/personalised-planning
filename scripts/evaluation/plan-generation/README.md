@@ -13,8 +13,8 @@ against a programmatically generated ground-truth set of plans, to evaluate the 
 
 Stages 1 and 2 each make a small number of Bedrock calls, reviewed by a
 human before being trusted. Stage 3 calls the plan API once per profile and
-maps results onto step numbers using the spine — no Bedrock unless you add
-`--relevance`. Stage 2's `build` step and stage 4 are pure code — no AI,
+maps results onto step numbers using the spine — no Bedrock, no AI in the
+scoring path. Stage 2's `build` step and stage 4 are pure code — no AI,
 no network — so re-running them costs nothing and reruns deterministically.
 
 ## Dependency map
@@ -633,26 +633,12 @@ function `truth.py score` uses and accumulates the per-profile results.
 Aggregate precision, recall and F1 are ready by the time all profiles are
 processed, with no second pass needed.
 
-**It optionally judges relevance.** With `--relevance`, a separate Bedrock
-call asks whether each task is relevant to this person's situation —
-"relevant", "premature" or "irrelevant". This is a different question from
-coverage: a task can be a valid GOV.UK page that is not a spine step at all
-(vehicle tax, a booking confirmation), and relevance captures that where F1
-cannot.
-
 ## Why it's built this way
 
 **URL matching keeps the scoring path model-free.** Comparing the API's prose
 step descriptions to spine step titles would need a model, introducing a
 non-deterministic judgement between the app and its score. URL matching is
 exact, repeatable, and cheap.
-
-**Relevance is a separate metric, not a correction to F1.** Precision and
-recall measure whether the right spine steps are covered. Relevance asks
-whether the tasks are appropriate for this specific person. An app can score
-1.0 on F1 while returning tasks irrelevant to the profile; it can also miss
-spine steps while returning nothing irrelevant. Averaging incompatible signals
-hides both failure modes, so they are kept apart.
 
 **Scoring uses the same function as `truth.py score`.** `run_app.py` imports
 `score` from `truth.py` directly, so the inline metrics and the standalone
@@ -669,12 +655,11 @@ metrics to `results.json`.
 ## Install
 
 ```bash
-pip install -U boto3       # only needed for --relevance
-export AWS_REGION=eu-west-1  # or use a profile / SSO / instance role
+# no additional dependencies needed; the plan API must be running
 ```
 
-Bedrock credentials are only required with `--relevance`. The plan API and
-everything else runs without AWS.
+`run_app.py` makes no Bedrock calls. For LLM-based metrics (relevance,
+faithfulness, consistency), see the [metrics harness](#llm-based-metrics-metricsharnesspy).
 
 ## Run
 
@@ -684,9 +669,6 @@ python run_app.py data/driving_profiles.json data/truth.json > data/app_plans.js
 
 # Test a single profile
 python run_app.py data/driving_profiles.json data/truth.json --profile P011 --verbose
-
-# Include LLM-judged relevance
-python run_app.py data/driving_profiles.json data/truth.json --relevance > data/app_plans.json
 ```
 
 The plan API must be running at `--endpoint` before calling this script.
@@ -699,10 +681,7 @@ to map the API's cited URLs onto step numbers.
 | `--profile` | — | Run one profile id only, for testing |
 | `--raw` | — | Save full API responses here |
 | `--verbose` | off | Print per-task URL trace to stderr |
-| `--relevance` | off | Judge task relevance via Bedrock |
-| `--relevance-model` | `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` | Bedrock model for relevance judging |
-| `--relevance-region` | `eu-west-1` | AWS region for relevance judging |
-| `--results-out` | `results.json` | Where to write scoring and relevance results |
+| `--results-out` | `results.json` | Where to write scoring results |
 
 ## The plans it produces
 
@@ -738,12 +717,6 @@ As with `truth.py score`, `presented_a_blocked_step` is kept outside the F1
 average — it is a different class of failure and should not be traded off
 against coverage.
 
-With `--relevance`, a `"relevance"` key is added alongside `"scoring"`,
-reporting aggregate counts of `relevant`, `premature` and `irrelevant`
-verdicts and a per-profile breakdown. The relevance block carries a `"note"`
-field as a reminder that it is LLM-judged and non-deterministic — report it
-alongside precision/recall/F1, never folded into them.
-
 ## Limits
 
 The plan API must be running and reachable at `--endpoint`. A failed API call
@@ -754,4 +727,95 @@ stderr. They may be legitimate GOV.UK pages outside the step-by-step, or
 miscited URLs that will never score — worth investigating if the unmatched
 count is unexpectedly high.
 
-Relevance judging makes one Bedrock call per profile.
+---
+
+# Part 4 — LLM-based metrics (`metrics/harness.py`)
+
+## What this is for
+
+`run_app.py` scores plans structurally — coverage of spine steps, precision,
+recall, F1. Those metrics do not capture whether a plan is relevant to the
+specific person, faithful to what the knowledge graph actually says, or
+consistent across multiple runs.
+
+The metrics harness adds three LLM-judged metrics that run **independently of
+the main pipeline** — no truth file, no spine, no F1:
+
+- **Relevance** — are the plan's tasks genuinely relevant to this person's
+  situation? Each task is classified `relevant`, `premature` or `irrelevant`.
+- **Faithfulness** — does the plan stay faithful to what the planner's MCP
+  tool calls actually returned? Requires running the planner in-process to
+  capture the retrieval context.
+- **Consistency** — given `G` plan generations for the same profile, how
+  consistent are the results across two dimensions: service-set stability and
+  holistic plan similarity?
+
+## How it works
+
+The harness drives the planner agent in-process (or via the HTTP endpoint for
+relevance and consistency only), runs each judge `N` times per profile to
+smooth variance, and writes a `results.json` with per-profile and aggregate
+scores.
+
+Two knobs control cost and statistical quality:
+- `G` — plan generations per profile (faithfulness and consistency need G≥2 for
+  consistency to be meaningful).
+- `N` — judge repeats per metric per profile.
+
+Per-profile score = mean over G×N (faithfulness/relevance) or N (consistency,
+which already covers all G plans in one call). Overall aggregate = mean of
+per-profile scores.
+
+## Run
+
+```bash
+cd scripts/evaluation/plan-generation
+
+# All metrics, 3 generations per profile, 1 judge repeat
+python -m metrics.harness data/driving_profiles_v5.json -G 3 -N 1
+
+# Single profile, verbose
+python -m metrics.harness data/driving_profiles_v5.json --profile P013 -G 2 -N 2 --verbose
+
+# Consistency only, using a remote MCP gateway
+python -m metrics.harness data/driving_profiles_v5.json --metrics consistency -G 3 \
+    --mcp-mode remote --graph-gateway-url https://...
+
+# Via HTTP endpoint (no faithfulness — retrieval context not available)
+python -m metrics.harness data/driving_profiles_v5.json --metrics consistency relevance \
+    --mode endpoint --endpoint http://localhost:8000/plan
+```
+
+Requires Bedrock credentials and (for `--mode in-process`) a running MCP server
+or gateway. Run under `aws-vault exec` if using AWS SSO.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--profile` | — | Run a single profile id only |
+| `-G` | 3 | Plan generations per profile |
+| `-N` | 1 | Judge repeats per metric per profile |
+| `--metrics` | all | Space-separated subset: `faithfulness consistency relevance` |
+| `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
+| `--judge-region` | `eu-west-1` | AWS region for judge model |
+| `--agent-model` | `$ANTHROPIC_MODEL` (required for in-process) | Bedrock model for plan generation |
+| `--agent-region` | `$AWS_REGION` | Override planner region |
+| `--mcp-mode` | `$MCP_MODE` | `local` or `remote` |
+| `--graph-server-path` | `$GRAPH_SERVER_PATH` | Local MCP server path |
+| `--graph-gateway-url` | `$GRAPH_GATEWAY_URL` | Remote MCP gateway URL |
+| `--mode` | `in-process` | `in-process` (captures retrieval context) or `endpoint` |
+| `--endpoint` | `http://localhost:8000/plan` | Plan API URL for `--mode endpoint` |
+| `--results-out` | `results.json` | Where to write metric results |
+| `--raw` | — | Also write raw generations here |
+| `--verbose` | off | Print per-generation log output |
+
+## Limits
+
+`--mode in-process` is required for faithfulness — the HTTP endpoint discards
+tool-call results, so retrieval context is unavailable there.
+
+`G < 2` with consistency enabled produces null scores for all profiles (a plan
+cannot be compared against itself).
+
+Each in-process generation is one full agent run with Bedrock calls. At the
+default `G=3`, a 16-profile run makes 48 planner calls before any judging.
+Use `--profile` for development iteration.

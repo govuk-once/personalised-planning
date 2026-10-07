@@ -12,7 +12,6 @@ the numbers are not silently compared across tools.
 
 import datetime
 import statistics
-from typing import Any
 
 
 def _mean(values: list) -> float | None:
@@ -30,7 +29,11 @@ def _relevant_fraction(judged_tasks: list[dict]) -> float | None:
     Returns:
         Float in [0, 1] or None if no tasks were judged.
     """
-    scored = [t for t in judged_tasks if t.get("verdict") in ("relevant", "premature", "irrelevant")]
+    scored = [
+        t
+        for t in judged_tasks
+        if t.get("verdict") in ("relevant", "premature", "irrelevant")
+    ]
     if not scored:
         return None
     return sum(1 for t in scored if t.get("verdict") == "relevant") / len(scored)
@@ -89,7 +92,9 @@ def compute_results(
         # --- Consistency: mean over N repeats ---
         c_repeats = consistency_scores.get(pid, [])
         c_judged = [r for r in c_repeats if r.get("status") == "judged"]
-        skipped_note = next((r.get("note") for r in c_repeats if r.get("status") == "skipped"), None)
+        skipped_note = next(
+            (r.get("note") for r in c_repeats if r.get("status") == "skipped"), None
+        )
         cons_per[pid] = {
             "service_stability": _mean([r.get("service_stability") for r in c_judged]),
             "holistic": _mean([r.get("holistic") for r in c_judged]),
@@ -98,11 +103,7 @@ def compute_results(
 
         # --- Relevance: mean relevant-fraction over G plans × N repeats ---
         r_repeats = relevance_scores.get(pid, [])
-        r_vals = [
-            _relevant_fraction(tasks)
-            for repeat in r_repeats
-            for tasks in repeat
-        ]
+        r_vals = [_relevant_fraction(tasks) for repeat in r_repeats for tasks in repeat]
         all_tasks = [t for repeat in r_repeats for tasks in repeat for t in tasks]
         rel_per[pid] = {
             "score": _mean(r_vals),
@@ -128,14 +129,16 @@ def compute_results(
                 "Aggregate = mean of per-profile scores."
             ),
             "aggregate": {
-                "service_stability": _mean([v["service_stability"] for v in cons_per.values()]),
+                "service_stability": _mean(
+                    [v["service_stability"] for v in cons_per.values()]
+                ),
                 "holistic": _mean([v["holistic"] for v in cons_per.values()]),
             },
             "per_profile": cons_per,
         },
         "relevance": {
             "note": (
-                "Custom Bedrock judge (same prompt as run_app.py --relevance). "
+                "Custom Bedrock judge (same prompt as the original relevance judge). "
                 "Per-profile score = fraction of tasks judged 'relevant', "
                 "meaned over G plans x N repeats. "
                 "Aggregate = mean of per-profile scores. "

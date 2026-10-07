@@ -2,7 +2,6 @@
 
     python run_app.py profiles.json truth.json > app_plans.json
     python run_app.py profiles.json truth.json --profile P011 --verbose
-    python run_app.py profiles.json truth.json --relevance > app_plans.json
 
 Ground truth scores plans as sets of step numbers from the GOV.UK
 step-by-step spine. The API returns free-text steps, so each response has to
@@ -11,16 +10,11 @@ carries the GOV.UK paths for each step, and the API cites `gov_service_url`
 per task. A cited URL that belongs to a spine step means the app covered
 that step.
 
-No LLM sits in the step-scoring path above — it would put a
-non-deterministic judgement between the app and its score.
+No LLM sits in the step-scoring path — it would put a non-deterministic
+judgement between the app and its score.
 
---relevance adds a SEPARATE, optional, LLM-judged metric: for each task the
-app returned, is it relevant to *this person's own situation*? This is
-independent of the spine (a task can be a perfectly good gov.uk page with
-no spine step at all, e.g. the vehicle-tax links a driving-age plan can
-legitimately include) and independent of the app's own `reasoning` field,
-which is never shown to the judge. Because it is LLM-judged, it is reported
-separately in results.json, never folded into precision/recall/F1.
+LLM-based metrics (relevance, faithfulness, consistency) are in the
+separate metrics harness: python -m metrics.harness
 """
 
 import argparse
@@ -32,14 +26,6 @@ import urllib.error
 import urllib.request
 
 SITUATION = "learning to drive"
-
-RELEVANCE_PROMPT_PATH = pathlib.Path(__file__).parent / "relevance_prompt.md"
-RELEVANCE_VERDICTS = {"relevant", "premature", "irrelevant"}
-
-# Verify this against the Bedrock EU inference profiles available in your
-# account/region before relying on it -- model IDs shift over time.
-DEFAULT_RELEVANCE_MODEL = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
-DEFAULT_RELEVANCE_REGION = "eu-west-1"
 
 
 def load(path):
@@ -72,7 +58,7 @@ def url_index(spine):
 
 
 def profile_context(profile):
-    """Build the user_context dict the API (and the relevance judge) sees.
+    """Build the user_context dict the API sees.
 
     Args:
         profile: A synthetic profile record.
@@ -150,194 +136,6 @@ def trace_tasks(response, index):
     return trace
 
 
-def collect_relevance_tasks(response):
-    """Pull the task fields the relevance judge is allowed to see.
-
-    Deliberately excludes the plan's own `reasoning` field (the app's
-    self-justification) and the spine/truth (this metric is independent of
-    both) — only the task content itself goes to the judge.
-
-    Args:
-        response: The parsed API response.
-
-    Returns:
-        List of dicts with `title`, `summary`, `gov_service_name`, `url`,
-        one per task that has a `gov_service_url`, in plan order.
-    """
-    tasks = []
-    for step in (response.get("plan") or {}).get("steps") or []:
-        for task in step.get("tasks") or []:
-            url = task.get("gov_service_url") or ""
-            if not url:
-                continue
-            tasks.append(
-                {
-                    "title": task.get("title") or task.get("task_title") or "",
-                    "summary": task.get("summary") or "",
-                    "gov_service_name": task.get("gov_service_name") or "",
-                    "url": url,
-                }
-            )
-    return tasks
-
-
-def load_relevance_prompt():
-    """Read the relevance judge prompt template from its markdown file."""
-    return RELEVANCE_PROMPT_PATH.read_text()
-
-
-def build_relevance_prompt(template, situation, context, tasks):
-    """Fill the prompt template for one plan's relevance judgement.
-
-    Args:
-        template: Prompt text from `load_relevance_prompt`.
-        situation: The life-event string sent to the API.
-        context: Dict from `profile_context`.
-        tasks: List from `collect_relevance_tasks`.
-
-    Returns:
-        Completed prompt string.
-    """
-    numbered = "\n\n".join(
-        f"{i}. {t['title']}\n"
-        f"   Service: {t['gov_service_name']}\n"
-        f"   Summary: {t['summary']}\n"
-        f"   URL: {t['url']}"
-        for i, t in enumerate(tasks)
-    )
-    return template.format(
-        situation=situation,
-        context=json.dumps(context, sort_keys=True),
-        tasks=numbered,
-    )
-
-
-def invoke_bedrock(client, model_id, prompt, max_tokens=2000):
-    """Call a Claude model on Bedrock and return its text output.
-
-    Args:
-        client: A boto3 `bedrock-runtime` client.
-        model_id: Bedrock model or inference-profile ID.
-        prompt: Full prompt text.
-        max_tokens: Response token cap.
-
-    Returns:
-        The model's text response.
-
-    Raises:
-        RuntimeError: If the call fails or the response has no text.
-    """
-    body = json.dumps(
-        {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": max_tokens,
-            "temperature": 0,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-    )
-    try:
-        response = client.invoke_model(modelId=model_id, body=body)
-        payload = json.loads(response["body"].read())
-        chunks = [
-            b["text"] for b in payload.get("content", []) if b.get("type") == "text"
-        ]
-        if not chunks:
-            raise RuntimeError("no text content in Bedrock response")
-        return "".join(chunks)
-    except Exception as exc:  # noqa: BLE001 - surface any Bedrock/network error uniformly
-        raise RuntimeError(f"Bedrock call failed: {exc}") from exc
-
-
-def parse_relevance_response(text, n_tasks):
-    """Parse the judge's JSON array, tolerating stray code fences.
-
-    Any task the model didn't return a valid verdict for is marked
-    "unjudged" rather than silently dropped or guessed at.
-
-    Args:
-        text: Raw model output.
-        n_tasks: Expected number of tasks, for filling gaps.
-
-    Returns:
-        List of length `n_tasks` with `verdict` and `rationale` per index.
-    """
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`")
-        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned
-    by_index = {}
-    try:
-        parsed = json.loads(cleaned)
-        for item in parsed:
-            i = item.get("index")
-            verdict = item.get("verdict")
-            if isinstance(i, int) and verdict in RELEVANCE_VERDICTS:
-                by_index[i] = {
-                    "verdict": verdict,
-                    "rationale": item.get("rationale", ""),
-                }
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        pass
-    return [
-        by_index.get(
-            i, {"verdict": "unjudged", "rationale": "could not parse judge output"}
-        )
-        for i in range(n_tasks)
-    ]
-
-
-def judge_plan_relevance(client, model_id, prompt_template, situation, context, tasks):
-    """Run the relevance judge over one plan's tasks.
-
-    Args:
-        client: A boto3 `bedrock-runtime` client.
-        model_id: Bedrock model or inference-profile ID.
-        prompt_template: Prompt text from `load_relevance_prompt`.
-        situation: The life-event string sent to the API.
-        context: Dict from `profile_context`.
-        tasks: List from `collect_relevance_tasks`.
-
-    Returns:
-        List of dicts merging each task with its verdict and rationale.
-    """
-    if not tasks:
-        return []
-    prompt = build_relevance_prompt(prompt_template, situation, context, tasks)
-    text = invoke_bedrock(client, model_id, prompt)
-    verdicts = parse_relevance_response(text, len(tasks))
-    return [{**task, **verdict} for task, verdict in zip(tasks, verdicts, strict=True)]
-
-
-def aggregate_relevance(per_profile):
-    """Roll per-task verdicts up into the two headline relevance metrics.
-
-    Pooled across all judged tasks (not averaged per-profile-then-across),
-    matching how precision/recall are pooled via set arithmetic elsewhere
-    in this project.
-
-    Args:
-        per_profile: List of {"profile_id": ..., "tasks": [...]} records.
-
-    Returns:
-        Dict with counts and the two aggregate ratios. Ratios are None if
-        no tasks were judged.
-    """
-    counts = {"relevant": 0, "premature": 0, "irrelevant": 0, "unjudged": 0}
-    for record in per_profile:
-        for task in record["tasks"]:
-            counts[task["verdict"]] = counts.get(task["verdict"], 0) + 1
-    judged = counts["relevant"] + counts["premature"] + counts["irrelevant"]
-    return {
-        "counts": counts,
-        "tasks_judged": judged,
-        "tasks_unjudged": counts["unjudged"],
-        "relevant_only": (counts["relevant"] / judged) if judged else None,
-        "relevant_or_premature": (
-            (counts["relevant"] + counts["premature"]) / judged if judged else None
-        ),
-    }
-
-
 def main(argv=None):
     """Entry point."""
     ap = argparse.ArgumentParser(description=__doc__)
@@ -347,13 +145,6 @@ def main(argv=None):
     ap.add_argument("--profile", help="run a single profile id, for testing")
     ap.add_argument("--raw", help="also save full API responses here")
     ap.add_argument("--verbose", action="store_true")
-    ap.add_argument(
-        "--relevance",
-        action="store_true",
-        help="judge task relevance via Bedrock (EU) and write results.json",
-    )
-    ap.add_argument("--relevance-model", default=DEFAULT_RELEVANCE_MODEL)
-    ap.add_argument("--relevance-region", default=DEFAULT_RELEVANCE_REGION)
     ap.add_argument("--results-out", default="results.json")
     args = ap.parse_args(argv)
 
@@ -365,13 +156,6 @@ def main(argv=None):
     # would conflate "step 3 of guide A" with "step 3 of guide B".
     guide_indexes = {path: url_index(spine) for path, spine in truth["spines"].items()}
     by_key = {(t["profile_id"], t["step_by_step"]): t for t in truth["truths"]}
-
-    bedrock, prompt_template = None, None
-    if args.relevance:
-        import boto3  # deferred: only needed for this optional path
-
-        bedrock = boto3.client("bedrock-runtime", region_name=args.relevance_region)
-        prompt_template = load_relevance_prompt()
 
     # Only profiles with ground truth are scoreable; guides cover a subset of
     # the cohort, so calling the API for the rest wastes time.
@@ -385,7 +169,6 @@ def main(argv=None):
 
     plans, raw, failures, unmatched = [], {}, [], set()
     scores = []
-    relevance_records, relevance_failures = [], []
     for i, profile in enumerate(todo, 1):
         context = profile_context(profile)
         try:
@@ -429,21 +212,6 @@ def main(argv=None):
                         file=sys.stderr,
                     )
 
-        if args.relevance:
-            tasks = collect_relevance_tasks(response)
-            try:
-                judged = judge_plan_relevance(
-                    bedrock,
-                    args.relevance_model,
-                    prompt_template,
-                    SITUATION,
-                    context,
-                    tasks,
-                )
-                relevance_records.append({"profile_id": profile["id"], "tasks": judged})
-            except RuntimeError as exc:
-                relevance_failures.append(f"{profile['id']}: {exc}")
-
         print(f"{i}/{len(todo)}", end="\r", file=sys.stderr)
 
     for f in failures:
@@ -459,8 +227,6 @@ def main(argv=None):
     empty = sum(1 for p in plans if not p["steps"])
     if empty:
         print(f"warning: {empty} plan(s) matched no steps at all", file=sys.stderr)
-    for f in relevance_failures:
-        print(f"relevance judging failed {f}", file=sys.stderr)
 
     if args.raw:
         resolved_raw = pathlib.Path(args.raw).resolve()
@@ -513,25 +279,6 @@ def main(argv=None):
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "scoring": scoring_block,
     }
-
-    if args.relevance:
-        aggregate = aggregate_relevance(relevance_records)
-        results["relevance"] = {
-            "model": args.relevance_model,
-            "region": args.relevance_region,
-            "note": (
-                "LLM-judged, not deterministic like precision/recall/F1. "
-                "Report alongside those metrics, never averaged into them."
-            ),
-            "profiles_judged": len(relevance_records),
-            "profiles_failed": len(relevance_failures),
-            "aggregate": {
-                "relevant_only": aggregate["relevant_only"],
-                "relevant_or_premature": aggregate["relevant_or_premature"],
-                "counts": aggregate["counts"],
-            },
-            "per_profile": relevance_records,
-        }
 
     resolved_results_out = pathlib.Path(args.results_out).resolve()
     if not resolved_results_out.parent.is_dir():

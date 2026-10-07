@@ -42,7 +42,7 @@ class BedrockJudge(DeepEvalBaseLLM):
             A Pydantic model instance when ``schema`` is provided, else the raw
             response string.
         """
-        client = self.load_model()
+        self.load_model()
 
         full_prompt = prompt
         if schema is not None:
@@ -54,15 +54,19 @@ class BedrockJudge(DeepEvalBaseLLM):
                 "Return ONLY the JSON object, no extra text or explanation."
             )
 
-        body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4096,
-            "temperature": 0,
-            "messages": [{"role": "user", "content": full_prompt}],
-        })
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 4096,
+                "temperature": 0,
+                "messages": [{"role": "user", "content": full_prompt}],
+            }
+        )
         response = self._client.invoke_model(modelId=self.model_id, body=body)
         payload = json.loads(response["body"].read())
-        chunks = [b["text"] for b in payload.get("content", []) if b.get("type") == "text"]
+        chunks = [
+            b["text"] for b in payload.get("content", []) if b.get("type") == "text"
+        ]
         text = "".join(chunks)
 
         if schema is None:
