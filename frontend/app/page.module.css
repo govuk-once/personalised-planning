@@ -777,6 +777,7 @@ a.secondary {
   background-color: #FFFFFF;
   font-size: 17px;
   color: #0B0C0C;
+  min-width: 0;
 }
 
 .composerSubmit {
