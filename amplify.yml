@@ -6,16 +6,9 @@ applications:
         build:
           commands:
             - '[ -f amplify.yml ] || cd ..'
-            - test -n "$AGENT_RUNTIME_ARN$CHAT_AGENT_RUNTIME_ARN$BACKEND_API_KEY" || { echo "This app has no environment variables set"; exit 1; }
+            - test -n "$AGENT_RUNTIME_ARN" && test -n "$CHAT_AGENT_RUNTIME_ARN" || { echo "This app has no AGENT_RUNTIME_ARN or CHAT_AGENT_RUNTIME_ARN set"; exit 1; }
             - npm install --no-audit --no-fund
-            - curl -LsSf https://astral.sh/uv/install.sh | sh
-            - export PATH="$HOME/.local/bin:$PATH"
-            - BUNDLE=amplify/python-backend/.build/lambda
-            - rm -rf $BUNDLE && mkdir -p $BUNDLE
-            - uv pip install --quiet --target $BUNDLE --python-platform aarch64-manylinux2014 --python-version 3.12 -r backend/pyproject.toml
-            - cp -R backend/app $BUNDLE/app
-            - cp backend/handler.py backend/log_utils.py backend/agent_mock_response.py $BUNDLE/
-            - file $(find $BUNDLE -name '_pydantic_core*.so' -print -quit) | grep -q 'ELF 64-bit.*aarch64'
+            - npm ci --prefix backend --no-audit --no-fund
             - npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
     frontend:
       phases:
@@ -29,9 +22,10 @@ applications:
         build:
           commands:
             - '[ -f next.config.ts ] || cd frontend'
-            - BACKEND_URL=$(node -p "require('../amplify_outputs.json').custom.backendUrl")
-            - test -n "$BACKEND_URL" || { echo "backendUrl missing from amplify_outputs.json"; exit 1; }
-            - printf 'BACKEND_URL=%s\nBACKEND_API_KEY=%s\n' "$BACKEND_URL" "$BACKEND_API_KEY" > .env.production
+            - BACKEND_FUNCTION_NAME=$(node -p "require('../amplify_outputs.json').custom.backendFunction ?? ''")
+            - BACKEND_REGION=$(node -p "require('../amplify_outputs.json').custom.backendRegion ?? ''")
+            - test -n "$BACKEND_FUNCTION_NAME" && test -n "$BACKEND_REGION" || { echo "backendFunction or backendRegion missing from amplify_outputs.json"; exit 1; }
+            - printf 'BACKEND_FUNCTION_NAME=%s\nBACKEND_REGION=%s\nMOCK_MODE=%s\n' "$BACKEND_FUNCTION_NAME" "$BACKEND_REGION" "${MOCK_MODE:-false}" > .env.production
             - pnpm build
       artifacts:
         baseDirectory: .next
