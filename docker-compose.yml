@@ -34,17 +34,9 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
 
-  backend:
-    build:
-      context: ./backend
+  dynamodb:
+    # The job store. In memory only
+    image: amazon/dynamodb-local:latest
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
-    depends_on:
-      - agent
-      - chat-agent
+      - "8001:8000"

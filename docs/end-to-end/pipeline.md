@@ -1,5 +1,7 @@
 # Planner Agent Pipeline
 
+> Out of date: this describes the first FastAPI backend. The backend is now two Lambdas: see [`backend/README.md`](../../backend/README.md).
+
 The first iteration of the planner agent pipeline comprises:
 - Frontend client (`frontend/`)
 - A single endpoint FastAPI backend service (`backend/`)
