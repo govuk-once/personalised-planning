@@ -42,7 +42,6 @@ export function attachComputeRole(
         computeRoleArn: role.roleArn,
       },
       physicalResourceId: PhysicalResourceId.of(`${branch.name}-compute-role`),
-      ignoreErrorCodesMatching: ".*",
     },
     onDelete: {
       service: "Amplify",
@@ -52,7 +51,8 @@ export function attachComputeRole(
         branchName: branch.name,
         computeRoleArn: "",
       },
-      ignoreErrorCodesMatching: ".*",
+      // The branch may already be gone when its stack is deleted.
+      ignoreErrorCodesMatching: "NotFoundException",
     },
     policy: AwsCustomResourcePolicy.fromStatements([passRole, updateBranch]),
     logGroup,

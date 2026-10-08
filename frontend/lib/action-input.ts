@@ -1,5 +1,7 @@
 import * as z from "zod";
 
+import { fitsFacts, fitsTranscript, TOO_LONG_ISSUE } from "@/lib/input-limits";
+
 // validate every input.
 
 const ID_CHARACTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_";
@@ -19,8 +21,13 @@ const message = z.object({
   content: z.string().max(20_000),
 });
 
-const transcript = z.array(message).min(1).max(60);
-const facts = z.record(z.string(), z.unknown());
+const transcript = z
+  .array(message)
+  .min(1)
+  .max(60)
+  .refine(fitsTranscript, TOO_LONG_ISSUE);
+
+const facts = z.record(z.string(), z.unknown()).refine(fitsFacts, TOO_LONG_ISSUE);
 
 function ownJobId(kind: "chat" | "plan") {
   const pattern = new RegExp(`^${kind}-[0-9a-f]{32}$`);

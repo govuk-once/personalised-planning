@@ -11,7 +11,7 @@ import { clearPlanJob, useConversation, useHydrated, usePlan, usePlanJob } from 
 
 const PLAN_POLLING = {
   intervalMs: 10_000,
-  timeoutMs: 480_000,
+  timeoutMs: 600_000,
   missWindowMs: 60_000,
 };
 

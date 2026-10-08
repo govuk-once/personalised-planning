@@ -9,6 +9,7 @@ import {
   type PlanInput,
 } from "@/lib/action-input";
 import { callBackend, describeFailure } from "@/lib/backend";
+import { chatRefusal } from "@/lib/input-limits";
 import { chatBody } from "@/lib/chat-request";
 import { toJobRef, toJobState, UNREACHABLE, type BackendReply } from "@/lib/jobs";
 import type { ActionResult, ChatTurn, JobRef, JobState, PlanResult } from "@/lib/types";
@@ -16,9 +17,6 @@ import type { ActionResult, ChatTurn, JobRef, JobState, PlanResult } from "@/lib
 const MOCK_MODE = process.env.MOCK_MODE === "true";
 
 const rejected = <T>(error: string): ActionResult<T> => ({ ok: false, error });
-
-const TOO_LONG = "This conversation is too long to send. Please start again.";
-const NOT_SENT = "That conversation could not be sent.";
 
 async function ask(event: Record<string, unknown>): Promise<BackendReply> {
   try {
@@ -42,8 +40,7 @@ export async function startChatTurn(input: ChatInput): Promise<ActionResult<JobR
   const parsed = chatInput.safeParse(input);
 
   if (!parsed.success) {
-    const tooLong = parsed.error.issues.some(issue => issue.code === "too_big");
-    const message = tooLong ? TOO_LONG : NOT_SENT;
+    const message = chatRefusal(parsed.error.issues);
 
     return rejected(message);
   }

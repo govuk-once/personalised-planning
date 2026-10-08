@@ -17,7 +17,7 @@ import {
 
 const CHAT_POLLING = {
   intervalMs: 5_000,
-  timeoutMs: 360_000,
+  timeoutMs: 600_000,
   missWindowMs: 60_000,
 };
 
