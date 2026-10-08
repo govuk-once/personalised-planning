@@ -2,11 +2,9 @@ import styles from "@/app/page.module.css";
 import type { ChatMessage } from "@/lib/types";
 
 const WELCOME =
-  "Hello. I'm here to help you get the support you're entitled to and meet the obligations that come with big life events." +
+  "Hello. I'm here to help you find government services that may be relevant when something big changes in your life. I'll ask a few questions and build you a plan of what to look into, and when." +
   "\n\n" +
-  "We'll build a plan together so you know what to do, and when. I'll ask you a few questions as we go to get the details right." +
-  "\n\n" +
-  "To start, can you tell me what's going on and what you'd like help with?";
+  "What would you like help with?";
 
 type ThreadProps = {
   messages: ChatMessage[];
