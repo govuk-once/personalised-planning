@@ -22,22 +22,33 @@ const message = z.object({
 const transcript = z.array(message).min(1).max(60);
 const facts = z.record(z.string(), z.unknown());
 
+function ownJobId(kind: "chat" | "plan") {
+  const pattern = new RegExp(`^${kind}-[0-9a-f]{32}$`);
+
+  return z.string().regex(pattern);
+}
+
 export const chatInput = z.object({
   sessionId,
+  jobId: ownJobId("chat").optional(),
   messages: transcript,
   collectedFacts: facts.optional(),
   lifeEventIds: z.array(z.string()).optional(),
   outstanding: z.array(z.string()).optional(),
 });
 
-export const ticketInput = z.object({ sessionId });
+export const jobLookup = z.object({
+  sessionId,
+  jobId: z.string().regex(/^(chat|plan)-[0-9a-f]{32}$/),
+});
 
 export const planInput = z.object({
   sessionId,
+  jobId: ownJobId("plan").optional(),
   situation: z.string().min(1).max(4_000),
   userContext: facts.optional(),
 });
 
 export type ChatInput = z.infer<typeof chatInput>;
 export type PlanInput = z.infer<typeof planInput>;
-export type TicketInput = z.infer<typeof ticketInput>;
+export type JobLookup = z.infer<typeof jobLookup>;

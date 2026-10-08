@@ -8,12 +8,9 @@ import NoPlan from "@/app/components/plan/NoPlan";
 import PlanSteps from "@/app/components/plan/PlanSteps";
 import Header from "@/app/components/shared/Header";
 import { usePlanGeneration } from "@/hooks/use-plan-generation";
-import { useUnloadWarning } from "@/hooks/use-unload-warning";
 
 export default function PlanPage() {
   const { hydrated, plan, generating, error, retry } = usePlanGeneration();
-
-  useUnloadWarning(generating);
 
   if (!hydrated) return null;
   if (!plan && !generating && !retry) return <NoPlan />;

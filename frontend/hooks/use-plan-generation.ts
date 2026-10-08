@@ -1,69 +1,84 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { createPlanRequest } from "@/app/actions";
-import { failedCall } from "@/lib/action-failure";
-import { callDirect, describeDirectFailure } from "@/lib/direct-request";
-import { getSessionId, savePlan, useConversation, useHydrated, usePlan } from "@/lib/session";
-import type { PlanResult } from "@/lib/types";
+import { usePlanPolling } from "@/hooks/use-plan-polling";
+import { usePlanStart } from "@/hooks/use-plan-start";
+import { SITE_UPDATED } from "@/lib/action-failure";
+import { situationOf } from "@/lib/conversation";
+import { onLoad } from "@/lib/plan-page";
+import { clearPlanJob, useConversation, useHydrated, usePlan, usePlanJob } from "@/lib/session";
 
-const TIMEOUT_MS = 300_000;
-const TOO_LONG = "The plan took too long and was cancelled. Try again.";
+const PLAN_POLLING = {
+  intervalMs: 10_000,
+  timeoutMs: 480_000,
+  missWindowMs: 60_000,
+};
+
+function reloadPage() {
+  window.location.reload();
+}
 
 export function usePlanGeneration() {
   const hydrated = useHydrated();
   const plan = usePlan();
+  const planJob = usePlanJob();
   const conversation = useConversation();
-  const [generating, startGenerating] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { starting, generate } = usePlanStart(setError);
   const requested = useRef(false);
 
-  const situation =
-    conversation.situation.trim() ||
-    conversation.messages.find((m) => m.role === "user")?.content ||
-    "";
+  const situation = situationOf(conversation);
+  const { collectedFacts } = conversation;
 
-  const generate = useCallback((brief: string, userContext: Record<string, unknown>) => {
-    startGenerating(async () => {
-      setError(null);
-      const sessionId = getSessionId();
-      const target = await createPlanRequest({ sessionId, situation: brief, userContext }).catch(
-        failedCall
-      );
-
-      if (!target.ok) {
-        setError(target.error);
-        return;
-      }
-
-      try {
-        const result = await callDirect<PlanResult>(target.data, sessionId, TIMEOUT_MS);
-        if (!result.plan) {
-          setError("The planner did not return a plan. Try starting again.");
-          return;
-        }
-        savePlan(result.plan);
-      } catch (caught) {
-        setError(describeDirectFailure(caught, TOO_LONG));
-      }
-    });
-  }, []);
+  usePlanPolling(planJob, PLAN_POLLING, setError);
 
   useEffect(() => {
-    if (!hydrated || requested.current) return;
-
-    if (plan) {
-      requested.current = true;
+    if (!hydrated || requested.current) {
       return;
     }
-    if (situation) {
-      requested.current = true;
-      generate(situation, conversation.collectedFacts);
+
+    const next = onLoad(plan, planJob, situation);
+
+    if (next === "wait") {
+      return;
     }
-  }, [hydrated, plan, situation, conversation.collectedFacts, generate]);
 
-  const retry = situation ? () => generate(situation, conversation.collectedFacts) : null;
+    requested.current = true;
 
-  return { hydrated, plan, generating, error, retry };
+    if (next === "ask again" && planJob) {
+      generate(situation, collectedFacts, planJob);
+    }
+
+    if (next === "start") {
+      generate(situation, collectedFacts);
+    }
+  }, [hydrated, plan, planJob, situation, collectedFacts, generate]);
+
+  function retryFor(): (() => void) | null {
+    if (error === SITE_UPDATED) {
+      return reloadPage;
+    }
+
+    if (!situation) {
+      return null;
+    }
+
+    return () => {
+      clearPlanJob();
+      generate(situation, collectedFacts);
+    };
+  }
+
+  const busy = starting || planJob !== null;
+  const generating = busy && error === null;
+  const retry = retryFor();
+
+  return {
+    hydrated,
+    plan,
+    generating,
+    error,
+    retry,
+  };
 }
