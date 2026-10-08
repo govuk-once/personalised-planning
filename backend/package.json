@@ -1,0 +1,30 @@
+{
+  "name": "planner-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Api and Worker Lambdas: the job store between Next.js and the AgentCore agents",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "eslint src",
+    "format": "prettier --write src ../amplify/backend.ts ../amplify/local.ts ../amplify/local ../amplify/jobs-backend",
+    "format:check": "prettier --check src ../amplify/backend.ts ../amplify/local.ts ../amplify/local ../amplify/jobs-backend"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "^3.1146.0",
+    "@aws-sdk/client-dynamodb": "^3.1146.0",
+    "@aws-sdk/client-lambda": "^3.1146.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.19.1",
+    "esbuild": "^0.25.12",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1"
+  }
+}
