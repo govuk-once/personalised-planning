@@ -9,6 +9,8 @@ import {
 import { agentRuntimes, invokeAgents } from "./agent-access";
 import { type NodeFunction, nodeFunction } from "./node-function";
 
+const MAX_WORKERS = 100;
+
 const API_TABLE_ACTIONS = [
   "dynamodb:PutItem",
   "dynamodb:GetItem",
@@ -44,7 +46,7 @@ export function workerFunction(
     async: {
       retryAttempts: 0,
       maxEventAge,
-      reservedConcurrency: 20,
+      reservedConcurrency: MAX_WORKERS,
     },
   });
 
