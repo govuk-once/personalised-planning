@@ -55,8 +55,21 @@ export type PlanResult = {
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
-export type BackendRequest = {
-  url: string;
-  ticket: string;
-  body: Record<string, unknown> | null;
+export type JobRef = {
+  jobId: string;
+  kind: "chat" | "plan";
 };
+
+type JobUnderway = { status: "pending" | "running" };
+
+type JobDone<T> = {
+  status: "done";
+  result: T;
+};
+
+type JobFailed = {
+  status: "failed";
+  error: string;
+};
+
+export type JobState<T> = JobUnderway | JobDone<T> | JobFailed;

@@ -7,14 +7,11 @@ import Composer from "@/app/components/chat/Composer";
 import StartPlanCard from "@/app/components/chat/StartPlanCard";
 import Thread from "@/app/components/chat/Thread";
 import { useIntake } from "@/hooks/use-intake";
-import { useUnloadWarning } from "@/hooks/use-unload-warning";
 
 export default function Home() {
   const intake = useIntake();
   const threadEnd = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
-
-  useUnloadWarning(intake.busy);
 
   useEffect(() => {
     threadEnd.current?.scrollIntoView({ behavior: "smooth" });

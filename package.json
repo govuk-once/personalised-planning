@@ -9,6 +9,11 @@
     "@types/node": "^22",
     "aws-cdk-lib": "^2.268.0",
     "constructs": "^10.8.1",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "scripts": {
+    "backend:local": "tsx amplify/local.ts"
   }
 }
