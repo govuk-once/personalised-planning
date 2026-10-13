@@ -14,7 +14,7 @@ The system has four main components:
    - **Planner** (`agent/app/`) — receives a user situation, queries the service graph via MCP, and returns a structured plan (Pydantic `ResultPayload` model). Entry point: `main.py` → `planner_logic.py` → `planner_agent.py`.
    - **Conversation** (`agent/chat/`) — an information-gathering agent that takes the conversation so far and returns the next question plus collected facts, looping until it has enough to plan (a `ConversationTurn` with a `complete` flag). Entry point: `main.py` → `chat_logic.py` → `chat_agent.py`.
 
-2. **Backend** (`backend/`) — FastAPI service that acts as a gateway between the frontend and the two agents. Exposes `POST /chat` (→ conversation agent) and `POST /plan` (→ planner agent). Supports two modes: `LOCAL_MODE=true` calls each agent over HTTP; `LOCAL_MODE=false` invokes the deployed AgentCore runtimes via boto3.
+2. **Backend** (`backend/`) — Called only by the Next.js server. The **Api** saves a job in DynamoDB and starts the **Worker**, which calls an agent and saves the reply. The page polls the Api for it. Infrastructure: `amplify/jobs-backend/`. See `backend/README.md`.
 
 3. **Frontend** (`frontend/`) — Next.js 16 app (React 19, pnpm). **Important**: This version of Next.js has breaking changes from training data — always read guides in `node_modules/next/dist/docs/` before writing frontend code.
 
@@ -37,31 +37,32 @@ The project uses a **flat resource model**. Agents, memories, credentials, gatew
 
 ### Schema Reference
 
-| JSON Config | Schema File | Root Type |
-| --- | --- | --- |
-| `agentcore/agentcore.json` | `agentcore/.llm-context/agentcore.ts` | `AgentCoreProjectSpec` |
-| `agentcore/agentcore.json` (gateways) | `agentcore/.llm-context/mcp.ts` | `AgentCoreMcpSpec` |
-| `agentcore/aws-targets.json` | `agentcore/.llm-context/aws-targets.ts` | `AwsDeploymentTarget[]` |
+| JSON Config                           | Schema File                             | Root Type               |
+| ------------------------------------- | --------------------------------------- | ----------------------- |
+| `agentcore/agentcore.json`            | `agentcore/.llm-context/agentcore.ts`   | `AgentCoreProjectSpec`  |
+| `agentcore/agentcore.json` (gateways) | `agentcore/.llm-context/mcp.ts`         | `AgentCoreMcpSpec`      |
+| `agentcore/aws-targets.json`          | `agentcore/.llm-context/aws-targets.ts` | `AwsDeploymentTarget[]` |
 
 When modifying JSON config files: read the corresponding `.llm-context/*.ts` file, check constraint comments (`@regex`, `@min`, `@max`), use exact enum string literals, use CloudFormation-safe names.
 
 ### AgentCore CLI
 
-| Command | Description |
-| --- | --- |
-| `agentcore dev` | Run agent locally with hot-reload |
-| `agentcore deploy` | Synthesize CDK and deploy to AWS |
-| `agentcore status` | Show deployment status |
-| `agentcore invoke` | Invoke agent (local or deployed) |
-| `agentcore validate` | Validate configuration |
-| `agentcore logs` / `traces` | View agent logs or traces |
-| `agentcore add <resource>` | Add agent, memory, credential, gateway, evaluator, policy |
-| `agentcore remove <resource>` | Remove a resource |
-| `agentcore pause` / `resume` | Pause or resume a deployed agent |
+| Command                       | Description                                               |
+| ----------------------------- | --------------------------------------------------------- |
+| `agentcore dev`               | Run agent locally with hot-reload                         |
+| `agentcore deploy`            | Synthesize CDK and deploy to AWS                          |
+| `agentcore status`            | Show deployment status                                    |
+| `agentcore invoke`            | Invoke agent (local or deployed)                          |
+| `agentcore validate`          | Validate configuration                                    |
+| `agentcore logs` / `traces`   | View agent logs or traces                                 |
+| `agentcore add <resource>`    | Add agent, memory, credential, gateway, evaluator, policy |
+| `agentcore remove <resource>` | Remove a resource                                         |
+| `agentcore pause` / `resume`  | Pause or resume a deployed agent                          |
 
 ## Development Commands
 
 ### Root project (Python)
+
 ```bash
 uv sync --extra dev          # Install all dependencies
 uv run ruff check --fix .    # Lint (auto-fix)
@@ -71,11 +72,14 @@ uv run pre-commit run --all-files  # Run all pre-commit hooks
 ```
 
 ### Backend
+
 ```bash
 cd backend
-uv sync
-uv run uvicorn app.main:app --reload --port 8000
+npm ci
+npm run typecheck && npm run lint
 ```
+
+To run it locally, see `backend/README.md`.
 
 ### Agent (local)
 
@@ -96,6 +100,7 @@ uv sync                                     # deps + lockfile at agent/
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 pnpm install
@@ -104,6 +109,7 @@ pnpm lint                   # ESLint
 ```
 
 ### MCP Server
+
 ```bash
 cd mcp-servers/service-graph
 npm install
@@ -111,8 +117,9 @@ npm run mcp                 # Start local MCP server via stdio
 ```
 
 ### Docker (full stack)
+
 ```bash
-docker compose up --build   # Agent (8080) + Backend (8000) together
+docker compose up --build   # Agents (8080, 8081) + DynamoDB Local (8001); the backend runs under SAM (backend/README.md)
 ```
 
 Run under `aws-vault exec` to pass AWS credentials to the containers.
@@ -124,9 +131,11 @@ Run under `aws-vault exec` to pass AWS credentials to the containers.
 
 ## Key Environment Variables
 
-The backend and agents are configured via environment variables (set in `.env`). Critical ones:
+The agents are configured via environment variables (set in `.env`). The backend's are set by the CDK. Critical ones:
+
 - `LOCAL_MODE` — `true`/`false` to toggle local HTTP agents vs deployed AgentCore runtimes
 - `AGENT_URL` / `CHAT_AGENT_URL` — planner / conversation agent HTTP endpoints (local mode)
+- `BACKEND_FUNCTION_NAME`, `BACKEND_REGION` — the Lambda the Next.js server calls
 - `AGENT_RUNTIME_ARN` / `CHAT_AGENT_RUNTIME_ARN` — deployed runtime ARNs (AgentCore mode)
 - `ANTHROPIC_MODEL` — Bedrock model ID for the agents
 - `MCP_MODE` — `local` (stdio) or `remote` (HTTP gateway)
@@ -136,11 +145,13 @@ The backend and agents are configured via environment variables (set in `.env`).
 ## Workspace Structure
 
 This is a uv workspace. The root `pyproject.toml` has workspace members:
+
 - `scripts/evaluation/plan-generation` — evaluation scripts for generating synthetic profiles and comparing plans against ground truth
 
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on PRs to main:
+
 - `uv run ruff check --fix .`
 - `uv run detect-secrets scan --baseline .secrets.baseline`
 - Tests are currently commented out in CI

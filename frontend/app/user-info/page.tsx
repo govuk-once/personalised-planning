@@ -59,6 +59,7 @@ export default function UserInfo() {
               type="button"
               className={styles.dialogCancel}
               onClick={() => dialog.current?.close()}
+              autoFocus
             >
               Cancel
             </button>

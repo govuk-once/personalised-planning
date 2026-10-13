@@ -92,8 +92,12 @@ function.zip
 dist/
 
 **/data/*
+!mcp-servers/service-graph/data/provenance.json
 
 # Amplify hosting
 amplify_outputs*.json
 .amplify/
-amplify/python-backend/.build/
+
+# Local backend: the synthesised stack sam local start-lambda runs
+.local/
+.build/

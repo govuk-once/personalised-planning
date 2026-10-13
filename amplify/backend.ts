@@ -1,8 +1,8 @@
 import { defineBackend } from "@aws-amplify/backend";
-import { PythonBackend } from "./python-backend/resource";
+import { JobsBackend } from "./jobs-backend/resource";
 
 const backend = defineBackend({});
 
-const python = new PythonBackend(backend.createStack("PythonBackend"), "Api");
+const jobs = new JobsBackend(backend.createStack("JobsBackend"), "Backend");
 
-backend.addOutput({ custom: { backendUrl: python.url } });
+backend.addOutput({ custom: jobs.outputs });
