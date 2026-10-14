@@ -1,29 +1,38 @@
-"""Run the plan API over synthetic profiles and emit eval-format plans.
+"""Run the hosted planner agent over synthetic profiles and emit eval-format plans.
 
     python run_app.py profiles.json truth.json > app_plans.json
     python run_app.py profiles.json truth.json --profile P011 --verbose
 
+The agent is invoked in AgentCore Runtime, as the backend Worker does. Pass its
+ARN with --agent-runtime-arn or set AGENT_RUNTIME_ARN, and run with AWS
+credentials that allow bedrock-agentcore:InvokeAgentRuntime.
+
 Ground truth scores plans as sets of step numbers from the GOV.UK
-step-by-step spine. The API returns free-text steps, so each response has to
+step-by-step spine. The agent returns free-text steps, so each response has to
 be mapped back onto those numbers. That mapping is done by URL: the spine
-carries the GOV.UK paths for each step, and the API cites `gov_service_url`
+carries the GOV.UK paths for each step, and the agent cites `gov_service_url`
 per task. A cited URL that belongs to a spine step means the app covered
 that step.
 
 No LLM sits in the step-scoring path — it would put a non-deterministic
 judgement between the app and its score.
 
-LLM-based metrics (relevance, faithfulness, consistency) are in the
-separate metrics harness: python -m metrics.harness
+LLM-based metrics (relevance, consistency) are in the separate metrics
+harness: python -m metrics.harness
 """
 
 import argparse
 import datetime
 import json
+import os
 import pathlib
 import sys
-import urllib.error
-import urllib.request
+import uuid
+import zoneinfo
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
 SITUATION = "learning to drive"
 
@@ -57,45 +66,87 @@ def url_index(spine):
     return out
 
 
+def today_london():
+    """Today's date as the backend Worker formats it, e.g. "13 October 2026"."""
+    now = datetime.datetime.now(zoneinfo.ZoneInfo("Europe/London"))
+    return f"{now.day} {now:%B} {now.year}"
+
+
 def profile_context(profile):
-    """Build the user_context dict the API sees.
+    """Build the user_context dict the agent sees.
+
+    Mirrors the backend Worker, which adds today's date: without it the
+    planner works out deadlines from its training cutoff.
 
     Args:
         profile: A synthetic profile record.
 
     Returns:
-        Dict of readable answers plus numeric age, if present.
+        Dict of today's date, readable answers, and numeric age if present.
     """
-    context = dict(profile.get("readable") or {})
+    context = {"today": today_london(), **(profile.get("readable") or {})}
     age = (profile.get("numeric") or {}).get("age", {}).get("value")
     if age is not None:
         context["age"] = int(age)
     return context
 
 
-def call_api(endpoint, context, timeout=120):
-    """Send one profile's context to the plan API.
+def make_agent_client(runtime_arn, timeout=300):
+    """Build a bedrock-agentcore client for the region of the planner runtime.
 
     Args:
-        endpoint: Full URL of the /plan endpoint.
-        context: Dict built by `profile_context`.
-        timeout: Seconds to wait.
+        runtime_arn: ARN of the deployed planner runtime.
+        timeout: Seconds to wait for a plan. A planner run takes minutes, well
+            past boto3's 60 second default. Requests are not retried.
 
     Returns:
-        The parsed response body.
+        A boto3 ``bedrock-agentcore`` client.
 
     Raises:
-        RuntimeError: If the request fails.
+        ValueError: If the ARN is not an AgentCore ARN.
+    """
+    parts = runtime_arn.split(":")
+    if len(parts) < 6 or parts[2] != "bedrock-agentcore" or not parts[3]:
+        raise ValueError(f"Not an AgentCore runtime ARN: {runtime_arn}")
+    return boto3.client(
+        "bedrock-agentcore",
+        region_name=parts[3],
+        config=Config(read_timeout=timeout, retries={"max_attempts": 0}),
+    )
+
+
+def call_api(client, runtime_arn, context):
+    """Send one profile's context to the hosted planner agent.
+
+    Args:
+        client: Client from `make_agent_client`.
+        runtime_arn: ARN of the deployed planner runtime.
+        context: Dict built by `profile_context`.
+
+    Returns:
+        The agent's output dict, with ``plan``, ``agent_help`` and ``timestamp``.
+
+    Raises:
+        RuntimeError: If the invocation fails or the reply has no output.
     """
     body = json.dumps({"situation": SITUATION, "user_context": context}).encode()
-    request = urllib.request.Request(
-        endpoint, data=body, headers={"Content-Type": "application/json"}
-    )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode())
-    except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+        reply = client.invoke_agent_runtime(
+            agentRuntimeArn=runtime_arn,
+            runtimeSessionId=str(uuid.uuid4()),
+            qualifier=os.environ.get("AGENT_ENDPOINT_NAME") or "DEFAULT",
+            contentType="application/json",
+            accept="application/json",
+            payload=body,
+        )
+        parsed = json.loads(reply["response"].read().decode())
+    except (BotoCoreError, ClientError, OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"{type(exc).__name__}: {exc}") from exc
+
+    output = parsed.get("output") if isinstance(parsed, dict) else None
+    if not isinstance(output, dict):
+        raise RuntimeError(f"unexpected agent reply: {str(parsed)[:200]}")
+    return output
 
 
 def trace_tasks(response, index):
@@ -113,7 +164,7 @@ def trace_tasks(response, index):
     against a bar nobody actually approved.
 
     Args:
-        response: The parsed API response.
+        response: The agent's output dict from `call_api`.
         index: Path-to-step map from `url_index`.
 
     Returns:
@@ -141,12 +192,28 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("profiles")
     ap.add_argument("truth")
-    ap.add_argument("--endpoint", default="http://localhost:8000/plan")
+    ap.add_argument(
+        "--agent-runtime-arn",
+        default=os.environ.get("AGENT_RUNTIME_ARN"),
+        help="ARN of the hosted planner runtime (default: $AGENT_RUNTIME_ARN)",
+    )
     ap.add_argument("--profile", help="run a single profile id, for testing")
-    ap.add_argument("--raw", help="also save full API responses here")
+    ap.add_argument("--raw", help="also save full agent responses here")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--results-out", default="results.json")
     args = ap.parse_args(argv)
+
+    if not args.agent_runtime_arn:
+        print(
+            "error: AGENT_RUNTIME_ARN is not set (or pass --agent-runtime-arn)",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        client = make_agent_client(args.agent_runtime_arn)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     from truth import score as score_plan
@@ -172,7 +239,7 @@ def main(argv=None):
     for i, profile in enumerate(todo, 1):
         context = profile_context(profile)
         try:
-            response = call_api(args.endpoint, context)
+            response = call_api(client, args.agent_runtime_arn, context)
         except RuntimeError as exc:
             failures.append(f"{profile['id']}: {exc}")
             continue

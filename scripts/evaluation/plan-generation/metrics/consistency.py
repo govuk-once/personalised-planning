@@ -1,9 +1,12 @@
 """Consistency metric: compare G independently generated plans for the same profile.
 
-Two GEval dimensions:
+Two dimensions:
 - Service-set stability: are the same gov.uk services recommended across runs?
-- Holistic consistency: are the plans substantively the same (strategy, steps,
-  advice), ignoring wording/tone differences?
+  Computed directly from the plans (mean pairwise Jaccard, see ``services.py``),
+  with no judge, so it does not change with G.
+- Holistic consistency (DeepEval GEval): are the plans substantively the same
+  (strategy, steps, advice), ignoring wording/tone differences? One judgement
+  over all G plans, so it still depends on G: compare runs only at the same G.
 
 Requires G >= 2; returns null scores with a note when G < 2.
 """
@@ -12,6 +15,8 @@ from typing import Any
 
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, SingleTurnParams
+
+from metrics.services import service_stability
 
 
 def _encode_plans(generations: list[dict]) -> str:
@@ -44,14 +49,6 @@ def _encode_plans(generations: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-_STABILITY_STEPS = [
-    "Extract the complete set of recommended government services (name + URL) from each plan version.",
-    "Compare the service sets across all versions, ignoring order.",
-    "Score 1.0 if every version recommends an identical set of services. "
-    "Reduce the score proportionally for each service that appears in some versions but not others. "
-    "Score 0.0 if versions share no services in common.",
-]
-
 _HOLISTIC_STEPS = [
     "Read all plan versions and identify the overall planning strategy and the sequence of recommended steps.",
     "Compare the step structure, key advice, and overall approach across all versions.",
@@ -70,14 +67,14 @@ def score_consistency(
     """Score plan consistency across G generations.
 
     Args:
-        generations: List of generation dicts from ``generation.generate_plans``.
+        generations: List of generation dicts, each with a ``plan`` key.
         judge_model: A ``BedrockJudge`` (or any ``DeepEvalBaseLLM``) instance.
         situation: The life-event situation string.
 
     Returns:
-        Dict with ``service_stability`` (float|None), ``holistic`` (float|None),
-        ``reasons`` (dict), ``status`` (``"judged"`` or ``"skipped"``), and
-        optional ``note``.
+        Dict with ``service_stability`` (float|None, computed), ``holistic``
+        (float|None, judged), ``reasons`` (the holistic judge's reason),
+        ``status`` (``"judged"`` or ``"skipped"``), and optional ``note``.
     """
     if len(generations) < 2:
         return {
@@ -98,13 +95,6 @@ def score_consistency(
 
     eval_params = [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT]
 
-    stability_metric = GEval(
-        name="ServiceSetStability",
-        evaluation_steps=_STABILITY_STEPS,
-        evaluation_params=eval_params,
-        model=judge_model,
-        async_mode=False,
-    )
     holistic_metric = GEval(
         name="HolisticConsistency",
         evaluation_steps=_HOLISTIC_STEPS,
@@ -113,16 +103,12 @@ def score_consistency(
         async_mode=False,
     )
 
-    stability_metric.measure(test_case)
     holistic_metric.measure(test_case)
 
     return {
-        "service_stability": stability_metric.score,
+        "service_stability": service_stability(generations),
         "holistic": holistic_metric.score,
-        "reasons": {
-            "service_stability": stability_metric.reason,
-            "holistic": holistic_metric.reason,
-        },
+        "reasons": {"holistic": holistic_metric.reason},
         "status": "judged",
         "note": None,
     }

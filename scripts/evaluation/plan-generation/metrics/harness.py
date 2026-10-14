@@ -1,25 +1,34 @@
-r"""Standalone metrics harness: faithfulness, consistency, relevance.
+r"""Standalone metrics harness: consistency and relevance.
 
 Runs independently of the main pipeline — no truth file, no spine, no F1.
+Plans come from the hosted planner agent in AgentCore Runtime. Set
+AGENT_RUNTIME_ARN (or pass --agent-runtime-arn) and EVAL_ANTHROPIC_MODEL, and run
+with AWS credentials that can invoke the runtime and call Bedrock.
 
 Examples::
 
-    # All metrics, 3 plans per profile, 1 judge repeat
+    # Both metrics, 3 plans per profile, 1 judge repeat
     python -m metrics.harness profiles.json -G 3 -N 1
 
     # Single profile, verbose
     python -m metrics.harness profiles.json --profile P013 -G 2 -N 2 --verbose
 
-    # Consistency only, using a remote MCP gateway
+    # Consistency only, against an explicit runtime
     python -m metrics.harness profiles.json --metrics consistency -G 3 \\
-        --mcp-mode remote --graph-gateway-url https://...
+        --agent-runtime-arn arn:aws:bedrock-agentcore:eu-west-2:123456789012:runtime/planner-abc
 
 Knobs:
-    G   = plan generations per profile (each is one full agent run).
+    G   = plan generations per profile (each is one call to the hosted agent).
     N   = judge repeats per metric per profile (smooths judge variance).
 
-Per-profile score = mean over G x N (faithfulness/relevance) or N (consistency).
+Relevance per profile = mean over plans of (mean over N repeats). Consistency
+service stability is computed from the plans; holistic is the mean over N repeats.
 Overall aggregate = mean of per-profile scores.
+
+A failed plan generation is retried up to --max-attempts times if the error looks
+transient (throttling, timeouts, 5xx, an empty reply); permanent errors such as
+AccessDenied are not retried. Results are always written. The exit code is 1 if
+any profile got no plans or fewer than G, and results.json has a "coverage" block.
 """
 
 import argparse
@@ -27,10 +36,27 @@ import json
 import os
 import pathlib
 import sys
+import time
 import warnings
 
+from botocore.exceptions import (
+    ClientError,
+    ConnectionError as BotoConnectionError,
+    EndpointConnectionError,
+    HTTPClientError,
+)
 
-_VALID_METRICS = frozenset({"faithfulness", "consistency", "relevance"})
+_VALID_METRICS = frozenset({"consistency", "relevance"})
+
+# Error codes InvokeAgentRuntime can return that are worth retrying.
+_TRANSIENT_CODES = frozenset(
+    {
+        "ThrottlingException",
+        "InternalServerException",
+        "RetryableConflictException",
+        "RuntimeClientError",
+    }
+)
 
 
 def _load(path: str):
@@ -42,20 +68,88 @@ def _load(path: str):
 
 
 def _build_config(
-    args: argparse.Namespace, situation: str, judge_model_id: str
+    args: argparse.Namespace, situation: str, judge_model_id: str, judge_region: str
 ) -> dict:
     return {
         "G": args.G,
         "N": args.N,
         "metrics": sorted(args.metrics),
         "judge_model": judge_model_id,
-        "judge_region": args.judge_region,
-        "agent_model": os.environ.get("ANTHROPIC_MODEL"),
-        "agent_region": args.agent_region or os.environ.get("AWS_REGION"),
-        "mcp_mode": args.mcp_mode or os.environ.get("MCP_MODE"),
-        "mode": args.mode,
+        "judge_region": judge_region,
+        "agent_runtime_arn": args.agent_runtime_arn,
+        "max_attempts": args.max_attempts,
         "situation": situation,
     }
+
+
+def _is_transient(exc: RuntimeError) -> bool:
+    """Whether a failed agent call is worth retrying.
+
+    Retries throttling, server errors, timeouts, connection errors and replies
+    that were not valid. Anything else (access denied, bad request, missing or
+    expired credentials, unknown errors) is treated as permanent so it fails at
+    once instead of looping.
+
+    Args:
+        exc: The RuntimeError raised by ``run_app.call_api``; the underlying
+            error is on ``__cause__``.
+
+    Returns:
+        True if another attempt might succeed.
+    """
+    cause = exc.__cause__
+    if isinstance(cause, ClientError):
+        return cause.response.get("Error", {}).get("Code") in _TRANSIENT_CODES
+    if isinstance(
+        cause, BotoConnectionError | EndpointConnectionError | HTTPClientError | OSError
+    ):
+        return True
+    # No cause: the agent replied but with no usable output. A bad JSON body is
+    # the same kind of failure.
+    return cause is None or isinstance(cause, json.JSONDecodeError)
+
+
+def _generate_one(
+    client, runtime_arn: str, context: dict, max_attempts: int
+) -> tuple[dict | None, str | None]:
+    """Get one plan from the hosted agent, retrying transient failures.
+
+    Waits 5s, 10s, 20s... (capped at 60s) between attempts. Retrying is safe: the
+    planner has no side effects and every call uses a fresh session.
+
+    Args:
+        client: Client from ``run_app.make_agent_client``.
+        runtime_arn: ARN of the deployed planner runtime.
+        context: The user_context dict from ``profile_context``.
+        max_attempts: Total tries, including the first.
+
+    Returns:
+        ``(generation, None)`` on success, or ``(None, last_error)``.
+    """
+    from run_app import call_api
+
+    error = "no attempts made"
+    for attempt in range(1, max_attempts + 1):
+        try:
+            plan = call_api(client, runtime_arn, context).get("plan")
+        except RuntimeError as exc:
+            error = str(exc)
+            if not _is_transient(exc):
+                return None, error
+        else:
+            if plan:
+                return {"plan": plan, "context": context}, None
+            error = "no plan in response"
+
+        if attempt < max_attempts:
+            wait = min(60, 5 * 2 ** (attempt - 1))
+            print(
+                f"  attempt {attempt}/{max_attempts} failed ({error}); "
+                f"retrying in {wait}s",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+    return None, error
 
 
 def main(argv=None):
@@ -99,41 +193,15 @@ def main(argv=None):
         help="AWS region for judge model (default: eu-west-1)",
     )
     ap.add_argument(
-        "--agent-model",
-        default=None,
-        help="Bedrock model ID for plan generation (overrides ANTHROPIC_MODEL)",
+        "--agent-runtime-arn",
+        default=os.environ.get("AGENT_RUNTIME_ARN"),
+        help="ARN of the hosted planner runtime (default: $AGENT_RUNTIME_ARN)",
     )
     ap.add_argument(
-        "--agent-region",
-        default=None,
-        help="Override AWS_REGION env var for the planner agent",
-    )
-    ap.add_argument(
-        "--mcp-mode",
-        choices=["local", "remote"],
-        default=None,
-        help="Override MCP_MODE env var",
-    )
-    ap.add_argument(
-        "--graph-server-path",
-        default=None,
-        help="Override GRAPH_SERVER_PATH (local MCP mode)",
-    )
-    ap.add_argument(
-        "--graph-gateway-url",
-        default=None,
-        help="Override GRAPH_GATEWAY_URL (remote MCP mode)",
-    )
-    ap.add_argument(
-        "--mode",
-        choices=["in-process", "endpoint"],
-        default="in-process",
-        help="How to invoke the planner (default: in-process)",
-    )
-    ap.add_argument(
-        "--endpoint",
-        default="http://localhost:8000/plan",
-        help="Plan API endpoint for --mode endpoint",
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="Tries per plan generation, including the first (default: 3)",
     )
     ap.add_argument(
         "--results-out",
@@ -144,38 +212,18 @@ def main(argv=None):
         "--raw", metavar="PATH", help="Also write raw generations to this path"
     )
     ap.add_argument(
-        "--verbose", action="store_true", help="Print per-generation log output"
+        "--verbose", action="store_true", help="Print per-profile plan counts"
     )
     args = ap.parse_args(argv)
 
-    # --- Validate mutually exclusive constraints ---
-    if "faithfulness" in args.metrics and args.mode == "endpoint":
-        sys.exit(
-            "error: --mode endpoint cannot capture retrieval context; "
-            "faithfulness requires --mode in-process"
-        )
+    if args.max_attempts < 1:
+        ap.error("--max-attempts must be at least 1")
     if args.G < 2 and "consistency" in args.metrics:
         warnings.warn(
             f"G={args.G}: consistency requires G>=2; "
             "consistency scores will be null for all profiles.",
             stacklevel=1,
         )
-
-    # --- Apply env var overrides before any agent imports ---
-    if args.agent_model:
-        os.environ["ANTHROPIC_MODEL"] = args.agent_model
-    if args.mode == "in-process" and not os.environ.get("ANTHROPIC_MODEL"):
-        sys.exit(
-            "error: ANTHROPIC_MODEL is not set (required for in-process plan generation)"
-        )
-    if args.agent_region:
-        os.environ["AWS_REGION"] = args.agent_region
-    if args.mcp_mode:
-        os.environ["MCP_MODE"] = args.mcp_mode
-    if args.graph_server_path:
-        os.environ["GRAPH_SERVER_PATH"] = args.graph_server_path
-    if args.graph_gateway_url:
-        os.environ["GRAPH_GATEWAY_URL"] = args.graph_gateway_url
 
     # --- Load profiles ---
     profiles_data = _load(args.profiles)
@@ -185,22 +233,27 @@ def main(argv=None):
     if not all_profiles:
         sys.exit("error: no matching profiles found")
 
-    # --- Lazy imports (agent import changes cwd; do after env overrides) ---
     # run_app is a sibling module; ensure it's importable
     _eval_dir = str(pathlib.Path(__file__).resolve().parents[1])
     if _eval_dir not in sys.path:
         sys.path.insert(0, _eval_dir)
 
     from metrics.relevance import DEFAULT_RELEVANCE_REGION
-    from run_app import SITUATION
+    from run_app import SITUATION, make_agent_client, profile_context
+
+    if not args.agent_runtime_arn:
+        sys.exit("error: AGENT_RUNTIME_ARN is not set (or pass --agent-runtime-arn)")
+    try:
+        agent_client = make_agent_client(args.agent_runtime_arn)
+    except ValueError as exc:
+        sys.exit(f"error: {exc}")
 
     judge_model_id = args.judge_model or os.environ.get("EVAL_ANTHROPIC_MODEL")
     if not judge_model_id:
         sys.exit("error: EVAL_ANTHROPIC_MODEL is not set (required for LLM judging)")
     judge_region = args.judge_region or DEFAULT_RELEVANCE_REGION
 
-    # Build config now that we have SITUATION and resolved model IDs
-    config = _build_config(args, SITUATION, judge_model_id)
+    config = _build_config(args, SITUATION, judge_model_id, judge_region)
 
     from metrics.bedrock_judge import BedrockJudge
 
@@ -215,14 +268,9 @@ def main(argv=None):
         relevance_client = make_bedrock_client(judge_region)
         relevance_template = load_relevance_prompt()
 
-    generate_fn = None
-    StructuredLogger = None
-    if args.mode == "in-process":
-        from metrics.generation import generate_plans as generate_fn, StructuredLogger  # type: ignore[assignment]
-
     # --- Main loop ---
     generations_by_profile: dict[str, list[dict]] = {}
-    faithfulness_scores: dict[str, list] = {}
+    failures: dict[str, str] = {}
     consistency_scores: dict[str, list] = {}
     relevance_scores: dict[str, list] = {}
 
@@ -232,32 +280,21 @@ def main(argv=None):
         print(f"[{i}/{total}] {pid}", file=sys.stderr)
 
         # --- Generate G plans ---
-        if args.mode == "in-process":
-            log = StructuredLogger(
-                session_id=f"eval-{pid}",
-                user_id="eval-harness",
-                agent_name="planner",
+        ctx = profile_context(profile)
+        gens = []
+        last_error = None
+        for g in range(args.G):
+            gen, error = _generate_one(
+                agent_client, args.agent_runtime_arn, ctx, args.max_attempts
             )
-            gens = generate_fn(profile, args.G, log)
-        else:
-            from run_app import call_api, profile_context
-
-            ctx = profile_context(profile)
-            gens = []
-            for g in range(args.G):
-                try:
-                    resp = call_api(args.endpoint, ctx)
-                    plan = resp.get("plan")
-                    if plan:
-                        gens.append(
-                            {"plan": plan, "retrieval_context": [], "context": ctx}
-                        )
-                    else:
-                        print(f"  gen {g + 1}: no plan in response", file=sys.stderr)
-                except RuntimeError as exc:
-                    print(f"  gen {g + 1} failed: {exc}", file=sys.stderr)
+            if gen:
+                gens.append(gen)
+            else:
+                last_error = error
+                print(f"  gen {g + 1} failed: {error}", file=sys.stderr)
 
         if not gens:
+            failures[pid] = last_error or "no plans generated"
             print(f"  {pid}: all generations failed, skipping", file=sys.stderr)
             continue
 
@@ -266,16 +303,6 @@ def main(argv=None):
             print(f"  {pid}: {len(gens)}/{args.G} plans", file=sys.stderr)
 
         # --- Score N times ---
-        if "faithfulness" in args.metrics:
-            from metrics.faithfulness import score_faithfulness
-
-            pid_faith = []
-            for _ in range(args.N):
-                pid_faith.append(
-                    [score_faithfulness(gen, judge, SITUATION) for gen in gens]
-                )
-            faithfulness_scores[pid] = pid_faith
-
         if "consistency" in args.metrics:
             from metrics.consistency import score_consistency
 
@@ -308,10 +335,10 @@ def main(argv=None):
     results = compute_results(
         all_profiles,
         generations_by_profile,
-        faithfulness_scores,
         consistency_scores,
         relevance_scores,
         config,
+        failures,
     )
 
     out_path = pathlib.Path(args.results_out).resolve()
@@ -322,20 +349,18 @@ def main(argv=None):
 
     if args.raw:
         raw_path = pathlib.Path(args.raw).resolve()
-        raw_data = {
-            pid: [
-                {
-                    "plan": g["plan"],
-                    "retrieval_context": g.get("retrieval_context", []),
-                }
-                for g in gens
-            ]
-            for pid, gens in generations_by_profile.items()
-        }
-        raw_path.write_text(json.dumps(raw_data, indent=2))
+        raw_path.write_text(json.dumps(generations_by_profile, indent=2))
         print(f"wrote raw generations to {args.raw}", file=sys.stderr)
 
-    return 0
+    short = [pid for pid, gens in generations_by_profile.items() if len(gens) < args.G]
+    print(f"scored {len(generations_by_profile)}/{total} profiles", file=sys.stderr)
+    for pid, error in failures.items():
+        print(f"  skipped {pid}: {error}", file=sys.stderr)
+    for pid in short:
+        n = len(generations_by_profile[pid])
+        print(f"  short {pid}: {n}/{args.G} plans", file=sys.stderr)
+
+    return 1 if failures or short else 0
 
 
 if __name__ == "__main__":

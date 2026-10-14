@@ -119,7 +119,6 @@ def _invoke_bedrock(
         {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": max_tokens,
-            "temperature": 0,
             "messages": [{"role": "user", "content": prompt}],
         }
     )

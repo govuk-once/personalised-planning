@@ -12,9 +12,9 @@ against a programmatically generated ground-truth set of plans, to evaluate the 
 4. **Evaluate** (`truth.py score`) — compare the app's plans against the answer key and get precision/recall-style scoring, with legally-blocked steps tracked separately from ordinary misses.
 
 Stages 1 and 2 each make a small number of Bedrock calls, reviewed by a
-human before being trusted. Stage 3 calls the plan API once per profile and
-maps results onto step numbers using the spine — no Bedrock, no AI in the
-scoring path. Stage 2's `build` step and stage 4 are pure code — no AI,
+human before being trusted. Stage 3 invokes the hosted planner agent once per
+profile and maps results onto step numbers using the spine — no judge model, no
+AI in the scoring path. Stage 2's `build` step and stage 4 are pure code — no AI,
 no network — so re-running them costs nothing and reruns deterministically.
 
 ## Dependency map
@@ -55,7 +55,7 @@ driving_subgraph.json ──────┐
 GOV.UK URL(s); it does not need the subgraph. `truth.py build` needs the
 profiles, the model, and the reviewed mapping. `run_app.py` needs the
 profiles and `truth.json` — it uses the spine embedded in `truth.json` to
-map the API's cited URLs onto step numbers. `truth.py score` is the only
+map the agent's cited URLs onto step numbers. `truth.py score` is the only
 stage that touches the app's output directly.
 
 ---
@@ -602,13 +602,13 @@ diff the mapping if GDS reorders a step.
 
 ---
 
-# Part 3 — Calling the plan API (`run_app.py`)
+# Part 3 — Calling the planner agent (`run_app.py`)
 
 ## What this is for
 
-The plan API returns free-text steps, not step numbers. Ground truth uses
-step numbers from the GOV.UK spine. `run_app.py` bridges them: it calls the
-API for each synthetic profile that has a ground-truth entry, maps the
+The planner agent returns free-text steps, not step numbers. Ground truth uses
+step numbers from the GOV.UK spine. `run_app.py` bridges them: it invokes the
+hosted agent for each synthetic profile that has a ground-truth entry, maps the
 returned tasks back onto spine step numbers by URL, and emits the plans in
 the format `truth.py score` expects.
 
@@ -618,11 +618,16 @@ numbers without a separate invocation.
 
 ## How it works
 
-**It only calls the API for profiles with ground truth.** The driving guide
-covers a subset of all profiles (car / Great Britain only). Calling the API
+**It only calls the agent for profiles with ground truth.** The driving guide
+covers a subset of all profiles (car / Great Britain only). Calling the agent
 for profiles outside that scope produces plans that cannot be scored.
 
-**It maps tasks to step numbers by URL.** Each task the API returns carries a
+**It calls the agent the way the backend does.** It invokes the deployed
+AgentCore runtime with `situation` and `user_context`, and adds today's date to
+the context as the backend Worker does — without it the planner works out
+deadlines from its training cutoff. Each call uses a fresh session.
+
+**It maps tasks to step numbers by URL.** Each task the agent returns carries a
 `gov_service_url`. The spine embedded in `truth.json` carries the GOV.UK
 paths for each step. A URL that belongs to a spine step counts that step as
 covered. No model call sits in this path — the mapping is exact and
@@ -648,18 +653,24 @@ scorer cannot diverge.
 
 ## Reference
 
-Calls the plan API for each in-scope synthetic profile, maps returned tasks
-onto spine step numbers, and writes scored plans to stdout and aggregate
-metrics to `results.json`.
+Invokes the hosted planner agent for each in-scope synthetic profile, maps
+returned tasks onto spine step numbers, and writes scored plans to stdout and
+aggregate metrics to `results.json`.
 
 ## Install
 
 ```bash
-# no additional dependencies needed; the plan API must be running
+pip install -U boto3
+export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
 ```
 
-`run_app.py` makes no Bedrock calls. For LLM-based metrics (relevance,
-faithfulness, consistency), see the [metrics harness](#llm-based-metrics-metricsharnesspy).
+Run with AWS credentials that allow `bedrock-agentcore:InvokeAgentRuntime` on
+that ARN (for example under `aws-vault exec`). The region is taken from the ARN.
+`agentcore status` shows the deployed runtime ARN. If the deployed endpoint is
+not `DEFAULT`, set `AGENT_ENDPOINT_NAME`, as the backend does.
+
+`run_app.py` calls no judge model. For LLM-based metrics (relevance,
+consistency), see the [metrics harness](#llm-based-metrics-metricsharnesspy).
 
 ## Run
 
@@ -671,15 +682,14 @@ python run_app.py data/driving_profiles.json data/truth.json > data/app_plans.js
 python run_app.py data/driving_profiles.json data/truth.json --profile P011 --verbose
 ```
 
-The plan API must be running at `--endpoint` before calling this script.
 `truth.json` is required — it carries the per-guide URL-to-step index used
-to map the API's cited URLs onto step numbers.
+to map the agent's cited URLs onto step numbers.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--endpoint` | `http://localhost:8000/plan` | Plan API URL |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime |
 | `--profile` | — | Run one profile id only, for testing |
-| `--raw` | — | Save full API responses here |
+| `--raw` | — | Save full agent responses here |
 | `--verbose` | off | Print per-task URL trace to stderr |
 | `--results-out` | `results.json` | Where to write scoring results |
 
@@ -719,8 +729,9 @@ against coverage.
 
 ## Limits
 
-The plan API must be running and reachable at `--endpoint`. A failed API call
-is reported on stderr and the profile is skipped rather than retried.
+The hosted agent must be deployed and your credentials must be allowed to
+invoke it. A failed invocation is reported on stderr and the profile is skipped
+rather than retried. Each call waits up to 5 minutes for a plan.
 
 URLs cited by the app that are not in any guide's spine are reported on
 stderr. They may be legitimate GOV.UK pages outside the step-by-step, or
@@ -735,87 +746,109 @@ count is unexpectedly high.
 
 `run_app.py` scores plans structurally — coverage of spine steps, precision,
 recall, F1. Those metrics do not capture whether a plan is relevant to the
-specific person, faithful to what the knowledge graph actually says, or
-consistent across multiple runs.
+specific person, or consistent across multiple runs.
 
-The metrics harness adds three LLM-judged metrics that run **independently of
+The metrics harness adds two LLM-judged metrics that run **independently of
 the main pipeline** — no truth file, no spine, no F1:
 
 - **Relevance** — are the plan's tasks genuinely relevant to this person's
   situation? Each task is classified `relevant`, `premature` or `irrelevant`.
-- **Faithfulness** — does the plan stay faithful to what the planner's MCP
-  tool calls actually returned? Requires running the planner in-process to
-  capture the retrieval context.
 - **Consistency** — given `G` plan generations for the same profile, how
-  consistent are the results across two dimensions: service-set stability and
-  holistic plan similarity?
+  consistent are the results across two dimensions: service-set stability
+  (computed directly from the plans, no judge) and holistic plan similarity
+  (LLM-judged).
 
 ## How it works
 
-The harness drives the planner agent in-process (or via the HTTP endpoint for
-relevance and consistency only), runs each judge `N` times per profile to
-smooth variance, and writes a `results.json` with per-profile and aggregate
-scores.
+The harness invokes the hosted planner agent (`--agent-runtime-arn`) `G` times
+per profile, runs each judge `N` times per profile to smooth variance, and writes a
+`results.json` with per-profile and aggregate scores.
 
 Two knobs control cost and statistical quality:
-- `G` — plan generations per profile (faithfulness and consistency need G≥2 for
-  consistency to be meaningful).
+- `G` — plan generations per profile (consistency needs G≥2 to be meaningful).
 - `N` — judge repeats per metric per profile.
 
-Per-profile score = mean over G×N (faithfulness/relevance) or N (consistency,
-which already covers all G plans in one call). Overall aggregate = mean of
-per-profile scores.
+**Relevance** per profile: a plan's score is the share of its tasks judged
+`relevant` or `premature`; average the `N` repeats within each plan, then average
+across the plans. The profile's `scores_by_plan`, `min` and `max` show how much its
+plans differ. Plans with no scoreable result are left out of the average.
+
+**Consistency** per profile:
+- `service_stability` is the mean pairwise Jaccard overlap of the services (by
+  URL) each plan recommends. It is computed from the plans, so it needs no judge
+  and does not change with `G`. `services_not_in_every_plan` lists the services
+  that some plans recommend and others do not.
+- `holistic` is one judgement over all `G` plans per repeat, averaged over `N`.
+  It still depends on `G`, so compare it only between runs with the same `G`.
+
+The overall aggregate for each metric is the mean of the per-profile scores.
+`service_stability` in `results.json` files from before this change was
+LLM-judged and is not comparable.
+
+**Retries and coverage.** A failed plan generation is retried up to
+`--max-attempts` times (default 3), waiting 5s, then 10s, and so on up to 60s.
+Only transient failures are retried: throttling, server errors, timeouts,
+connection errors and empty or malformed replies. Permanent errors (access
+denied, bad request, missing or expired credentials) fail at once. Results are
+always written, with a `coverage` block listing `profiles_requested`,
+`profiles_scored`, `skipped_profiles` (each with its last error),
+`plans_per_profile` and `profiles_short` (profiles that got fewer than `G` plans).
+The exit code is 1 if any profile was skipped or short, so a script can tell.
+
+Two env vars keep the models separate, with no fallback between them:
+`ANTHROPIC_MODEL` is the model the *hosted app* uses to generate plans (set in
+`agentcore.json`; the harness never reads it), and `EVAL_ANTHROPIC_MODEL` is the judge model. The
+harness exits if `EVAL_ANTHROPIC_MODEL` (or `--judge-model`) is not set.
 
 ## Run
 
 ```bash
 cd scripts/evaluation/plan-generation
 
-# All metrics, 3 generations per profile, 1 judge repeat
+# Both metrics, 3 generations per profile, 1 judge repeat
 python -m metrics.harness data/driving_profiles_v5.json -G 3 -N 1
 
 # Single profile, verbose
 python -m metrics.harness data/driving_profiles_v5.json --profile P013 -G 2 -N 2 --verbose
 
-# Consistency only, using a remote MCP gateway
+# Consistency only, against an explicit runtime
 python -m metrics.harness data/driving_profiles_v5.json --metrics consistency -G 3 \
-    --mcp-mode remote --graph-gateway-url https://...
-
-# Via HTTP endpoint (no faithfulness — retrieval context not available)
-python -m metrics.harness data/driving_profiles_v5.json --metrics consistency relevance \
-    --mode endpoint --endpoint http://localhost:8000/plan
+    --agent-runtime-arn arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
 ```
 
-Requires Bedrock credentials and (for `--mode in-process`) a running MCP server
-or gateway. Run under `aws-vault exec` if using AWS SSO.
+`AGENT_RUNTIME_ARN` (or `--agent-runtime-arn`) and `EVAL_ANTHROPIC_MODEL` must
+be set. The credentials need `bedrock-agentcore:InvokeAgentRuntime` on the
+runtime plus Bedrock model access for the judge; run under `aws-vault exec` if
+using AWS SSO. As in `run_app.py`, today's date is added to each profile's
+context and `AGENT_ENDPOINT_NAME` selects a non-`DEFAULT` endpoint.
 
 | Flag | Default | Purpose |
 |---|---|---|
 | `--profile` | — | Run a single profile id only |
 | `-G` | 3 | Plan generations per profile |
 | `-N` | 1 | Judge repeats per metric per profile |
-| `--metrics` | all | Space-separated subset: `faithfulness consistency relevance` |
+| `--metrics` | all | Space-separated subset: `consistency relevance` |
 | `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
 | `--judge-region` | `eu-west-1` | AWS region for judge model |
-| `--agent-model` | `$ANTHROPIC_MODEL` (required for in-process) | Bedrock model for plan generation |
-| `--agent-region` | `$AWS_REGION` | Override planner region |
-| `--mcp-mode` | `$MCP_MODE` | `local` or `remote` |
-| `--graph-server-path` | `$GRAPH_SERVER_PATH` | Local MCP server path |
-| `--graph-gateway-url` | `$GRAPH_GATEWAY_URL` | Remote MCP gateway URL |
-| `--mode` | `in-process` | `in-process` (captures retrieval context) or `endpoint` |
-| `--endpoint` | `http://localhost:8000/plan` | Plan API URL for `--mode endpoint` |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
+| `--max-attempts` | 3 | Tries per plan generation, including the first |
 | `--results-out` | `results.json` | Where to write metric results |
 | `--raw` | — | Also write raw generations here |
-| `--verbose` | off | Print per-generation log output |
+| `--verbose` | off | Print per-profile plan counts |
 
 ## Limits
-
-`--mode in-process` is required for faithfulness — the HTTP endpoint discards
-tool-call results, so retrieval context is unavailable there.
 
 `G < 2` with consistency enabled produces null scores for all profiles (a plan
 cannot be compared against itself).
 
-Each in-process generation is one full agent run with Bedrock calls. At the
-default `G=3`, a 16-profile run makes 48 planner calls before any judging.
-Use `--profile` for development iteration.
+Each generation is one invocation of the hosted agent, which runs a full agent
+loop and can take minutes. Calls run one after another. At the default `G=3`, a
+16-profile run makes 48 invocations before any judging, plus any retries. Use
+`--profile` for development iteration.
+
+Retries cover plan generation only. A failure in a judge call (for example
+Bedrock throttling) still stops the run.
+
+Faithfulness (checking a plan against the knowledge-graph results the planner
+saw) is not implemented: the hosted agent returns only the plan, not its
+tool-call results.
