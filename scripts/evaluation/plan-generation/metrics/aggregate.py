@@ -62,7 +62,7 @@ def _services_not_in_every_plan(generations: list[dict]) -> list[dict]:
 
 
 def compute_results(
-    profiles: list[dict],
+    profile_ids: list[str],
     generations_by_profile: dict[str, list[dict]],
     consistency_scores: dict[str, list[dict]],
     relevance_scores: dict[str, list[list[list[dict]]]],
@@ -72,7 +72,7 @@ def compute_results(
     """Assemble the final results dict for writing to results.json.
 
     Args:
-        profiles: All profile records that were processed.
+        profile_ids: IDs of every profile that was requested, in order.
         generations_by_profile: ``{profile_id: [generation, ...]}``. Profiles with
             no plans at all are absent.
         consistency_scores: ``{profile_id: [score_dict, ...] * N}``.
@@ -88,8 +88,7 @@ def compute_results(
     cons_per = {}
     rel_per = {}
 
-    for profile in profiles:
-        pid = profile.get("id", "")
+    for pid in profile_ids:
         if pid not in generations_by_profile:
             continue
 
@@ -154,7 +153,7 @@ def compute_results(
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "config": config,
         "coverage": {
-            "profiles_requested": len(profiles),
+            "profiles_requested": len(profile_ids),
             "profiles_scored": len(generations_by_profile),
             "skipped_profiles": [
                 {"id": pid, "error": error} for pid, error in failures.items()

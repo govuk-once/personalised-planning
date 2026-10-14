@@ -18,7 +18,7 @@ No LLM sits in the step-scoring path — it would put a non-deterministic
 judgement between the app and its score.
 
 LLM-based metrics (relevance, consistency) are in the separate metrics
-harness: python -m metrics.harness
+harness: python -m metrics.harness generate|score
 """
 
 import argparse

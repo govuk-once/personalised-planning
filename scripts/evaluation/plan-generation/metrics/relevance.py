@@ -1,7 +1,8 @@
 """Relevance metric: are the plan's tasks relevant to the user's situation?
 
-Custom Bedrock judge — no DeepEval, same logic and prompt as the original
-run_app.py implementation so results remain comparable over time.
+Custom Bedrock judge — no DeepEval. The prompt and verdicts are those of the
+original relevance judge that used to live in run_app.py; how verdicts become a
+score is decided in aggregate.py.
 
 Verdicts per task:
 - relevant   — a genuine current need for this person

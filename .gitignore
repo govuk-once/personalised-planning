@@ -88,6 +88,10 @@ data/**
 
 agentcore/aws-targets.json
 
+# Eval metrics harness output (plans.json records the agent runtime ARN; both are rewritten on every run)
+scripts/evaluation/plan-generation/results.json
+scripts/evaluation/plan-generation/plans.json
+
 function.zip
 dist/
 

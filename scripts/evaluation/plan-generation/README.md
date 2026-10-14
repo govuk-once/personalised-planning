@@ -768,15 +768,20 @@ The harness runs in two steps, so the slow part happens once:
 2. **`score`** reads a plans file, runs each judge `N` times per profile to smooth
    variance, and writes a `results.json` with per-profile and aggregate scores.
    Judging is fast, so you can rescore the same plans as often as you like, for
-   example after changing `relevance_prompt.md` or the consistency rubric.
+   example after editing `metrics/relevance_prompt.md` or the holistic rubric in
+   `metrics/consistency.py`.
 
 The plans file records the generation settings (`G`, the runtime ARN, the
 situation, the profiles file), every requested profile, the plans with the context
 each was generated from (including `today`, so a rescore judges against the same
 date), and any profiles that failed. `generate` saves it after every profile, so an
 interrupted run keeps the profiles already done. Each `results.json` records which
-plans file it came from (`plans_file`, `plans_generated_at`) alongside the judge
-settings.
+plans file it came from (`plans_file`, `plans_generated_at`), the profile it was
+limited to if `--profile` was used (`scored_profile`), and the judge settings.
+
+The plans file contains the runtime ARN, which includes your AWS account ID, so
+check it before sharing. `results.json` never records the ARN: the key is dropped,
+and the ARN is replaced with `<runtime-arn>` if an error message quotes it.
 
 Two knobs control cost and statistical quality:
 - `G` — plan generations per profile (consistency needs G≥2 to be meaningful).
@@ -850,7 +855,6 @@ and Bedrock model access for the judge, but not the agent. Run under
 | `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
 | `--max-attempts` | 3 | Tries per plan generation, including the first |
 | `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
-| `--verbose` | off | Print per-profile plan counts |
 
 `score` flags:
 
@@ -862,12 +866,12 @@ and Bedrock model access for the judge, but not the agent. Run under
 | `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
 | `--judge-region` | `eu-west-1` | AWS region for judge model |
 | `--results-out` | `results.json` | Where to write metric results |
-| `--verbose` | off | Print per-profile plan counts |
 
 ## Limits
 
-`G < 2` with consistency enabled produces null scores for all profiles (a plan
-cannot be compared against itself).
+Consistency needs at least two plans. With `G < 2` it is null for every profile, and
+a profile that ends up with only one plan after retries is null for that profile
+(a plan cannot be compared against itself).
 
 Each generation is one invocation of the hosted agent, which runs a full agent
 loop and can take minutes. Calls run one after another. At the default `G=3`, a
@@ -875,7 +879,8 @@ loop and can take minutes. Calls run one after another. At the default `G=3`, a
 `--profile` for development iteration.
 
 Retries cover plan generation only. A failure in a judge call (for example
-Bedrock throttling) still stops the run.
+Bedrock throttling) still stops `score`, but the plans are already saved, so
+rerunning it costs only the judge calls.
 
 Faithfulness (checking a plan against the knowledge-graph results the planner
 saw) is not implemented: the hosted agent returns only the plan, not its
