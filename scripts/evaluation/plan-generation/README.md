@@ -760,9 +760,23 @@ the main pipeline** — no truth file, no spine, no F1:
 
 ## How it works
 
-The harness invokes the hosted planner agent (`--agent-runtime-arn`) `G` times
-per profile, runs each judge `N` times per profile to smooth variance, and writes a
-`results.json` with per-profile and aggregate scores.
+The harness runs in two steps, so the slow part happens once:
+
+1. **`generate`** invokes the hosted planner agent (`--agent-runtime-arn`) `G`
+   times per profile and saves the plans to a plans file. Each agent call can take
+   minutes.
+2. **`score`** reads a plans file, runs each judge `N` times per profile to smooth
+   variance, and writes a `results.json` with per-profile and aggregate scores.
+   Judging is fast, so you can rescore the same plans as often as you like, for
+   example after changing `relevance_prompt.md` or the consistency rubric.
+
+The plans file records the generation settings (`G`, the runtime ARN, the
+situation, the profiles file), every requested profile, the plans with the context
+each was generated from (including `today`, so a rescore judges against the same
+date), and any profiles that failed. `generate` saves it after every profile, so an
+interrupted run keeps the profiles already done. Each `results.json` records which
+plans file it came from (`plans_file`, `plans_generated_at`) alongside the judge
+settings.
 
 Two knobs control cost and statistical quality:
 - `G` — plan generations per profile (consistency needs G≥2 to be meaningful).
@@ -789,11 +803,12 @@ LLM-judged and is not comparable.
 `--max-attempts` times (default 3), waiting 5s, then 10s, and so on up to 60s.
 Only transient failures are retried: throttling, server errors, timeouts,
 connection errors and empty or malformed replies. Permanent errors (access
-denied, bad request, missing or expired credentials) fail at once. Results are
-always written, with a `coverage` block listing `profiles_requested`,
-`profiles_scored`, `skipped_profiles` (each with its last error),
-`plans_per_profile` and `profiles_short` (profiles that got fewer than `G` plans).
-The exit code is 1 if any profile was skipped or short, so a script can tell.
+denied, bad request, missing or expired credentials) fail at once. The plans file
+is always written, and `generate` exits 1 if any profile was skipped or short, so a
+script can tell. `score` carries this into a `coverage` block in `results.json`
+listing `profiles_requested`, `profiles_scored`, `skipped_profiles` (each with its
+last error), `plans_per_profile` and `profiles_short` (profiles that got fewer than
+`G` plans). `score` prints a warning for an incomplete plans file but exits 0.
 
 Two env vars keep the models separate, with no fallback between them:
 `ANTHROPIC_MODEL` is the model the *hosted app* uses to generate plans (set in
@@ -805,35 +820,48 @@ harness exits if `EVAL_ANTHROPIC_MODEL` (or `--judge-model`) is not set.
 ```bash
 cd scripts/evaluation/plan-generation
 
-# Both metrics, 3 generations per profile, 1 judge repeat
-python -m metrics.harness data/driving_profiles_v5.json -G 3 -N 1
+# 1. Generate 3 plans per profile, once
+python -m metrics.harness generate data/driving_profiles_v5.json -G 3 -o data/plans.json
 
-# Single profile, verbose
-python -m metrics.harness data/driving_profiles_v5.json --profile P013 -G 2 -N 2 --verbose
+# 2. Score them; rerun this step as often as you like
+python -m metrics.harness score data/plans.json -N 2 --results-out results.json
 
-# Consistency only, against an explicit runtime
-python -m metrics.harness data/driving_profiles_v5.json --metrics consistency -G 3 \
+# Score one profile, relevance only, while iterating on the prompt
+python -m metrics.harness score data/plans.json --profile P013 --metrics relevance
+
+# Generate against an explicit runtime
+python -m metrics.harness generate data/driving_profiles_v5.json -G 3 -o data/plans.json \
     --agent-runtime-arn arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
 ```
 
-`AGENT_RUNTIME_ARN` (or `--agent-runtime-arn`) and `EVAL_ANTHROPIC_MODEL` must
-be set. The credentials need `bedrock-agentcore:InvokeAgentRuntime` on the
-runtime plus Bedrock model access for the judge; run under `aws-vault exec` if
-using AWS SSO. As in `run_app.py`, today's date is added to each profile's
-context and `AGENT_ENDPOINT_NAME` selects a non-`DEFAULT` endpoint.
+`generate` needs `AGENT_RUNTIME_ARN` (or `--agent-runtime-arn`) and credentials
+with `bedrock-agentcore:InvokeAgentRuntime` on the runtime. As in `run_app.py`,
+today's date is added to each profile's context and `AGENT_ENDPOINT_NAME` selects
+a non-`DEFAULT` endpoint. `score` needs `EVAL_ANTHROPIC_MODEL` (or `--judge-model`)
+and Bedrock model access for the judge, but not the agent. Run under
+`aws-vault exec` if using AWS SSO.
+
+`generate` flags:
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--profile` | — | Run a single profile id only |
+| `--profile` | — | Generate for a single profile id only |
 | `-G` | 3 | Plan generations per profile |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
+| `--max-attempts` | 3 | Tries per plan generation, including the first |
+| `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
+| `--verbose` | off | Print per-profile plan counts |
+
+`score` flags:
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--profile` | — | Score a single profile id only |
 | `-N` | 1 | Judge repeats per metric per profile |
 | `--metrics` | all | Space-separated subset: `consistency relevance` |
 | `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
 | `--judge-region` | `eu-west-1` | AWS region for judge model |
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
-| `--max-attempts` | 3 | Tries per plan generation, including the first |
 | `--results-out` | `results.json` | Where to write metric results |
-| `--raw` | — | Also write raw generations here |
 | `--verbose` | off | Print per-profile plan counts |
 
 ## Limits
