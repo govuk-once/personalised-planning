@@ -15,6 +15,7 @@ from strands.hooks import (
     AfterInvocationEvent,
     AfterToolCallEvent,
     BeforeInvocationEvent,
+    BeforeModelCallEvent,
     BeforeToolCallEvent,
     HookProvider,
     HookRegistry,
@@ -73,16 +74,19 @@ class ChatObservabilityHooks(HookProvider):
         self.logger = logger
         self._invocation_start = None
         self._last_tool_result_at = None
+        self._tool_error_seen = False
         self.last_required_info_summary: dict | None = None
 
     def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
         registry.add_callback(BeforeInvocationEvent, self._on_invocation_start)
         registry.add_callback(AfterInvocationEvent, self._on_invocation_end)
+        registry.add_callback(BeforeModelCallEvent, self._on_before_model)
         registry.add_callback(BeforeToolCallEvent, self._on_tool_start)
         registry.add_callback(AfterToolCallEvent, self._on_tool_end)
 
     def _on_invocation_start(self, event: BeforeInvocationEvent) -> None:
         self._invocation_start = time.perf_counter()
+        self._tool_error_seen = False
         self.logger.log("INFO", "Agent invocation started", step="invocation_start")
 
     def _on_invocation_end(self, event: AfterInvocationEvent) -> None:
@@ -94,6 +98,16 @@ class ChatObservabilityHooks(HookProvider):
         self.logger.log(
             "INFO", "Agent invocation complete", elapsed_s=elapsed, step="invocation_end"
         )
+
+    def _on_before_model(self, event: BeforeModelCallEvent) -> None:
+        messages = event.agent.messages
+        if messages and any("toolUse" in c for c in messages[-1].get("content", [])):
+            event.cancel = "Orphaned tool_use detected — likely truncated Bedrock stream"
+            self.logger.log(
+                "ERROR",
+                "Cancelling model call: last message has tool_use without tool_result",
+                step="orphan_guard",
+            )
 
     def _on_tool_start(self, event: BeforeToolCallEvent) -> None:
         tool_use = event.tool_use
@@ -118,6 +132,19 @@ class ChatObservabilityHooks(HookProvider):
             else None
         )
         self._last_tool_result_at = time.perf_counter()
+
+        if event.result.get("status") == "error" or event.exception is not None:
+            self._tool_error_seen = True
+            self.logger.log(
+                "ERROR",
+                "Tool call failed",
+                tool_use_id=event.tool_use.get("toolUseId"),
+                tool_name=event.tool_use.get("name"),
+                error=str(event.result.get("content")),
+                exception=str(event.exception) if event.exception else None,
+                step="tool_error",
+            )
+
         self.logger.log(
             "INFO",
             "Tool result received",
