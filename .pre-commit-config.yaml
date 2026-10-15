@@ -51,7 +51,7 @@ repos:
         name: Detect secrets
         args: ['--baseline', '.secrets.baseline']
         # Only scan staged files, not entire repo
-        stages: [commit]
+        stages: [pre-commit]
         # Exclude directories that don't need scanning
         exclude: |
           (?x)^(
