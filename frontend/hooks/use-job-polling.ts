@@ -2,10 +2,9 @@
 
 import { useEffect, useEffectEvent } from "react";
 
-import { checkJob } from "@/app/actions";
+import { fetchJob } from "@/lib/fetch-job";
 import { pollJob, type Outcome, type PollSettings } from "@/lib/poll";
 import { getSessionId, type StoredJob } from "@/lib/session";
-import type { ActionResult, JobState } from "@/lib/types";
 
 export function useJobPolling<T>(
   job: StoredJob | null,
@@ -27,12 +26,8 @@ export function useJobPolling<T>(
 
     const check = () => {
       const sessionId = getSessionId();
-      const reply = checkJob({
-        sessionId,
-        jobId,
-      });
 
-      return reply as Promise<ActionResult<JobState<T>>>;
+      return fetchJob<T>(sessionId, jobId);
     };
 
     const report = (outcome: Outcome<T> | null) => {
