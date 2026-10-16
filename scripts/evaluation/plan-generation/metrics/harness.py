@@ -71,7 +71,13 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         sys.exit("error: no matching profiles found")
 
     from metrics.agent_calls import generate_one
-    from run_app import SITUATION, make_agent_client, profile_context
+    from run_app import make_agent_client, profile_context, profile_situation
+
+    # Check every situation before the first slow agent call.
+    try:
+        situations = [profile_situation(p) for p in all_profiles]
+    except ValueError as exc:
+        sys.exit(f"error: {exc}")
 
     if not args.agent_runtime_arn:
         sys.exit("error: AGENT_RUNTIME_ARN is not set (or pass --agent-runtime-arn)")
@@ -92,7 +98,6 @@ def _cmd_generate(args: argparse.Namespace) -> int:
             "G": args.G,
             "agent_runtime_arn": args.agent_runtime_arn,
             "max_attempts": args.max_attempts,
-            "situation": SITUATION,
             "profiles_file": str(pathlib.Path(args.profiles).resolve()),
             "profile": args.profile,
         },
@@ -102,14 +107,16 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     }
 
     total = len(all_profiles)
-    for i, (pid, profile) in enumerate(zip(profile_ids, all_profiles, strict=True), 1):
+    for i, (pid, profile, situation) in enumerate(
+        zip(profile_ids, all_profiles, situations, strict=True), 1
+    ):
         print(f"[{i}/{total}] {pid}", file=sys.stderr)
         ctx = profile_context(profile)
         gens = []
         last_error = None
         for g in range(args.G):
             gen, error = generate_one(
-                client, args.agent_runtime_arn, ctx, args.max_attempts
+                client, args.agent_runtime_arn, situation, ctx, args.max_attempts
             )
             if gen:
                 gens.append(gen)
@@ -155,10 +162,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
         )
 
     gen_config = doc.get("config") or {}
-    situation = gen_config.get("situation")
     g = gen_config.get("G")
-    if not situation:
-        sys.exit("error: plans file has no situation in its config")
     if not isinstance(g, int) or g < 1:
         sys.exit("error: plans file has no valid G in its config")
 
@@ -173,6 +177,14 @@ def _cmd_score(args: argparse.Namespace) -> int:
         failures = {k: v for k, v in failures.items() if k in profile_ids}
     if not plans:
         sys.exit("error: no plans to score in this file")
+
+    # Each profile has one situation, saved with every generation.
+    situations = {}
+    for pid, gens in plans.items():
+        found = {gen.get("situation") for gen in gens}
+        if len(found) != 1 or not next(iter(found)):
+            sys.exit(f"error: {pid} has a missing or inconsistent situation")
+        situations[pid] = found.pop()
 
     if "consistency" in args.metrics and g < 2:
         warnings.warn(
@@ -223,7 +235,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
             from metrics.consistency import score_consistency
 
             consistency_scores[pid] = [
-                score_consistency(gens, judge, situation) for _ in range(args.N)
+                score_consistency(gens, judge, situations[pid]) for _ in range(args.N)
             ]
 
         if "relevance" in args.metrics:
@@ -236,7 +248,6 @@ def _cmd_score(args: argparse.Namespace) -> int:
                         relevance_client,
                         judge_model_id,
                         relevance_template,
-                        situation,
                     )["tasks"]
                     for gen in gens
                 ]

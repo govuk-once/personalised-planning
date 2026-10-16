@@ -38,6 +38,11 @@ driving_subgraph.json ──────┐
                         data/driving_profiles.json
                                     │
                                     ▼
+                      situations.py (adds `situation` to
+                      each profile, in place; needs
+                      data/situations.json)
+                                    │
+                                    ▼
                       run_app.py (needs data/truth.json)
                                     │
                                     ▼
@@ -147,7 +152,7 @@ Four things make those results representative rather than merely plentiful.
 
 **Difference is measured by the answers.** Two profiles count as the same only when they answer every question identically (the order of options within a multi-select doesn't count); one representative of each distinct answer set is kept. Without this you get tens of thousands of near-duplicates and no more real coverage.
 
-Answers are the unit because answers are what the plan generator consumes: it is sent the readable question-answers plus age, and never the derived facts. So two profiles that differ in any answer may produce different plans and both are worth keeping — deduplicating on facts instead would collapse genuinely different inputs (a moped and a motorcycle share one vehicle fact) and under-test the generator. Facts are computed and carried on each profile only for review: the assertions a plan is graded against are built from them, and
+Answers are the unit because answers are what the plan generator consumes: it is sent the answers as question ids and option codes, plus age and the profile's `situation` sentence, and never the derived facts. So two profiles that differ in any answer may produce different plans and both are worth keeping — deduplicating on facts instead would collapse genuinely different inputs (a moped and a motorcycle share one vehicle fact) and under-test the generator. Facts are computed and carried on each profile only for review: the assertions a plan is graded against are built from them, and
 they show at a glance why a plan came out the way it did. Because they never reach the generator, it must derive routing from the answers itself, exactly as it would for a real user.
 
 **Dead ends are caught, not hidden.** The questionnaire is tested against thousands of invented answer sets to confirm every question can be reached,
@@ -278,6 +283,7 @@ silently swallowed by the stricter rule it was written to escape.
 ```json
 {
   "id": "P024",
+  "situation": "I want to learn to drive or ride, from getting my provisional licence to passing my test.",
   "answers":  { "q1_vehicle": "car", "q9_theory_support": ["audio_english"] },
   "readable": { "What do you want to learn to drive or ride?": "Car (category B)" },
   "numeric":  { "age": { "value": 43, "range": [42, 85],
@@ -303,6 +309,35 @@ on purpose — that is where plans break.
 are written for the highest-risk profiles first, up to a cap that grows with
 the square root of the profile count rather than linearly, so a model with far
 more genuine branches doesn't multiply persona cost along with it.
+
+`situation` is not written by `plans.py`; add it with `situations.py` (next
+section).
+
+## Adding a situation to each profile (`situations.py`)
+
+In production the planner is sent a `situation` (one first-person sentence
+saying what the person wants help with) as well as their context. Sending the
+same sentence for every profile would contradict profiles that want something
+else, so each profile gets its own.
+
+```bash
+python situations.py data/driving_profiles.json data/situations.json
+```
+
+`data/situations.json` is written by hand. It names a question and gives one
+sentence for each of its option ids:
+
+```json
+{ "question": "q_main_goal",
+  "situations": { "learn_to_drive": "I want to learn to drive or ride, ...",
+                  "change_name_gender": "I need to change the name or gender on my driving licence." } }
+```
+
+The script looks up each profile's answer to that question and writes the
+sentence into the profile as `situation`, in place. Nothing else in the profile
+changes, so ground truth stays valid. It stops without writing anything if a
+profile's answer has no sentence. Running it again overwrites `situation`.
+`run_app.py` and the metrics harness refuse to run on profiles without one.
 
 ## The review packets it produces
 
@@ -623,8 +658,8 @@ covers a subset of all profiles (car / Great Britain only). Calling the agent
 for profiles outside that scope produces plans that cannot be scored.
 
 **It calls the agent the way the backend does.** It invokes the deployed
-AgentCore runtime with `situation` and `user_context`, and adds today's date to
-the context as the backend Worker does — without it the planner works out
+AgentCore runtime with each profile's `situation` and a `user_context` of its
+answer codes and age, and adds today's date to the context as the backend Worker does — without it the planner works out
 deadlines from its training cutoff. Each call uses a fresh session.
 
 **It maps tasks to step numbers by URL.** Each task the agent returns carries a
@@ -772,9 +807,9 @@ The harness runs in two steps, so the slow part happens once:
    `metrics/consistency.py`.
 
 The plans file records the generation settings (`G`, the runtime ARN, the
-situation, the profiles file), every requested profile, the plans with the context
-each was generated from (including `today`, so a rescore judges against the same
-date), and any profiles that failed. `generate` saves it after every profile, so an
+profiles file), every requested profile, the plans with the situation and
+context each was generated from (including `today`, so a rescore judges against
+the same date), and any profiles that failed. `generate` saves it after every profile, so an
 interrupted run keeps the profiles already done. Each `results.json` records which
 plans file it came from (`plans_file`, `plans_generated_at`), the profile it was
 limited to if `--profile` was used (`scored_profile`), and the judge settings.

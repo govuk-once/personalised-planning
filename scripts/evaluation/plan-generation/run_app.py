@@ -34,8 +34,6 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
-SITUATION = "learning to drive"
-
 
 def load(path):
     """Read a JSON file."""
@@ -72,19 +70,42 @@ def today_london():
     return f"{now.day} {now:%B} {now.year}"
 
 
-def profile_context(profile):
-    """Build the user_context dict the agent sees.
-
-    Mirrors the backend Worker, which adds today's date: without it the
-    planner works out deadlines from its training cutoff.
+def profile_situation(profile):
+    """The situation sentence the agent sees for a profile.
 
     Args:
         profile: A synthetic profile record.
 
     Returns:
-        Dict of today's date, readable answers, and numeric age if present.
+        The profile's `situation`, as added by `situations.py`.
+
+    Raises:
+        ValueError: If the profile has no situation.
     """
-    context = {"today": today_london(), **(profile.get("readable") or {})}
+    situation = (profile.get("situation") or "").strip()
+    if not situation:
+        raise ValueError(
+            f"profile {profile.get('id', '?')} has no situation; "
+            "run situations.py on the profiles file"
+        )
+    return situation
+
+
+def profile_context(profile):
+    """Build the user_context dict the agent sees.
+
+    Mirrors the backend Worker, which adds today's date: without it the
+    planner works out deadlines from its training cutoff. Answers go in as
+    the profile's question ids and option codes, like the short keys and values
+    the conversation agent collects in production.
+
+    Args:
+        profile: A synthetic profile record.
+
+    Returns:
+        Dict of today's date, answer codes, and numeric age if present.
+    """
+    context = {"today": today_london(), **(profile.get("answers") or {})}
     age = (profile.get("numeric") or {}).get("age", {}).get("value")
     if age is not None:
         context["age"] = int(age)
@@ -115,12 +136,13 @@ def make_agent_client(runtime_arn, timeout=300):
     )
 
 
-def call_api(client, runtime_arn, context):
-    """Send one profile's context to the hosted planner agent.
+def call_api(client, runtime_arn, situation, context):
+    """Send one profile's situation and context to the hosted planner agent.
 
     Args:
         client: Client from `make_agent_client`.
         runtime_arn: ARN of the deployed planner runtime.
+        situation: Sentence from `profile_situation`.
         context: Dict built by `profile_context`.
 
     Returns:
@@ -129,7 +151,7 @@ def call_api(client, runtime_arn, context):
     Raises:
         RuntimeError: If the invocation fails or the reply has no output.
     """
-    body = json.dumps({"situation": SITUATION, "user_context": context}).encode()
+    body = json.dumps({"situation": situation, "user_context": context}).encode()
     try:
         reply = client.invoke_agent_runtime(
             agentRuntimeArn=runtime_arn,
@@ -234,12 +256,19 @@ def main(argv=None):
         print("no matching profiles", file=sys.stderr)
         return 1
 
+    # Check every situation before the first slow agent call.
+    try:
+        situations = [profile_situation(p) for p in todo]
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
     plans, raw, failures, unmatched = [], {}, [], set()
     scores = []
-    for i, profile in enumerate(todo, 1):
+    for i, (profile, situation) in enumerate(zip(todo, situations, strict=True), 1):
         context = profile_context(profile)
         try:
-            response = call_api(client, args.agent_runtime_arn, context)
+            response = call_api(client, args.agent_runtime_arn, situation, context)
         except RuntimeError as exc:
             failures.append(f"{profile['id']}: {exc}")
             continue

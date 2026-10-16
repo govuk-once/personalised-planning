@@ -78,8 +78,9 @@ def build_relevance_prompt(
 
     Args:
         template: Prompt text from ``load_relevance_prompt()``.
-        situation: The life-event string.
-        context: Dict from ``profile_context()``.
+        situation: The profile's situation sentence.
+        context: Dict from ``profile_context()``: today's date, answer codes
+            keyed by question id, and age.
         tasks: List from ``collect_relevance_tasks()``.
 
     Returns:
@@ -188,7 +189,7 @@ def judge_plan_relevance(
         client: A boto3 ``bedrock-runtime`` client.
         model_id: Bedrock model or inference-profile ID.
         prompt_template: Prompt text from ``load_relevance_prompt()``.
-        situation: The life-event string.
+        situation: The profile's situation sentence.
         context: Dict from ``profile_context()``.
         tasks: List from ``collect_relevance_tasks()``.
 
@@ -208,21 +209,21 @@ def score_relevance(
     client: Any,
     model_id: str,
     prompt_template: str,
-    situation: str,
 ) -> dict:
     """Score the relevance of tasks in one generation.
 
     Args:
-        generation: A generation dict with ``plan`` and ``context`` keys.
+        generation: A generation dict with ``plan``, ``situation`` and
+            ``context`` keys.
         client: A boto3 ``bedrock-runtime`` client.
         model_id: Bedrock model ID for the relevance judge.
         prompt_template: Template string from ``load_relevance_prompt()``.
-        situation: The life-event situation string.
 
     Returns:
         Dict with ``tasks`` (list of judged task dicts) and ``status``.
     """
     plan = generation.get("plan") or {}
+    situation = generation.get("situation") or ""
     context = generation.get("context") or {}
 
     tasks = collect_relevance_tasks(plan)
