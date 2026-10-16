@@ -6,7 +6,8 @@ score is decided in aggregate.py.
 
 Verdicts per task:
 - relevant   — a genuine current need for this person
-- premature  — genuine but not yet needed (right topic, wrong timing)
+- contradicted — right topic, but a fact about the person rules it out
+  (already done, not eligible, wrong vehicle or circumstance)
 - irrelevant — wrong topic entirely
 """
 
@@ -21,7 +22,7 @@ DEFAULT_RELEVANCE_REGION = "eu-west-1"
 
 _METRICS_DIR = pathlib.Path(__file__).resolve().parent
 RELEVANCE_PROMPT_PATH = _METRICS_DIR / "relevance_prompt.md"
-_RELEVANCE_VERDICTS = {"relevant", "premature", "irrelevant"}
+_RELEVANCE_VERDICTS = {"relevant", "contradicted", "irrelevant"}
 
 
 def make_bedrock_client(region: str = DEFAULT_RELEVANCE_REGION) -> Any:

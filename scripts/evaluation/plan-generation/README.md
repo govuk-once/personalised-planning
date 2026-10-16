@@ -787,7 +787,8 @@ The metrics harness adds two LLM-judged metrics that run **independently of
 the main pipeline** — no truth file, no spine, no F1:
 
 - **Relevance** — are the plan's tasks genuinely relevant to this person's
-  situation? Each task is classified `relevant`, `premature` or `irrelevant`.
+  situation? Each task is classified `relevant`, `contradicted` (the right topic, but a
+  fact about the person rules it out) or `irrelevant`.
 - **Consistency** — given `G` plan generations for the same profile, how
   consistent are the results across two dimensions: service-set stability
   (computed directly from the plans, no judge) and holistic plan similarity
@@ -823,7 +824,7 @@ Two knobs control cost and statistical quality:
 - `N` — judge repeats per metric per profile.
 
 **Relevance** per profile: a plan's score is the share of its tasks judged
-`relevant` or `premature`; average the `N` repeats within each plan, then average
+`relevant`; average the `N` repeats within each plan, then average
 across the plans. The profile's `scores_by_plan`, `min` and `max` show how much its
 plans differ. Plans with no scoreable result are left out of the average.
 

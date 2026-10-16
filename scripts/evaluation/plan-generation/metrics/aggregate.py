@@ -21,7 +21,7 @@ def _mean(values: list) -> float | None:
 
 
 def _relevant_fraction(judged_tasks: list[dict]) -> float | None:
-    """Fraction of judged tasks with verdict 'relevant' or 'premature'.
+    """Fraction of judged tasks with verdict 'relevant'.
 
     Args:
         judged_tasks: Task dicts with a ``verdict`` key.
@@ -32,13 +32,11 @@ def _relevant_fraction(judged_tasks: list[dict]) -> float | None:
     scored = [
         t
         for t in judged_tasks
-        if t.get("verdict") in ("relevant", "premature", "irrelevant")
+        if t.get("verdict") in ("relevant", "contradicted", "irrelevant")
     ]
     if not scored:
         return None
-    return sum(
-        1 for t in scored if t.get("verdict") in ("relevant", "premature")
-    ) / len(scored)
+    return sum(1 for t in scored if t.get("verdict") == "relevant") / len(scored)
 
 
 def _services_by_plan(generations: list[dict]) -> list[list[dict]]:
@@ -185,9 +183,10 @@ def compute_results(
         },
         "relevance": {
             "note": (
-                "Custom Bedrock judge (same prompt as the original relevance judge). "
+                "Custom Bedrock judge. A task is 'relevant', 'contradicted' (a fact "
+                "about the person rules it out) or 'irrelevant'. "
                 "A plan's score for one repeat = fraction of its tasks judged "
-                "'relevant' or 'premature'. scores_by_plan is each plan's score "
+                "'relevant'. scores_by_plan is each plan's score "
                 "meaned over the N repeats, in plan order; per-profile score = mean "
                 "of scores_by_plan (plans with no scoreable result are left out); "
                 "min and max are the lowest and highest plan scores, showing how "
