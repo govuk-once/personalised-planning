@@ -29,7 +29,8 @@ load_dotenv()
 MODEL_ID = os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5")
 
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
-BEDROCK_REGION = "eu-west-1"
+# Override due to intermittent issues calling Bedrock in eu-west-2
+BEDROCK_REGION = "eu-west-1"  
 
 MCP_MODE = os.getenv("MCP_MODE", "remote")
 
