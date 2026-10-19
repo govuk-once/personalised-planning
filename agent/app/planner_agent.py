@@ -24,8 +24,8 @@ from structured_outputs import ResultPayload
 load_dotenv()
 
 MODEL_ID = os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5")
-AWS_REGION = "eu-west-1"
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
+BEDROCK_REGION = "eu-west-1"
 
 MCP_MODE = os.getenv("MCP_MODE", "remote")
 
