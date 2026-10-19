@@ -790,9 +790,10 @@ the main pipeline** — no truth file, no spine, no F1:
   situation? Each task is classified `relevant`, `contradicted` (the right topic, but a
   fact about the person rules it out) or `irrelevant`.
 - **Consistency** — given `G` plan generations for the same profile, how
-  consistent are the results across two dimensions: service-set stability
-  (computed directly from the plans, no judge) and holistic plan similarity
-  (LLM-judged).
+  consistent are the results? Service-set stability, order agreement and
+  cost/department mismatches are computed directly from the plans (no judge);
+  whether runs give the same plan, and whether their facts agree, are
+  LLM-judged.
 
 ## How it works
 
@@ -804,8 +805,8 @@ The harness runs in two steps, so the slow part happens once:
 2. **`score`** reads a plans file, runs each judge `N` times per profile to smooth
    variance, and writes a `results.json` with per-profile and aggregate scores.
    Judging is fast, so you can rescore the same plans as often as you like, for
-   example after editing `metrics/relevance_prompt.md` or the holistic rubric in
-   `metrics/consistency.py`.
+   example after editing `metrics/relevance_prompt.md`,
+   `metrics/consistency_prompt.md` or `metrics/fact_consistency_prompt.md`.
 
 The plans file records the generation settings (`G`, the runtime ARN, the
 profiles file), every requested profile, the plans with the situation and
@@ -828,17 +829,57 @@ Two knobs control cost and statistical quality:
 across the plans. The profile's `scores_by_plan`, `min` and `max` show how much its
 plans differ. Plans with no scoreable result are left out of the average.
 
-**Consistency** per profile:
-- `service_stability` is the mean pairwise Jaccard overlap of the services (by
-  URL) each plan recommends. It is computed from the plans, so it needs no judge
-  and does not change with `G`. `services_not_in_every_plan` lists the services
-  that some plans recommend and others do not.
-- `holistic` is one judgement over all `G` plans per repeat, averaged over `N`.
-  It still depends on `G`, so compare it only between runs with the same `G`.
+**Relevance** also reports `repeat_spread`: the min, max and standard deviation
+of the profile's score across the `N` judge repeats.
 
-The overall aggregate for each metric is the mean of the per-profile scores.
-`service_stability` in `results.json` files from before this change was
-LLM-judged and is not comparable.
+**Consistency** per profile. Computed from the plans, with no judge:
+- `service_stability` is the mean pairwise Jaccard overlap of the services (by
+  URL) each plan recommends. `services_not_in_every_plan` lists the services
+  that some plans recommend and others do not.
+- `order_agreement` is, for each pair of plans, the share of their shared
+  services they put in the same order (or both in the same step), averaged over
+  pairs. A pair sharing fewer than two services is left out.
+- `field_mismatches` lists services in two or more plans whose `cost` or `dept`
+  differ. An empty field is not counted as disagreeing.
+- `service_stability_range` and `order_agreement_range` give the lowest and
+  highest pair. With 3–4 services per plan, one extra service moves a pair's
+  overlap by about 0.25, so treat small differences between runs as noise.
+
+LLM-judged, averaged over `N` repeats, with each `*_spread` giving the min, max
+and standard deviation across repeats. Consistency means the user gets the same
+plan every time:
+- The judge compares every pair of plans (`G×(G−1)/2` calls per repeat) using
+  `metrics/consistency_prompt.md`. It sees the person's situation and facts and
+  the full task content of both plans, and lists each meaningful difference
+  with a severity label (`peripheral_step`, `order`, `core_step`,
+  `contradiction`, `different_approach`). Two plans are the **same plan** if it
+  lists none; wording differences don't count, but any other difference does,
+  including an optional extra step. Each pair is shown in a random order,
+  seeded by the repeat and pair so reruns match, to cancel position bias.
+  `pairs` lists every pair's differences.
+- `modal_plan_share` is the headline: plans are grouped into sets of the same
+  plan, and this is the share of plans in the largest set, i.e. how often the
+  user gets the most common plan. Each plan joins the first set whose first
+  plan it was judged the same as, so the sets stay well defined even if the
+  judge's verdicts are not transitive. `same_plan_groups_by_repeat` lists the
+  sets. A repeat where a verdict the grouping needs is `unjudged` has no score.
+- `same_plan_pair_share` is the share of pairs of plans that are the same plan.
+- `pairs_by_worst_difference` counts pairs, over all `N` repeats, by their most
+  severe difference (`none` for the same plan). Severities are only counted,
+  never turned into scores, so the counts show what kind of difference makes
+  plans differ.
+- `fact_consistency` is the share of services in two or more plans whose facts
+  agree: the judge (`metrics/fact_consistency_prompt.md`, one call per shared
+  service per repeat) finds no contradiction in their free-text fields, and
+  `field_mismatches` has no entry for them. `fact_checks` lists each judgement.
+
+A pair or service whose judge reply cannot be parsed is marked `unjudged` and
+left out of the score. A smaller `G` gives noisier scores: at `G=3`,
+`modal_plan_share` can only be 1/3, 2/3 or 1.
+
+The overall aggregate for each metric is the mean of the per-profile scores;
+the aggregate `pairs_by_worst_difference` is the sum over profiles. These
+replace the earlier `holistic` score, which is not comparable.
 
 **Retries and coverage.** A failed plan generation is retried up to
 `--max-attempts` times (default 3), waiting 5s, then 10s, and so on up to 60s.

@@ -51,7 +51,7 @@ Decide in this order:
 
 Ignore wording, tone and presentation; judge subject matter only.
 
-## Examples (different domain, to show the boundaries)
+## Examples
 
 Situation: "My dad died last week."
 Facts: {{"q_relationship": "child", "q_death_registered": "yes"}}

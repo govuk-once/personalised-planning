@@ -234,8 +234,10 @@ def _cmd_score(args: argparse.Namespace) -> int:
         if "consistency" in args.metrics:
             from metrics.consistency import score_consistency
 
+            context = gens[0].get("context") or {}
             consistency_scores[pid] = [
-                score_consistency(gens, judge, situations[pid]) for _ in range(args.N)
+                score_consistency(gens, judge, situations[pid], context, repeat=n)
+                for n in range(args.N)
             ]
 
         if "relevance" in args.metrics:
