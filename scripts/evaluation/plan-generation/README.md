@@ -42,6 +42,9 @@ driving_subgraph.json ──────┐
                       each profile, in place; needs
                       data/situations.json)
                                     │
+                                    ├──▶ weights.py (optional: adds `weight`; needs
+                                    │    data/weights/*.json; its output feeds
+                                    │    `score --weights`)
                                     ▼
                       run_app.py (needs data/truth.json)
                                     │
@@ -338,6 +341,44 @@ sentence into the profile as `situation`, in place. Nothing else in the profile
 changes, so ground truth stays valid. It stops without writing anything if a
 profile's answer has no sentence. Running it again overwrites `situation`.
 `run_app.py` and the metrics harness refuse to run on profiles without one.
+
+## Weighting the profiles to represent real users (`weights.py`)
+
+The profiles cover every journey through the questionnaire once, so a rare
+journey counts as much as a common one. To report scores for a realistic mix of
+users instead, give each profile a weight.
+
+```bash
+python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v1.json \
+    -o data/profiles/driving_profiles_v5_w1.json
+```
+
+`data/weights/driving_weights_v1.json` is written by hand. For each question it
+gives the share of people who give each answer, among those asked that question
+(the numbers need not sum to 1, and `_source` keys are notes):
+
+```json
+{ "targets": { "q_vehicle_type": { "_source": "DVSA test volumes",
+                                   "car": 0.85, "motorcycle": 0.08, "moped": 0.06,
+                                   "upgrade_auto_to_manual": 0.01 } } }
+```
+
+The script rescales the profiles' weights, one targeted question at a time and
+repeating until nothing moves, until every answer holds its target share of the
+profiles asked that question. Questions without a target keep the spread they
+already have. It prints each target against the share achieved and the
+effective sample size (`1 / Σw²`), and writes the profiles with a `weight` on
+each (summing to 1). If the effective sample size is below about 15, a handful
+of profiles carry the result; add profiles on the heavily weighted branches.
+
+`--sample N --seed S` instead draws N profiles by weight and writes only the
+distinct ones, each with weight draws / N, for a smaller representative run.
+
+Pass the weighted file to `score --weights` (Part 4) to add a
+`weighted_aggregate` next to each aggregate. Limits: a target applies to
+everyone asked the question, across every branch that asks it; answers are
+weighted separately, so links between them are not modelled; `numeric.age` is
+not reweighted. The numbers in `driving_weights_v1.json` are placeholders.
 
 ## The review packets it produces
 
@@ -894,6 +935,9 @@ python -m metrics.harness generate data/driving_profiles_v5.json -G 3 -o data/pl
 # 2. Score them; rerun this step as often as you like
 python -m metrics.harness score data/plans.json -N 2 --results-out results.json
 
+# Also report scores weighted to a realistic mix of users (see weights.py)
+python -m metrics.harness score data/plans.json -N 2 --weights data/profiles/driving_profiles_v5_w1.json
+
 # Score one profile, relevance only, while iterating on the prompt
 python -m metrics.harness score data/plans.json --profile P013 --metrics relevance
 
@@ -928,6 +972,7 @@ and Bedrock model access for the judge, but not the agent. Run under
 | `--metrics` | all | Space-separated subset: `consistency relevance` |
 | `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
 | `--judge-region` | `eu-west-1` | AWS region for judge model |
+| `--weights` | — | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results |
 | `--results-out` | `results.json` | Where to write metric results |
 
 ## Limits

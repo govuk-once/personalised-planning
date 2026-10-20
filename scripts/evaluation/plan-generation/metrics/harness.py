@@ -178,6 +178,19 @@ def _cmd_score(args: argparse.Namespace) -> int:
     if not plans:
         sys.exit("error: no plans to score in this file")
 
+    weights = None
+    if args.weights:
+        weights = {
+            p["id"]: p["weight"]
+            for p in _load(args.weights).get("profiles", [])
+            if "weight" in p
+        }
+        if absent := [pid for pid in profile_ids if pid not in weights]:
+            sys.exit(
+                f"error: {args.weights} has no weight for: {', '.join(absent)}; "
+                "create it with weights.py"
+            )
+
     # Each profile has one situation, saved with every generation.
     situations = {}
     for pid, gens in plans.items():
@@ -206,6 +219,11 @@ def _cmd_score(args: argparse.Namespace) -> int:
         "plans_file": str(pathlib.Path(args.plans).resolve()),
         "plans_generated_at": doc.get("generated_at"),
         "scored_profile": args.profile,
+        **(
+            {"weights_file": str(pathlib.Path(args.weights).resolve())}
+            if weights
+            else {}
+        ),
         "N": args.N,
         "metrics": sorted(args.metrics),
         "judge_model": judge_model_id,
@@ -265,6 +283,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
         relevance_scores,
         config,
         failures,
+        weights,
     )
     text = json.dumps(results, indent=2)
     runtime_arn = gen_config.get("agent_runtime_arn")
@@ -357,6 +376,11 @@ def _parser() -> argparse.ArgumentParser:
         "--judge-region",
         default=None,
         help="AWS region for judge model (default: eu-west-1)",
+    )
+    score.add_argument(
+        "--weights",
+        metavar="PROFILES",
+        help="Profiles file written by weights.py; adds weighted aggregates",
     )
     score.add_argument(
         "--results-out",

@@ -9,6 +9,8 @@ Averaging contract (as agreed with the user):
 - Overall aggregate = mean of per-profile scores.
 - Spread: every score reports min/max, across the N repeats for judged scores
   and across pairs of plans for service stability.
+- Weighted aggregate (only when profile weights are given): the per-profile
+  scores averaged with each profile's weight, over the profiles that have a score.
 """
 
 import datetime
@@ -27,6 +29,13 @@ def _range(values: list) -> dict:
     """Min and max of non-None values."""
     vals = [v for v in values if v is not None]
     return {"min": min(vals, default=None), "max": max(vals, default=None)}
+
+
+def _weighted_mean(values: dict[str, float | None], weights: dict[str, float]):
+    """Weighted mean of the profiles that have a value, or None if none do."""
+    pairs = [(v, weights[pid]) for pid, v in values.items() if v is not None]
+    total = sum(w for _, w in pairs)
+    return sum(v * w for v, w in pairs) / total if total else None
 
 
 def _relevant_fraction(judged_tasks: list[dict]) -> float | None:
@@ -75,6 +84,7 @@ def compute_results(
     relevance_scores: dict[str, list[list[list[dict]]]],
     config: dict,
     failures: dict[str, str],
+    weights: dict[str, float] | None = None,
 ) -> dict:
     """Assemble the final results dict for writing to results.json.
 
@@ -88,6 +98,8 @@ def compute_results(
             Outer list = N repeats; inner list = judged tasks per generation.
         config: The run configuration dict (G, N, models, etc.).
         failures: ``{profile_id: last_error}`` for profiles that produced no plans.
+        weights: ``{profile_id: weight}`` for every profile in ``profile_ids``.
+            When given, each aggregate also gets a ``weighted_aggregate``.
 
     Returns:
         A results dict ready to be JSON-serialised.
@@ -177,6 +189,37 @@ def compute_results(
     }
     requested_plans = config.get("G")
 
+    # Weighted aggregates sit next to the plain ones, and only exist with weights.
+    weighted_coverage, weighted_cons, weighted_rel, weighted_note = {}, {}, {}, ""
+    if weights is not None:
+        weighted_coverage = {
+            "weight_scored": sum(weights[pid] for pid in generations_by_profile)
+            / sum(weights[pid] for pid in profile_ids)
+        }
+        weighted_cons = {
+            "weighted_aggregate": {
+                metric: _weighted_mean(
+                    {p: v[metric] for p, v in cons_per.items()}, weights
+                )
+                for metric in (
+                    "service_stability",
+                    "fact_consistency",
+                    "structure_consistency",
+                )
+            }
+        }
+        weighted_rel = {
+            "weighted_aggregate": _weighted_mean(
+                {p: v["score"] for p, v in rel_per.items()}, weights
+            )
+        }
+        weighted_note = (
+            " weighted_aggregate = per-profile scores averaged with each "
+            "profile's weight, over the profiles that have a score; "
+            "coverage.weight_scored is the share of total weight on profiles "
+            "with plans."
+        )
+
     return {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "config": config,
@@ -191,6 +234,7 @@ def compute_results(
             "profiles_short": [
                 pid for pid, n in plans_per_profile.items() if n < requested_plans
             ],
+            **weighted_coverage,
         },
         "consistency": {
             "note": (
@@ -209,6 +253,7 @@ def compute_results(
                 "with plan numbers) and pairs (each pair's listed differences). "
                 "Fewer plans give noisier scores. Aggregate = mean of "
                 "per-profile scores. Plan and repeat numbers are 1-based."
+                + weighted_note
             ),
             "aggregate": {
                 metric: _mean([v[metric] for v in cons_per.values()])
@@ -218,6 +263,7 @@ def compute_results(
                     "structure_consistency",
                 )
             },
+            **weighted_cons,
             "per_profile": cons_per,
         },
         "relevance": {
@@ -233,9 +279,10 @@ def compute_results(
                 "of the profile's score across the N judge repeats. "
                 "Aggregate = mean of per-profile scores (not a pooled task ratio). "
                 "Each task lists its verdict and the judge's rationale; repeat and "
-                "plan numbers are 1-based."
+                "plan numbers are 1-based." + weighted_note
             ),
             "aggregate": _mean([v["score"] for v in rel_per.values()]),
+            **weighted_rel,
             "per_profile": {
                 pid: {
                     "score": v["score"],
