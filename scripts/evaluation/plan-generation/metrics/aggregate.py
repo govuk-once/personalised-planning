@@ -3,25 +3,18 @@
 Averaging contract (as agreed with the user):
 - Relevance: average the N judge repeats within each plan first, then average
   across the plans. Plans with no scoreable result are left out.
-- Consistency: service stability and order agreement are computed from the
-  plans (no judge), as the mean over pairs of plans. modal_plan_share,
-  same_plan_pair_share and fact consistency are judged; each is the mean over N
-  repeats. Difference severities are counted, never turned into scores.
+- Consistency: three measures. Service stability is computed from the plans
+  (no judge), as the mean over pairs of plans. Fact consistency and structure
+  consistency are judged; each is the mean over N repeats.
 - Overall aggregate = mean of per-profile scores.
-- Spread: judged scores report min/max/sd across the N repeats; pairwise
-  computed scores report min/max across pairs of plans.
+- Spread: every score reports min/max, across the N repeats for judged scores
+  and across pairs of plans for service stability.
 """
 
 import datetime
 import statistics
 
-from metrics.consistency import SEVERITIES
-from metrics.services import (
-    field_mismatches,
-    pairwise_order_agreement,
-    pairwise_service_overlaps,
-    plan_services,
-)
+from metrics.services import pairwise_service_overlaps, plan_services
 
 
 def _mean(values: list) -> float | None:
@@ -30,32 +23,10 @@ def _mean(values: list) -> float | None:
     return statistics.mean(vals) if vals else None
 
 
-def _spread(values: list) -> dict:
-    """Min, max and sample standard deviation of non-None values.
-
-    ``sd`` is None with fewer than two values; all three are None with none.
-    """
-    vals = [v for v in values if v is not None]
-    return {
-        "min": min(vals, default=None),
-        "max": max(vals, default=None),
-        "sd": statistics.stdev(vals) if len(vals) >= 2 else None,
-    }
-
-
 def _range(values: list) -> dict:
     """Min and max of non-None values."""
     vals = [v for v in values if v is not None]
     return {"min": min(vals, default=None), "max": max(vals, default=None)}
-
-
-def _count_worst_differences(pairs: list[dict]) -> dict[str, int]:
-    """Count judged pairs by their most severe difference, least severe first."""
-    counts = dict.fromkeys(("none", *SEVERITIES), 0)
-    for pair in pairs:
-        if pair.get("status") == "judged":
-            counts[pair["worst_difference"]] += 1
-    return counts
 
 
 def _relevant_fraction(judged_tasks: list[dict]) -> float | None:
@@ -136,29 +107,15 @@ def compute_results(
         )
         plans = generations_by_profile[pid]
         overlaps = pairwise_service_overlaps(plans)
-        orders = pairwise_order_agreement(plans)
-        modal_by_repeat = [r.get("modal_plan_share") for r in c_judged]
-        pair_share_by_repeat = [r.get("same_plan_pair_share") for r in c_judged]
+        structure_by_repeat = [r.get("structure_consistency") for r in c_judged]
         facts_by_repeat = [r.get("fact_consistency") for r in c_judged]
         cons_per[pid] = {
             "service_stability": _mean(overlaps),
             "service_stability_range": _range(overlaps),
-            "order_agreement": _mean(orders),
-            "order_agreement_range": _range(orders),
-            "modal_plan_share": _mean(modal_by_repeat),
-            "modal_plan_share_spread": _spread(modal_by_repeat),
-            "same_plan_groups_by_repeat": [r.get("same_plan_groups") for r in c_judged],
-            "same_plan_pair_share": _mean(pair_share_by_repeat),
-            "same_plan_pair_share_spread": _spread(pair_share_by_repeat),
-            "pairs_by_worst_difference": _count_worst_differences(
-                [pair for r in c_judged for pair in r.get("pairs", [])]
-            ),
             "fact_consistency": _mean(facts_by_repeat),
-            "fact_consistency_spread": _spread(facts_by_repeat),
-            "field_mismatches": [
-                {k: v for k, v in m.items() if k != "key"}
-                for m in field_mismatches(plans)
-            ],
+            "fact_consistency_range": _range(facts_by_repeat),
+            "structure_consistency": _mean(structure_by_repeat),
+            "structure_consistency_range": _range(structure_by_repeat),
             "pairs": [
                 {"repeat": n + 1, **pair}
                 for n, r in enumerate(c_judged)
@@ -211,7 +168,7 @@ def compute_results(
             "scores_by_plan": scores_by_plan,
             "min": min(plan_scores, default=None),
             "max": max(plan_scores, default=None),
-            "repeat_spread": _spread(score_by_repeat),
+            "repeat_range": _range(score_by_repeat),
             "tasks": all_tasks,
         }
 
@@ -237,44 +194,29 @@ def compute_results(
         },
         "consistency": {
             "note": (
-                "Computed from the plans with no judge, as means over pairs of "
-                "plans: service_stability = Jaccard overlap of the services (by "
-                "URL) each plan recommends; order_agreement = share of shared-"
-                "service pairs both plans put in the same order (null if a pair "
-                "shares fewer than two services); the *_range fields give the "
-                "lowest and highest pair. field_mismatches lists shared services "
-                "whose cost or dept differ. LLM-judged, mean of N repeats with "
-                "min/max/sd in *_spread: two plans are the same plan when the "
-                "judge finds no meaningful difference between them (wording "
-                "aside). modal_plan_share = share of plans in the largest set of "
-                "the same plan (same_plan_groups_by_repeat lists the sets), i.e. "
-                "how often the user gets the most common plan; "
-                "same_plan_pair_share = share of pairs of plans that are the "
-                "same plan. pairs_by_worst_difference counts the judged pairs, "
-                "over all N repeats, by their most severe difference. "
-                "fact_consistency = share of shared services with no judged "
-                "contradiction and no field mismatch. Fewer plans give noisier "
-                "scores. Aggregate = mean of per-profile scores; aggregate "
-                "pairs_by_worst_difference = sum over profiles. Plan and repeat "
-                "numbers are 1-based."
+                "Three measures, each covering something the others do not. "
+                "service_stability (no judge) = Jaccard overlap of the services "
+                "(by URL) each plan recommends, averaged over pairs of plans; "
+                "the range is the lowest and highest pair. LLM-judged, mean of "
+                "N repeats with the lowest and highest repeat in *_range: "
+                "fact_consistency = share of services in two or more plans whose "
+                "facts (cost, department, deadline, requirements and so on) the "
+                "judge finds no contradiction in; structure_consistency = share "
+                "of pairs of plans with the same steps, in the same order, and "
+                "the same plan summary (the judge lists no differences; which "
+                "services the steps contain is not compared). Evidence: "
+                "services_not_in_every_plan, fact_checks (each contradiction "
+                "with plan numbers) and pairs (each pair's listed differences). "
+                "Fewer plans give noisier scores. Aggregate = mean of "
+                "per-profile scores. Plan and repeat numbers are 1-based."
             ),
             "aggregate": {
-                **{
-                    metric: _mean([v[metric] for v in cons_per.values()])
-                    for metric in (
-                        "modal_plan_share",
-                        "same_plan_pair_share",
-                        "service_stability",
-                        "order_agreement",
-                        "fact_consistency",
-                    )
-                },
-                "pairs_by_worst_difference": {
-                    label: sum(
-                        v["pairs_by_worst_difference"][label] for v in cons_per.values()
-                    )
-                    for label in ("none", *SEVERITIES)
-                },
+                metric: _mean([v[metric] for v in cons_per.values()])
+                for metric in (
+                    "service_stability",
+                    "fact_consistency",
+                    "structure_consistency",
+                )
             },
             "per_profile": cons_per,
         },
@@ -287,7 +229,7 @@ def compute_results(
                 "meaned over the N repeats, in plan order; per-profile score = mean "
                 "of scores_by_plan (plans with no scoreable result are left out); "
                 "min and max are the lowest and highest plan scores, showing how "
-                "much a profile's plans differ; repeat_spread is the min/max/sd "
+                "much a profile's plans differ; repeat_range is the min/max "
                 "of the profile's score across the N judge repeats. "
                 "Aggregate = mean of per-profile scores (not a pooled task ratio). "
                 "Each task lists its verdict and the judge's rationale; repeat and "
@@ -300,7 +242,7 @@ def compute_results(
                     "scores_by_plan": v["scores_by_plan"],
                     "min": v["min"],
                     "max": v["max"],
-                    "repeat_spread": v["repeat_spread"],
+                    "repeat_range": v["repeat_range"],
                     "tasks": v["tasks"],
                 }
                 for pid, v in rel_per.items()

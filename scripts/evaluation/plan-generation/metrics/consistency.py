@@ -1,23 +1,16 @@
 """Consistency metric: compare G independently generated plans for the same profile.
 
-Computed from the plans with no judge (see ``services.py`` and ``aggregate.py``):
-- service stability: pairwise Jaccard overlap of the services each plan recommends
-- order agreement: whether each pair of plans puts its shared services in the
-  same order
-- field mismatches: shared services whose cost or department differ
-
-LLM-judged here, once per repeat:
-- same plan: consistency means the user gets the same plan every time. The
-  judge lists every meaningful difference between each pair of plans, with a
-  severity label (``consistency_prompt.md``); a pair is the same plan when it
-  lists none. Plans are then grouped into sets of the same plan, and the
-  headline ``modal_plan_share`` is the share of plans in the largest set: how
-  often the user gets the most common plan. Each pair is shown in a random but
-  repeatable order, so position bias averages out over repeats.
-- fact consistency: for each service in two or more plans, the judge checks
-  whether the plans' free-text facts about it contradict each other
-  (``fact_consistency_prompt.md``). A service is consistent if the judge finds
-  no contradiction and its cost and department match.
+Three measures, each covering something the others do not:
+- task overlap (``service_stability``): do the plans recommend the same
+  services? Computed from the plans with no judge (see ``services.py``).
+- fact consistency: where plans recommend the same service, do they say the same
+  things about it (cost, department, deadline, requirements and so on)? One
+  judge call per service in two or more plans (``fact_consistency_prompt.md``).
+- structure consistency: do the plans have the same steps, in the same order,
+  and the same plan summary? One judge call per pair of plans
+  (``structure_consistency_prompt.md``). A pair is consistent when the judge
+  lists no differences. Each pair is shown in a random but repeatable order, so
+  position bias averages out over repeats.
 
 Requires G >= 2; returns null scores with a note when G < 2.
 """
@@ -28,26 +21,15 @@ import pathlib
 import random
 from typing import Any
 
-from metrics.services import field_mismatches, shared_services
+from metrics.services import shared_services
 
 _METRICS_DIR = pathlib.Path(__file__).resolve().parent
-CONSISTENCY_PROMPT_PATH = _METRICS_DIR / "consistency_prompt.md"
-FACT_CONSISTENCY_PROMPT_PATH = _METRICS_DIR / "fact_consistency_prompt.md"
+STRUCTURE_PROMPT_PATH = _METRICS_DIR / "structure_consistency_prompt.md"
+FACT_PROMPT_PATH = _METRICS_DIR / "fact_consistency_prompt.md"
 
-# Difference labels the pair judge may give, least to most severe. They are
-# labels for diagnosis, not scores: any difference makes two plans different.
-SEVERITIES = (
-    "peripheral_step",
-    "order",
-    "core_step",
-    "contradiction",
-    "different_approach",
-)
-
-# Task fields shown to the judges; the plan's ``reasoning``, task status and
-# completion flags are left out. The fact judge does not see cost and dept,
-# which ``field_mismatches`` compares without a judge.
-_PLAN_TASK_FIELDS = (
+# Task fields the fact judge compares; the plan's ``reasoning``, task status and
+# completion flags are left out.
+_FACT_TASK_FIELDS = (
     "title",
     "summary",
     "gov_service_name",
@@ -63,7 +45,6 @@ _PLAN_TASK_FIELDS = (
     "location",
     "service_form_label",
 )
-_FACT_TASK_FIELDS = tuple(f for f in _PLAN_TASK_FIELDS if f not in ("cost", "dept"))
 
 
 def _pick(task: dict, fields: tuple[str, ...]) -> dict:
@@ -71,20 +52,14 @@ def _pick(task: dict, fields: tuple[str, ...]) -> dict:
     return {f: task[f] for f in fields if task.get(f) not in (None, "", [])}
 
 
-def _encode_plan(generation: dict) -> str:
-    """Encode one plan as JSON for the pairwise judge."""
+def _encode_structure(generation: dict) -> str:
+    """Encode a plan's summary and steps (no tasks) as JSON for the structure judge."""
     plan = generation.get("plan") or {}
     return json.dumps(
         {
             "summary": plan.get("summary", ""),
             "steps": [
-                {
-                    "title": step.get("title", ""),
-                    "summary": step.get("summary", ""),
-                    "tasks": [
-                        _pick(t, _PLAN_TASK_FIELDS) for t in step.get("tasks") or []
-                    ],
-                }
+                {"title": step.get("title", ""), "summary": step.get("summary", "")}
                 for step in plan.get("steps") or []
             ],
         },
@@ -115,87 +90,40 @@ def _judge_pair(
     j: int,
     repeat: int,
 ) -> dict:
-    """Judge one pair of plans (0-based indices ``i`` < ``j``).
+    """Judge the structure of one pair of plans (0-based indices ``i`` < ``j``).
 
     Returns:
-        Dict with 1-based ``plans``, ``shown_first``, ``same_plan`` (True if
-        the judge lists no differences), ``worst_difference`` (the most severe
-        label, or ``"none"``), ``differences`` and ``status`` (``"judged"`` or
-        ``"unjudged"``).
+        Dict with 1-based ``plans``, ``shown_first``, ``same`` (True if the
+        judge lists no differences), ``differences`` and ``status``
+        (``"judged"`` or ``"unjudged"``, with an ``error`` if unjudged).
     """
     # Seeded per repeat and pair, so a rerun shows the same order.
     swapped = random.Random(f"{repeat}:{i}:{j}").random() < 0.5
     first, second = (j, i) if swapped else (i, j)
     result = {"plans": [i + 1, j + 1], "shown_first": first + 1}
+    unjudged = {**result, "same": None, "differences": [], "status": "unjudged"}
     prompt = template.format(
         situation=situation,
         context=json.dumps(context, sort_keys=True),
-        plan_a=_encode_plan(generations[first]),
-        plan_b=_encode_plan(generations[second]),
+        plan_a=_encode_structure(generations[first]),
+        plan_b=_encode_structure(generations[second]),
     )
     try:
         parsed = _parse_json_object(judge.generate(prompt)) or {}
     except Exception as exc:  # noqa: BLE001
-        return {
-            **result,
-            "same_plan": None,
-            "worst_difference": None,
-            "differences": [],
-            "status": "unjudged",
-            "error": f"judge call failed: {exc}",
-        }
+        return {**unjudged, "error": f"judge call failed: {exc}"}
     differences = parsed.get("differences")
     if not isinstance(differences, list) or not all(
-        isinstance(d, dict) and d.get("severity") in SEVERITIES for d in differences
+        isinstance(d, dict) and isinstance(d.get("description"), str)
+        for d in differences
     ):
-        return {
-            **result,
-            "same_plan": None,
-            "worst_difference": None,
-            "differences": [],
-            "status": "unjudged",
-            "error": "could not parse judge output",
-        }
-    worst = max(
-        (d["severity"] for d in differences), key=SEVERITIES.index, default="none"
-    )
+        return {**unjudged, "error": "could not parse judge output"}
     return {
         **result,
-        "same_plan": not differences,
-        "worst_difference": worst,
+        "same": not differences,
         "differences": differences,
         "status": "judged",
     }
-
-
-def _group_same_plans(n_plans: int, pairs: list[dict]) -> list[list[int]] | None:
-    """Group plans into sets of the same plan, using the pair verdicts.
-
-    Each plan, in plan order, joins the first set whose first plan it was judged
-    the same as, or starts a new set. The judge's verdicts need not be
-    transitive, so comparing against one plan per set keeps the sets well defined.
-
-    Args:
-        n_plans: Number of plans.
-        pairs: Results from ``_judge_pair``, one per pair of plans.
-
-    Returns:
-        Lists of 1-based plan numbers, largest set first, or None if a verdict
-        the grouping needs is unjudged.
-    """
-    same = {tuple(p["plans"]): p["same_plan"] for p in pairs}
-    groups: list[list[int]] = []
-    for plan in range(1, n_plans + 1):
-        for group in groups:
-            verdict = same.get((group[0], plan))
-            if verdict is None:
-                return None
-            if verdict:
-                group.append(plan)
-                break
-        else:
-            groups.append([plan])
-    return sorted(groups, key=len, reverse=True)
 
 
 def _judge_service_facts(judge: Any, template: str, service: dict) -> dict:
@@ -210,6 +138,7 @@ def _judge_service_facts(judge: Any, template: str, service: dict) -> dict:
         "url": service["url"],
         "plans": sorted(service["tasks"]),
     }
+    unjudged = {**result, "rationale": "", "contradictions": [], "status": "unjudged"}
     versions = "\n\n".join(
         f"Plan {plan_no}:\n"
         + json.dumps(_pick(task, _FACT_TASK_FIELDS), indent=2, ensure_ascii=False)
@@ -221,30 +150,23 @@ def _judge_service_facts(judge: Any, template: str, service: dict) -> dict:
     try:
         parsed = _parse_json_object(judge.generate(prompt)) or {}
     except Exception as exc:  # noqa: BLE001
-        return {
-            **result,
-            "rationale": "",
-            "contradictions": [],
-            "status": "unjudged",
-            "error": f"judge call failed: {exc}",
-        }
+        return {**unjudged, "error": f"judge call failed: {exc}"}
     contradictions = parsed.get("contradictions")
     if not isinstance(contradictions, list) or not all(
         isinstance(c, dict) and isinstance(c.get("plans"), list) for c in contradictions
     ):
-        return {
-            **result,
-            "rationale": "",
-            "contradictions": [],
-            "status": "unjudged",
-            "error": "could not parse judge output",
-        }
+        return {**unjudged, "error": "could not parse judge output"}
     return {
         **result,
         "rationale": parsed.get("rationale", ""),
         "contradictions": contradictions,
         "status": "judged",
     }
+
+
+def _share(flags: list[bool]) -> float | None:
+    """Share of True values, or None if there are none."""
+    return sum(flags) / len(flags) if flags else None
 
 
 def score_consistency(
@@ -254,7 +176,7 @@ def score_consistency(
     context: dict,
     repeat: int,
 ) -> dict:
-    """Run the consistency judges once over a profile's G plans.
+    """Run the two consistency judges once over a profile's G plans.
 
     Args:
         generations: List of generation dicts, each with a ``plan`` key.
@@ -264,18 +186,15 @@ def score_consistency(
         repeat: 0-based repeat number; seeds the order each pair is shown in.
 
     Returns:
-        Dict with ``modal_plan_share`` (share of plans in the largest set of
-        the same plan, or None), ``same_plan_groups``, ``same_plan_pair_share``
-        (share of judged pairs that are the same plan, or None), ``pairs``,
-        ``fact_consistency`` (share of shared services with consistent facts,
-        or None if no service is shared), ``fact_checks``, ``status``
-        (``"judged"`` or ``"skipped"``) and ``note``.
+        Dict with ``structure_consistency`` (share of judged pairs of plans with
+        the same structure, or None), ``pairs``, ``fact_consistency`` (share of
+        judged shared services with no contradiction, or None if no service is
+        shared), ``fact_checks``, ``status`` (``"judged"`` or ``"skipped"``) and
+        ``note``.
     """
     if len(generations) < 2:
         return {
-            "modal_plan_share": None,
-            "same_plan_groups": None,
-            "same_plan_pair_share": None,
+            "structure_consistency": None,
             "pairs": [],
             "fact_consistency": None,
             "fact_checks": [],
@@ -283,34 +202,27 @@ def score_consistency(
             "note": f"consistency requires G>=2; only {len(generations)} plan(s) generated",
         }
 
-    pair_template = CONSISTENCY_PROMPT_PATH.read_text()
+    structure_template = STRUCTURE_PROMPT_PATH.read_text()
     pairs = [
-        _judge_pair(judge, pair_template, situation, context, generations, i, j, repeat)
+        _judge_pair(
+            judge, structure_template, situation, context, generations, i, j, repeat
+        )
         for i, j in itertools.combinations(range(len(generations)), 2)
     ]
-    verdicts = [p["same_plan"] for p in pairs if p["same_plan"] is not None]
-    groups = _group_same_plans(len(generations), pairs)
 
-    fact_template = FACT_CONSISTENCY_PROMPT_PATH.read_text()
+    fact_template = FACT_PROMPT_PATH.read_text()
     fact_checks = [
         _judge_service_facts(judge, fact_template, service)
         for service in shared_services(generations)
     ]
-    mismatched = {(m["url"], m["name"]) for m in field_mismatches(generations)}
-    judged_checks = [c for c in fact_checks if c["status"] == "judged"]
-    consistent = [
-        c
-        for c in judged_checks
-        if not c["contradictions"] and (c["url"], c["name"]) not in mismatched
-    ]
 
     return {
-        "modal_plan_share": len(groups[0]) / len(generations) if groups else None,
-        "same_plan_groups": groups,
-        "same_plan_pair_share": (sum(verdicts) / len(verdicts) if verdicts else None),
+        "structure_consistency": _share(
+            [p["same"] for p in pairs if p["status"] == "judged"]
+        ),
         "pairs": pairs,
-        "fact_consistency": (
-            len(consistent) / len(judged_checks) if judged_checks else None
+        "fact_consistency": _share(
+            [not c["contradictions"] for c in fact_checks if c["status"] == "judged"]
         ),
         "fact_checks": fact_checks,
         "status": "judged",
