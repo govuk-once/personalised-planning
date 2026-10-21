@@ -66,7 +66,10 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         else profiles_data
     )
     if args.profile:
-        all_profiles = [p for p in all_profiles if p.get("id") == args.profile]
+        known = {p.get("id") for p in all_profiles}
+        if unknown := [pid for pid in args.profile if pid not in known]:
+            sys.exit(f"error: not in {args.profiles}: {', '.join(unknown)}")
+        all_profiles = [p for p in all_profiles if p.get("id") in args.profile]
     if not all_profiles:
         sys.exit("error: no matching profiles found")
 
@@ -170,9 +173,9 @@ def _cmd_score(args: argparse.Namespace) -> int:
     plans = doc.get("plans") or {}
     failures = doc.get("failures") or {}
     if args.profile:
-        if args.profile not in profile_ids:
-            sys.exit(f"error: profile {args.profile} is not in {args.plans}")
-        profile_ids = [args.profile]
+        if unknown := [pid for pid in args.profile if pid not in profile_ids]:
+            sys.exit(f"error: not in {args.plans}: {', '.join(unknown)}")
+        profile_ids = [pid for pid in profile_ids if pid in args.profile]
         plans = {k: v for k, v in plans.items() if k in profile_ids}
         failures = {k: v for k, v in failures.items() if k in profile_ids}
     if not plans:
@@ -318,7 +321,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     gen.add_argument("profiles", help="Path to profiles JSON file")
     gen.add_argument(
-        "--profile", metavar="ID", help="Generate for a single profile ID only"
+        "--profile",
+        nargs="+",
+        metavar="ID",
+        help="Generate for these profile IDs only",
     )
     gen.add_argument(
         "-G",
@@ -352,7 +358,9 @@ def _parser() -> argparse.ArgumentParser:
         description="Score a plans file written by `generate`.",
     )
     score.add_argument("plans", help="Path to a plans file written by `generate`")
-    score.add_argument("--profile", metavar="ID", help="Score a single profile ID only")
+    score.add_argument(
+        "--profile", nargs="+", metavar="ID", help="Score these profile IDs only"
+    )
     score.add_argument(
         "-N",
         type=int,

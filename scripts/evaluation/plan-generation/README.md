@@ -855,7 +855,7 @@ context each was generated from (including `today`, so a rescore judges against
 the same date), and any profiles that failed. `generate` saves it after every profile, so an
 interrupted run keeps the profiles already done. Each `results.json` records which
 plans file it came from (`plans_file`, `plans_generated_at`), the profile it was
-limited to if `--profile` was used (`scored_profile`), and the judge settings.
+limited to if `--profile` was used (`scored_profile`, a list), and the judge settings.
 
 The plans file contains the runtime ARN, which includes your AWS account ID, so
 check it before sharing. `results.json` never records the ARN: the key is dropped,
@@ -941,6 +941,10 @@ python -m metrics.harness score data/plans.json -N 2 --weights data/profiles/dri
 # Score one profile, relevance only, while iterating on the prompt
 python -m metrics.harness score data/plans.json --profile P013 --metrics relevance
 
+# Generate and score a few profiles, weighted (the weights file may hold more profiles)
+python -m metrics.harness generate data/driving_profiles_v5.json --profile P001 P013 P087 -o data/plans.json
+python -m metrics.harness score data/plans.json --profile P001 P013 --weights data/profiles/driving_profiles_v5_w1.json
+
 # Generate against an explicit runtime
 python -m metrics.harness generate data/driving_profiles_v5.json -G 3 -o data/plans.json \
     --agent-runtime-arn arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
@@ -957,7 +961,7 @@ and Bedrock model access for the judge, but not the agent. Run under
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--profile` | — | Generate for a single profile id only |
+| `--profile` | — | Generate for these profile ids only (one or more; put it after the positional arguments) |
 | `-G` | 3 | Plan generations per profile |
 | `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
 | `--max-attempts` | 3 | Tries per plan generation, including the first |
@@ -967,7 +971,7 @@ and Bedrock model access for the judge, but not the agent. Run under
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--profile` | — | Score a single profile id only |
+| `--profile` | — | Score these profile ids only (one or more; put it after `plans`) |
 | `-N` | 1 | Judge repeats per metric per profile |
 | `--metrics` | all | Space-separated subset: `consistency relevance` |
 | `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
