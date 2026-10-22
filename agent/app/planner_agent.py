@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from shared.log_utils import StructuredLogger
+from shared.retry import BedrockRetryStrategy
 from shared.utils import read_file_content
 from strands import Agent
 from strands.hooks import (
@@ -156,6 +157,7 @@ class PlannerAgentRunner:
             tools=[mcp_client],
             system_prompt=system_prompt,
             hooks=[PlannerObservabilityHooks(self.logger)],
+            retry_strategy=BedrockRetryStrategy(),
         )
 
         self.logger.log("INFO", "Starting Planner Agent", model=MODEL_ID, prompt_length=len(prompt))
