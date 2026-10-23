@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.1144.0",
+    "@aws-sdk/client-lambda": "^3.1153.0",
     "@tailwindcss/postcss": "^4.3.3",
     "aws-rum-web": "3.2.1",
     "next": "16.3.8",
