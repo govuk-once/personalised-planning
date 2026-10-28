@@ -1,7 +1,7 @@
 r"""Weight the profiles so they represent real users, not just cover every journey.
 
     python weights.py data/profiles/driving_profiles_v5.json \
-        data/weights/driving_weights_v1.json -o data/profiles/driving_profiles_v5_w1.json
+        data/weights/driving_weights_v2.json -o data/profiles/driving_profiles_v5_w2.json
 
 The generated profiles cover every journey through the questionnaire once, so
 common and rare users count the same. The weights file (`targets`) says what
@@ -15,8 +15,10 @@ With `--sample N`, N profiles are drawn at random in proportion to their weight
 (seeded), and only the distinct ones are written, each with weight draws / N.
 Use it to run a smaller, representative set.
 
-The output is the profiles file plus `weight` on every profile, so it can be
-passed to `metrics.harness generate` and `score --weights`. Targets for
+Run it after `situations.py` (the output copies each profile, so `generate`
+needs the `situation` to be there already) and before `metrics.harness generate`.
+The output is the profiles file plus `weight` on every profile. `generate` skips
+profiles weighted below 0.005, and `score` reads the weights from the same file. Targets for
 answers no profile gives are dropped (with a warning) and the rest rescaled; a
 target for a question no profile is asked, or a profile answer with no target,
 is an error and nothing is written.

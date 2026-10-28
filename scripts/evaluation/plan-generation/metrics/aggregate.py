@@ -85,6 +85,7 @@ def compute_results(
     config: dict,
     failures: dict[str, str],
     weights: dict[str, float] | None = None,
+    below_min_weight: dict[str, float] | None = None,
 ) -> dict:
     """Assemble the final results dict for writing to results.json.
 
@@ -100,6 +101,9 @@ def compute_results(
         failures: ``{profile_id: last_error}`` for profiles that produced no plans.
         weights: ``{profile_id: weight}`` for every profile in ``profile_ids``.
             When given, each aggregate also gets a ``weighted_aggregate``.
+        below_min_weight: ``{profile_id: weight}`` for profiles ``generate``
+            skipped for being under ``--min-weight``. They are not in
+            ``profile_ids``, but their weight counts as unscored.
 
     Returns:
         A results dict ready to be JSON-serialised.
@@ -191,10 +195,14 @@ def compute_results(
 
     # Weighted aggregates sit next to the plain ones, and only exist with weights.
     weighted_coverage, weighted_cons, weighted_rel, weighted_note = {}, {}, {}, ""
+    below_min_weight = below_min_weight or {}
     if weights is not None:
+        # Skipped profiles hold weight that was never generated or scored.
+        total = sum(weights[pid] for pid in profile_ids) + sum(
+            weights.get(pid, w) for pid, w in below_min_weight.items()
+        )
         weighted_coverage = {
-            "weight_scored": sum(weights[pid] for pid in generations_by_profile)
-            / sum(weights[pid] for pid in profile_ids)
+            "weight_scored": sum(weights[pid] for pid in generations_by_profile) / total
         }
         weighted_cons = {
             "weighted_aggregate": {
@@ -217,7 +225,8 @@ def compute_results(
             " weighted_aggregate = per-profile scores averaged with each "
             "profile's weight, over the profiles that have a score; "
             "coverage.weight_scored is the share of total weight on profiles "
-            "with plans."
+            "with plans, out of all weight including profiles skipped for "
+            "being below --min-weight."
         )
 
     return {
@@ -233,6 +242,9 @@ def compute_results(
             "plans_per_profile": plans_per_profile,
             "profiles_short": [
                 pid for pid, n in plans_per_profile.items() if n < requested_plans
+            ],
+            "profiles_below_min_weight": [
+                {"id": pid, "weight": w} for pid, w in below_min_weight.items()
             ],
             **weighted_coverage,
         },

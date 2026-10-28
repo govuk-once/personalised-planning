@@ -47,6 +47,12 @@ def _write_json_atomic(path: pathlib.Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
+def _profile_weights(data) -> dict[str, float]:
+    """Profile id mapped to `weight`, for the profiles in a profiles file that have one."""
+    profiles = data.get("profiles", []) if isinstance(data, dict) else data
+    return {p["id"]: p["weight"] for p in profiles if "id" in p and "weight" in p}
+
+
 def _short_profiles(plans: dict[str, list], g: int) -> list[str]:
     """Profiles that got at least one plan but fewer than G."""
     return [pid for pid, gens in plans.items() if len(gens) < g]
@@ -58,6 +64,8 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         sys.exit("error: --max-attempts must be at least 1")
     if args.G < 1:
         sys.exit("error: -G must be at least 1")
+    if args.min_weight < 0:
+        sys.exit("error: --min-weight must not be negative")
 
     profiles_data = _load(args.profiles)
     all_profiles = (
@@ -65,11 +73,28 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         if isinstance(profiles_data, dict)
         else profiles_data
     )
+    total_weight = sum(p.get("weight", 0) for p in all_profiles)
     if args.profile:
         known = {p.get("id") for p in all_profiles}
         if unknown := [pid for pid in args.profile if pid not in known]:
             sys.exit(f"error: not in {args.profiles}: {', '.join(unknown)}")
         all_profiles = [p for p in all_profiles if p.get("id") in args.profile]
+
+    # Profiles weighted by weights.py whose weight is too small to move a
+    # weighted aggregate are not worth the agent calls.
+    below = {
+        p.get("id"): p["weight"]
+        for p in all_profiles
+        if "weight" in p and p["weight"] < args.min_weight
+    }
+    if below:
+        share = sum(below.values()) / total_weight if total_weight else 0
+        print(
+            f"skipping {len(below)} profile(s) below weight {args.min_weight} "
+            f"({share:.1%} of total weight): {', '.join(below)}",
+            file=sys.stderr,
+        )
+        all_profiles = [p for p in all_profiles if p.get("id") not in below]
     if not all_profiles:
         sys.exit("error: no matching profiles found")
 
@@ -101,9 +126,11 @@ def _cmd_generate(args: argparse.Namespace) -> int:
             "G": args.G,
             "agent_runtime_arn": args.agent_runtime_arn,
             "max_attempts": args.max_attempts,
+            "min_weight": args.min_weight,
             "profiles_file": str(pathlib.Path(args.profiles).resolve()),
             "profile": args.profile,
         },
+        "below_min_weight": below,
         "profile_ids": profile_ids,
         "plans": plans,
         "failures": failures,
@@ -172,27 +199,52 @@ def _cmd_score(args: argparse.Namespace) -> int:
     profile_ids = list(doc.get("profile_ids") or [])
     plans = doc.get("plans") or {}
     failures = doc.get("failures") or {}
+    below_min_weight = doc.get("below_min_weight") or {}
     if args.profile:
-        if unknown := [pid for pid in args.profile if pid not in profile_ids]:
+        if unknown := [
+            pid
+            for pid in args.profile
+            if pid not in profile_ids and pid not in below_min_weight
+        ]:
             sys.exit(f"error: not in {args.plans}: {', '.join(unknown)}")
         profile_ids = [pid for pid in profile_ids if pid in args.profile]
         plans = {k: v for k, v in plans.items() if k in profile_ids}
         failures = {k: v for k, v in failures.items() if k in profile_ids}
+        below_min_weight = {
+            k: v for k, v in below_min_weight.items() if k in args.profile
+        }
     if not plans:
         sys.exit("error: no plans to score in this file")
 
-    weights = None
+    # Without --weights, use the weights in the profiles file `generate` read.
+    weights, weights_path = None, args.weights
     if args.weights:
-        weights = {
-            p["id"]: p["weight"]
-            for p in _load(args.weights).get("profiles", [])
-            if "weight" in p
-        }
+        weights = _profile_weights(_load(args.weights))
         if absent := [pid for pid in profile_ids if pid not in weights]:
             sys.exit(
                 f"error: {args.weights} has no weight for: {', '.join(absent)}; "
                 "create it with weights.py"
             )
+    elif saved := gen_config.get("profiles_file"):
+        try:
+            found = _profile_weights(json.loads(pathlib.Path(saved).read_text()))
+        except (OSError, ValueError):
+            found = {}
+            print(
+                f"note: cannot read {saved}; scoring unweighted "
+                "(pass --weights to weight)",
+                file=sys.stderr,
+            )
+        if absent := [pid for pid in profile_ids if pid not in found]:
+            if found:
+                print(
+                    f"warning: {saved} has no weight for: {', '.join(absent)}; "
+                    "scoring unweighted",
+                    file=sys.stderr,
+                )
+        elif found:
+            weights, weights_path = found, saved
+            print(f"weighting by {saved}", file=sys.stderr)
 
     # Each profile has one situation, saved with every generation.
     situations = {}
@@ -223,7 +275,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
         "plans_generated_at": doc.get("generated_at"),
         "scored_profile": args.profile,
         **(
-            {"weights_file": str(pathlib.Path(args.weights).resolve())}
+            {"weights_file": str(pathlib.Path(weights_path).resolve())}
             if weights
             else {}
         ),
@@ -287,6 +339,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
         config,
         failures,
         weights,
+        below_min_weight,
     )
     text = json.dumps(results, indent=2)
     runtime_arn = gen_config.get("agent_runtime_arn")
@@ -345,6 +398,16 @@ def _parser() -> argparse.ArgumentParser:
         help="Tries per plan generation, including the first (default: 3)",
     )
     gen.add_argument(
+        "--min-weight",
+        type=float,
+        default=0.005,
+        metavar="W",
+        help=(
+            "Skip profiles whose `weight` is below W (default: 0.005, which is "
+            "0.00 at 2 d.p.); profiles with no weight are kept; 0 keeps all"
+        ),
+    )
+    gen.add_argument(
         "-o",
         "--plans-out",
         default="plans.json",
@@ -388,7 +451,10 @@ def _parser() -> argparse.ArgumentParser:
     score.add_argument(
         "--weights",
         metavar="PROFILES",
-        help="Profiles file written by weights.py; adds weighted aggregates",
+        help=(
+            "Profiles file written by weights.py; adds weighted aggregates "
+            "(default: the weights in the profiles file `generate` read, if any)"
+        ),
     )
     score.add_argument(
         "--results-out",
