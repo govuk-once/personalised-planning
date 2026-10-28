@@ -42,20 +42,20 @@ driving_subgraph.json ──────┐
                       each profile, in place; needs
                       data/situations.json)
                                     │
-                                    ├──▶ weights.py (optional: adds `weight`; needs
-                                    │    data/weights/*.json; its output feeds
-                                    │    `score --weights`)
-                                    ▼
-                      run_app.py (needs data/truth.json)
-                                    │
-                                    ▼
-                            app_plans.json (stdout)
-                                    │
-                                    ▼
-                    truth.py score (needs data/truth.json)
-                                    │
-                                    ▼
-                              scoring report
+                  ┌─────────────────┴───────────────┐
+                  ▼                                 ▼
+    run_app.py (needs truth.json)       weights.py (optional; adds `weight`,
+                  │                     writes a NEW profiles file; needs
+                  ▼                     data/weights/*.json)
+        app_plans.json (stdout)                     │
+                  │                                 ▼
+                  ▼                     metrics.harness generate (Part 4): run
+     truth.py score (needs truth.json)  it on the weighted file, or on the
+                  │                     situations.py output if you skip weights
+                  ▼                                 │ plans file
+            scoring report                          ▼
+                                        metrics.harness score ──▶ results.json
+                                        (weights come from the file generate read)
 ```
 
 `plans.py` runs first — everything downstream needs `driving_model.json` and
@@ -65,6 +65,11 @@ profiles, the model, and the reviewed mapping. `run_app.py` needs the
 profiles and `truth.json` — it uses the spine embedded in `truth.json` to
 map the agent's cited URLs onto step numbers. `truth.py score` is the only
 stage that touches the app's output directly.
+
+The metrics harness (Part 4) needs only profiles that have a `situation`, so it
+runs after `situations.py` and needs no `truth.json`. For a weighted run the order is
+`situations.py`, then `weights.py`, then `metrics.harness generate`, then
+`metrics.harness score`; see "Order of a weighted run" below.
 
 ---
 
@@ -349,11 +354,11 @@ journey counts as much as a common one. To report scores for a realistic mix of
 users instead, give each profile a weight.
 
 ```bash
-python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v1.json \
-    -o data/profiles/driving_profiles_v5_w1.json
+python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v2.json \
+    -o data/profiles/driving_profiles_v5_w2.json
 ```
 
-`data/weights/driving_weights_v1.json` is written by hand. For each question it
+`data/weights/driving_weights_v2.json` is written by hand. For each question it
 gives the share of people who give each answer, among those asked that question
 (the numbers need not sum to 1, and `_source` keys are notes):
 
@@ -374,11 +379,37 @@ of profiles carry the result; add profiles on the heavily weighted branches.
 `--sample N --seed S` instead draws N profiles by weight and writes only the
 distinct ones, each with weight draws / N, for a smaller representative run.
 
-Pass the weighted file to `score --weights` (Part 4) to add a
-`weighted_aggregate` next to each aggregate. Limits: a target applies to
+Pass the weighted file to `metrics.harness generate` (Part 4), which skips
+profiles whose weight is below `--min-weight` (default 0.005, i.e. 0.00 at
+2 d.p.) rather than spend agent calls on them, and `score` then adds a
+`weighted_aggregate` next to each aggregate, using the weights in the file `generate`
+read (or the file you give to `score --weights`). Limits: a target applies to
 everyone asked the question, across every branch that asks it; answers are
 weighted separately, so links between them are not modelled; `numeric.age` is
-not reweighted. The numbers in `driving_weights_v1.json` are placeholders.
+not reweighted. `driving_weights_placeholder.json` holds placeholder numbers;
+`driving_weights_v2.json` is sourced (see `driving_weights_v2_methodology.md`).
+
+### Order of a weighted run
+
+Weights are added before plans are generated, because `generate` reads them to
+decide which profiles to skip, and `score` picks them up from the same file:
+
+1. `plans.py` writes the profiles, and `situations.py` adds a `situation` to
+   each, in place. Do this first: `weights.py` copies each profile as it finds
+   it, so a weighted file made from profiles without a `situation` has none, and
+   `generate` refuses it.
+2. `weights.py profiles.json weights.json -o profiles_w.json` writes a new file
+   with a `weight` on every profile. The input is not changed.
+3. `python -m metrics.harness generate profiles_w.json -o plans.json` skips
+   profiles weighted below `--min-weight` and records the file it read.
+4. `python -m metrics.harness score plans.json` reads the weights back from that
+   file, so it needs no `--weights`.
+
+If you change the profiles, their situations or the weights file, re-run
+`weights.py` and then `generate`. `score` reads the profiles file as it is when
+you score, not as it was at `generate` time. If you generated from an unweighted
+file and only weighted afterwards, pass the weighted file to `score --weights`:
+without it, `score` finds no weights and reports unweighted aggregates only.
 
 ## The review packets it produces
 
@@ -919,6 +950,12 @@ listing `profiles_requested`, `profiles_scored`, `skipped_profiles` (each with i
 last error), `plans_per_profile` and `profiles_short` (profiles that got fewer than
 `G` plans). `score` prints a warning for an incomplete plans file but exits 0.
 
+Profiles `generate` skipped for being under `--min-weight` are not failures: they
+are saved in the plans file as `below_min_weight` and listed in
+`coverage.profiles_below_min_weight`. When `score` is weighted, their weight counts as
+unscored in `coverage.weight_scored`, so it shows the share of weight actually
+covered.
+
 Two env vars keep the models separate, with no fallback between them:
 `ANTHROPIC_MODEL` is the model the *hosted app* uses to generate plans (set in
 `agentcore.json`; the harness never reads it), and `EVAL_ANTHROPIC_MODEL` is the judge model. The
@@ -929,24 +966,30 @@ harness exits if `EVAL_ANTHROPIC_MODEL` (or `--judge-model`) is not set.
 ```bash
 cd scripts/evaluation/plan-generation
 
-# 1. Generate 3 plans per profile, once
-python -m metrics.harness generate data/driving_profiles_v5.json -G 3 -o data/plans.json
-
-# 2. Score them; rerun this step as often as you like
+# Unweighted: generate 3 plans per profile, once, then score them
+python -m metrics.harness generate data/profiles/driving_profiles_v5.json -G 3 -o data/plans.json
 python -m metrics.harness score data/plans.json -N 2 --results-out results.json
 
-# Also report scores weighted to a realistic mix of users (see weights.py)
-python -m metrics.harness score data/plans.json -N 2 --weights data/profiles/driving_profiles_v5_w1.json
+# Weighted, in this order (weights.py after situations.py, before generate).
+# Profiles weighted below 0.005 are skipped by generate; score finds the weights
+# in the file generate read, so it needs no --weights.
+python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v2.json \
+    -o data/profiles/driving_profiles_v5_w2.json
+python -m metrics.harness generate data/profiles/driving_profiles_v5_w2.json -G 3 -o data/plans.json
+python -m metrics.harness score data/plans.json -N 2
+
+# Plans already generated from an unweighted file: add the weights at score time
+python -m metrics.harness score data/plans.json -N 2 --weights data/profiles/driving_profiles_v5_w2.json
 
 # Score one profile, relevance only, while iterating on the prompt
 python -m metrics.harness score data/plans.json --profile P013 --metrics relevance
 
 # Generate and score a few profiles, weighted (the weights file may hold more profiles)
-python -m metrics.harness generate data/driving_profiles_v5.json --profile P001 P013 P087 -o data/plans.json
-python -m metrics.harness score data/plans.json --profile P001 P013 --weights data/profiles/driving_profiles_v5_w1.json
+python -m metrics.harness generate data/profiles/driving_profiles_v5.json --profile P001 P013 P087 -o data/plans.json
+python -m metrics.harness score data/plans.json --profile P001 P013 --weights data/profiles/driving_profiles_v5_w2.json
 
 # Generate against an explicit runtime
-python -m metrics.harness generate data/driving_profiles_v5.json -G 3 -o data/plans.json \
+python -m metrics.harness generate data/profiles/driving_profiles_v5.json -G 3 -o data/plans.json \
     --agent-runtime-arn arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
 ```
 
@@ -965,6 +1008,7 @@ and Bedrock model access for the judge, but not the agent. Run under
 | `-G` | 3 | Plan generations per profile |
 | `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
 | `--max-attempts` | 3 | Tries per plan generation, including the first |
+| `--min-weight` | 0.005 | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
 | `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
 
 `score` flags:
@@ -976,8 +1020,26 @@ and Bedrock model access for the judge, but not the agent. Run under
 | `--metrics` | all | Space-separated subset: `consistency relevance` |
 | `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
 | `--judge-region` | `eu-west-1` | AWS region for judge model |
-| `--weights` | — | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results |
+| `--weights` | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
 | `--results-out` | `results.json` | Where to write metric results |
+
+## Viewing results
+
+```bash
+python dashboard.py                    # reads data/results/, writes data/results/dashboard.html
+python dashboard.py <dir> -o out.html
+```
+
+`dashboard.py` embeds every `score` results file in a directory in one HTML page
+(open it from disk; no server or network). A dropdown switches between runs. Per
+run it shows the run's config and coverage warnings, a mean and weighted mean
+for each metric, per-profile scores with their spread, relevance verdicts by
+profile and the most-flagged services, and the judge's evidence: flagged tasks
+with rationales, fact contradictions, structure differences between pairs of
+plans, and services missing from some plans. Picking a profile adds its answers,
+a services-by-plan grid and its plans' tasks with verdicts. Situations, answers
+and weights come from the profiles file the run recorded. Re-run it after each
+`score` to pick up new files; files in other formats are skipped.
 
 ## Limits
 
