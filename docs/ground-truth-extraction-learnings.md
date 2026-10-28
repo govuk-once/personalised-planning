@@ -1,15 +1,15 @@
 # Personalised Planning Evaluation
-## What data structures do we need to power planner agent and evaluate its outputs?
+## What data structures do we need to power the planner agent and evaluate its outputs?
 
 ### Summary
 
-We tested whether step by step guides for life events can be generated programmatically from GOV.UK content without input from content design. We used "Having a baby" as the test case, scoped to a typical journey (natural pregnancy, single live birth in the UK, no neonatal care, no bereavement). Our pipeline turned ~1,900 sentences of GOV.UK content into ~170 typed draft tasks, then a shortlist for the typical journey. **However, the process is semi-automatic, not automatic**. HUman review and judgement were required at every stage. So far the results were reviewed by the data scientists with LLM assistance (Claude Opus 5). A subject matter expert review is under way. Following review and addressing feedback, we expect to use the guide as internal reference for evaluating generated plans.
+We tested whether step by step guides for life events can be generated programmatically from GOV.UK content without content designer input. We used "Having a baby" as the test case, scoped to a typical journey (natural pregnancy, single live birth in the UK, no neonatal care, no bereavement). Our pipeline turned ~1,900 sentences of GOV.UK content into ~170 typed draft tasks. These were reviewed and reconciled into 122 tasks, 85 of which were then selected for a step by step guide for the typical journey. So far the results have been reviewed by the data scientists with LLM assistance (Claude Opus 5). A content designer review is under way. Once the review is complete and feedback actioned, we expect to use the guide as an internal reference for evaluating generated plans for "Having a baby".
 
-Regarding the guide generation process, automation handled detection and parsing of GOV.UK content containing tasks. LLMs also performed well at turning unstructured text into structured draft tasks. Human judgement was required to decide what is in scope, which user groups and branches to cover, and whether two draft tasks are duplicates, alternatives, or one task that should be split. [EVIDENCE: This effort took three iterations roughly 6-7 days in total, of which ~95% was human review and reconciliation rather than pipeline build.] The step by stpe guide and the generated list of tasks that underpins it would require ongoing maintenance. Tasks carry metadata such as rates, deadlines and eligibility that change. So producing a guide would entail both build and regular update costs.
+**The process for generating guides is semi-automatic, not automatic.** Automation handled the detection and parsing of GOV.UK content containing tasks, and LLMs performed well at turning unstructured text into structured draft tasks. However, human review and judgement were required at every key decision: what is in scope, which user groups and branches to cover, and whether two draft tasks are duplicates, alternatives, or one task that should be split. For a single branch of one life event, and excluding the content desigher review, this work took three iterations and roughly 6 days in total, of which ~95% was human review and reconciliation rather than pipeline build. The step by step guide and the list of tasks that underpins it will also require ongoing maintenance, because tasks carry metadata such as rates, deadlines and eligibility that change. So producing a guide entails both build and regular update costs.
 
-This has implications for how we design planner agent. If the agent relied on an approved step by step guide for every life event (see Option 2 below), the human effort would multiply with every life event, branch and user group. That approach also does not seamlessly support a citizen whose needs span several life events. If the agent relied on search alone (see Option 1 below), we would not require an underlying data structure, but plans would be slower, cost more and vary more. This is due to the agent needing to make multiple tool calls to gather and synthesise relevant government sources. In earlier investigation [ADD LINK to MR's paper] search was also no better on precision and recall than a purpose build structured graph of government services - service-graph. The middle path looks best (see Option 3 below): a structured service-graph that the agent queries and turns into a personalised plan.
+This has implications for how we design the planner agent. If the agent relied on an approved step by step guide for every life event (see Option 2 below), the human effort would multiply with every life event, branch and user group. That approach also does not seamlessly support a citizen whose needs span several life events. If the agent relied on search alone (see Option 1 below), we would not need an underlying data structure. But plans would be slower and cost more, because the agent makes many more tool calls to gather and synthesise relevant government content. They would also vary more, because the agent has more discretion over which actions to include. Early testing [ADD LINK to MR's paper] also suggested search was no better on precision and recall than a purpose-built structured graph of government services (the service-graph). The middle path looks best (see Option 3 below): a structured service-graph that the agent queries and turns into a personalised plan.
 
-**Recommendation**: invest in the existing service-graph rather than in generating step by step guides for every life event. In particular: review the schema, add a layer of citizen-facing tasks linked to services, and use structured sources (GOV.UK Knowledge Graph, Content API) to check and refresh the graph, with a record of the evidence behind each fact. We will keep the generated "Having a baby" guide as an evaluation reference.
+**Recommendation**: invest in the existing service-graph rather than in generating step by step guides for every life event. In particular: review the schema, add a layer of citizen-facing tasks linked to services, and use structured sources (GOV.UK Knowledge Graph, Content API) to check and refresh the graph, with a record of the evidence behind each fact. Once SME feedback is actioned, we will keep the generated "Having a baby" guide as an evaluation reference.
 
 ---
 
@@ -23,9 +23,11 @@ Step by step guides do not exist for all life events. Producing an official one 
 
 **Scope of the trial.** "Having a baby", covering tasks for a `birth_parent`, a `partner`, or `either_parent`: natural pregnancy, single live birth in the UK, no neonatal care, no parental bereavement.
 
-**Approach.** We extracted content programmatically from the GOV.UK Knowledge Graph (Content API data, crawled from the `Pregnancy and birth` browse page). We used LLMs to synthesise and shortlist tasks. The author reviewed draft and final tasks with LLM assistance (Claude Opus 5). We went through **3** iterations.
+**Approach.** We extracted content programmatically from the GOV.UK Knowledge Graph (Content API data, crawled from the Pregnancy and birth browse page). We used LLMs to synthesise and shortlist tasks. The data scientists reviewed draft and final tasks with LLM assistance (Claude Opus 5). We went through three iterations.
 
-**Review status.** A subject matter expert is reviewing the guide, with feedback expected this week. Findings will be added here. **[EVIDENCE: SME findings, e.g. number of tasks confirmed, corrected, missing or out of scope.]** Until then, the statements below about reconciliation quality and the final guide reflect the author's review only. **[EVIDENCE: link to repo / pipeline diagram.]**
+**Review status.** A content desigher is reviewing the guide, with feedback expected w/c November 2. Findings will be added here. **[EVIDENCE: content designer findings, e.g. number of tasks confirmed, corrected, missing or out of scope.]** Until then, the statements below about reconciliation quality and the final guide reflect the data scientists' review only.
+
+**Implementation details.** Pipeline code is contained in this [PR](https://github.com/govuk-once/personalised-planning/pull/53).
 
 ---
 
@@ -33,23 +35,25 @@ Step by step guides do not exist for all life events. Producing an official one 
 
 #### 1. Where the effort actually goes
 
-| Stage | What it involves | Automated? | Human input | Up-front or ongoing | Effort (hours) estimate |
+The table below summarises effort across 3 iterations. Developing a guide for a new life event will likely require refinements to the existing implementation.
+
+| Stage | What it involves | Automated? | Human input | Up-front or ongoing | Effort (hours) |
 |---|---|---|---|---|---|
 | 1. Scope and vocabularies | Decide which topics are in scope (e.g. natural birth vs surrogacy, adoption, fostering) and define controlled vocabularies (actors, reference points such as "before birth" or "within 42 days") | No | High. Policy and domain judgement | Up-front per life event; vocabularies partly reusable | [4 h] |
-| 2. Retrieve candidate content | Crawl the Knowledge Graph subgraph and pull content items | Yes | Low. Choose the seed pages | Up-front build is reusable; re-run cheaply | [2 h build] |
-| 3. Detect task-bearing content | Find the sentences or elements that describe something a citizen must do | Mostly | Low. Spot-check | Reusable | [1 h] |
-| 4. Synthesise draft tasks | LLM turns ~1,900 sentences into ~170 structured, typed tasks | Yes (LLM) | Medium. Prompt and schema iteration, then review of output | Prompt work up-front; review needed on every run | [2 h build / 5 h review] |
-| 5. Reconcile tasks | Decide whether to remove duplicates, merge, split, or tag tasks as alternatives | LLM-assisted at best | High. Needs subject matter expertise | Up-front, and again when content changes | [5 h] |
-| 6. Choose user groups and branches | Decide which journeys to model | No | High | Up-front per life event; grows with each branch | [2 h] |
-| 7. Shortlist the typical journey | LLM selects and orders the relevant tasks | Yes (LLM) | Medium. Check for missing or extra tasks | Per guide / branch | [1 h] |
+| 2. Retrieve candidate content | Crawl the Knowledge Graph subgraph and pull content items | Yes | Low. Choose the seed pages | Up-front build is reusable; re-run cheaply | [3 h build and iterate] |
+| 3. Detect task-bearing content | Find the sentences or elements that describe something a citizen must do | Mostly | Low. Spot-check | Reusable | [2 h] |
+| 4. Synthesise draft tasks | LLM turns ~1,900 sentences into ~170 structured, typed tasks | Yes (LLM) | Medium. Prompt and schema iteration, then review of output | Prompt work up-front; review needed on every run | [8 h build and iteration / 18 h review] |
+| 5. Reconcile tasks | Decide whether to remove duplicates, merge, split, or tag tasks as alternatives | LLM-assisted at best | High. Needs subject matter expertise | Up-front, and again when content changes | [6 h] |
+| 6. Choose user groups and branches | Decide which journeys to model | No | High | Up-front per life event; grows with each branch | [4 h] |
+| 7. Shortlist the typical journey | LLM selects and orders the relevant tasks | Yes (LLM) | Medium. Check for missing or extra tasks | Per guide / branch | [2 h] |
 | 8. SME review | Expert checks the final guide | No | High | Per guide, and after significant changes | [TBC after this week's review] |
 
-**[EVIDENCE: in the hours column, split one-off build from per-life-event work where possible.] [EVIDENCE: funnel numbers through the pipeline, e.g. 1,400 sentences → N task-bearing → ~170 draft tasks → N after reconciliation → N in the typical journey.]**
+**Pipeline funnel:** ~1,900 sentences → ~1,400 task-bearing → ~170 draft tasks → 122 after reconciliation → 85 in the typical-journey guide.
 
 Key points:
-- **Detecting tasks is easy; turning them into clean tasks is not.** Stages 2–4 automate well. Stages 1, 5 and 6 are where the time went, and they are the stages that grow with each new life event. **[EVIDENCE: precision of stage 3 on a sample, e.g. "X of 50 sampled sentences correctly flagged".]**
+- **Detecting tasks is easy; turning them into clean tasks is not.** Stages 2–3 automate well. Stages 1, 4, 5 and 6 are where the time went, and they are the stages that grow with each new life event.
 - **Reconciliation is the bottleneck.** The same obligation often appears on several pages with different wording, scope or actor. Telling true duplicates from genuine alternatives (e.g. claiming Statutory Maternity Pay vs Maternity Allowance) needs domain knowledge. **[EVIDENCE: 2–3 worked examples: one merge, one split, one "alternatives" case, showing the raw draft tasks and the final decision.]** **[EVIDENCE: % of draft tasks that changed at this stage.]**
-- **The final guide is still LLM-produced.** Shortlisting for the typical journey is done by an LLM, so the guide inherits LLM error and needs review. **[EVIDENCE: number of corrections made at final review, by type: missing, wrong, wrongly ordered.]**
+- **The final guide is still LLM-produced.** Shortlisting for the typical journey is done by an LLM, so the guide inherits LLM error and needs review.
 - **Tasks sit in a natural hierarchy.** Most tasks sit under a higher-level `policy` or `service` (e.g. Statutory Maternity Leave). This suggests tasks should hang off services in the graph rather than live in a separate structure. **[EVIDENCE: % of final tasks that map cleanly to a single parent service.]**
 
 #### 2. Up-front vs ongoing effort
