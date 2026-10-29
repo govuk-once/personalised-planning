@@ -1,0 +1,44 @@
+{
+  "life_event": "driving",
+  "note": "Target population: Great Britain users of the GOV.UK 'Learn to drive a car: step by step' journey who are seeking help with the car-learning process. Shares are among profiles asked each question. q_main_goal and q_vehicle_type are scope filters, not population estimates. Stage weights use public transaction volumes as a proxy for page-user intent; accessibility and PIP weights are explicit assumptions because no public learner-driver cross-tabulation was found. Questions not listed retain the spread already present in the profile set.",
+  "targets": {
+    "q_main_goal": {
+      "_source": "Scope definition: https://www.gov.uk/learn-to-drive-a-car",
+      "learn_to_drive": 1.0,
+      "renew_replace_licence": 0.0,
+      "upgrade_licence": 0.0,
+      "change_name_gender": 0.0,
+      "medical_condition": 0.0,
+      "taxi_phv_licence": 0.0,
+      "lorry_bus_driver": 0.0,
+      "replace_cbt_certificate": 0.0
+    },
+    "q_vehicle_type": {
+      "_source": "Scope definition: car journey only, https://www.gov.uk/learn-to-drive-a-car",
+      "car": 1.0,
+      "motorcycle": 0.0,
+      "moped": 0.0,
+      "upgrade_auto_to_manual": 0.0
+    },
+    "q_have_provisional": {
+      "_source": "Proxy journey-entry mix. First provisional applications: 788,021 in 2014 (latest directly usable public series found), https://assets.publishing.service.gov.uk/media/5a75b968e5274a545822dbc8/The_number_of_First_Provisional_Driving_Licence_Applications_1993_to_2014.pdf. Theory/practical tests: 692,000/449,000 in Jul-Sep 2024, annualised to 2,768,000/1,796,000, https://www.gov.uk/government/statistics/driver-and-rider-testing-and-instructor-statistics-april-to-september-2024. no = 788,021 / (788,021 + 2,768,000 + 1,796,000) = 0.147; yes = 0.853.",
+      "no": 0.147,
+      "yes": 0.853
+    },
+    "q_has_theory_cert": {
+      "_source": "Proxy journey-entry mix using the same volumes as q_have_provisional. yes represents the post-theory/practical-test stage: 1,796,000 / (788,021 + 2,768,000 + 1,796,000) = 0.336; no = 0.664. Public volumes count tests, not unique people, so this is an intent proxy rather than a prevalence estimate.",
+      "no": 0.664,
+      "yes": 0.336
+    },
+    "q_accessibility_need": {
+      "_source": "Assumption: yes = 0.12. ONS Census 2021 found disability prevalence around 12% to 15% for several 15-24 age/sex groups; not every disabled learner needs an adjustment and some non-disabled people have reading difficulties. https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/disability/articles/disabilitybyagesexanddeprivationenglandandwales/census2021. Available theory-test support: https://www.gov.uk/theory-test/reading-difficulty-disability-or-health-condition. Suggested sensitivity range: 0.08 to 0.16.",
+      "yes": 0.12,
+      "no": 0.88
+    },
+    "q_pip_mobility": {
+      "_source": "Assumption: yes = 0.015. PIP statistics reported 3.9 million entitled claimants in England and Wales at 31 October 2025 and 37% receiving the highest award, but they do not cross-tab enhanced mobility with learner-driver status or age in a directly usable public table. https://www.gov.uk/government/statistics/personal-independence-payment-statistics-april-2013-to-october-2025/personal-independence-payment-official-statistics-to-october-2025. A 1.5% learner-driver share is a conservative age-adjusted proxy. Suggested sensitivity range: 0.005 to 0.03.",
+      "yes": 0.015,
+      "no": 0.985
+    }
+  }
+}
