@@ -1,6 +1,6 @@
 """Relevance metric: are the plan's tasks relevant to the user's situation?
 
-Custom Bedrock judge — no DeepEval. The prompt and verdicts are those of the
+Calls the shared ``BedrockJudge``. The prompt and verdicts are those of the
 original relevance judge that used to live in run_app.py; how verdicts become a
 score is decided in aggregate.py.
 
@@ -18,9 +18,7 @@ import json
 import pathlib
 from typing import Any
 
-import boto3
-
-from metrics.retry import BadReply, with_retries
+from metrics.retry import BadReply, FatalJudgeError, with_retries
 
 DEFAULT_RELEVANCE_MODEL = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
 DEFAULT_RELEVANCE_REGION = "eu-west-1"
@@ -28,18 +26,6 @@ DEFAULT_RELEVANCE_REGION = "eu-west-1"
 _METRICS_DIR = pathlib.Path(__file__).resolve().parent
 RELEVANCE_PROMPT_PATH = _METRICS_DIR / "relevance_prompt.md"
 _RELEVANCE_VERDICTS = {"relevant", "contradicted", "irrelevant"}
-
-
-def make_bedrock_client(region: str = DEFAULT_RELEVANCE_REGION) -> Any:
-    """Create a boto3 bedrock-runtime client.
-
-    Args:
-        region: AWS region for the Bedrock endpoint.
-
-    Returns:
-        A boto3 ``bedrock-runtime`` client.
-    """
-    return boto3.client("bedrock-runtime", region_name=region)
 
 
 def load_relevance_prompt() -> str:
@@ -106,46 +92,6 @@ def build_relevance_prompt(
     )
 
 
-def _invoke_bedrock(
-    client: Any, model_id: str, prompt: str, max_tokens: int = 2000
-) -> str:
-    """Call a Claude model on Bedrock and return its text output.
-
-    Args:
-        client: A boto3 ``bedrock-runtime`` client.
-        model_id: Bedrock model or inference-profile ID.
-        prompt: Full prompt text.
-        max_tokens: Response token cap.
-
-    Returns:
-        The model's text response.
-
-    Raises:
-        RuntimeError: If the call fails.
-        BadReply: If the response has no text.
-    """
-    body = json.dumps(
-        {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": max_tokens,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-    )
-    try:
-        response = client.invoke_model(modelId=model_id, body=body)
-        payload = json.loads(response["body"].read())
-        chunks = [
-            b["text"] for b in payload.get("content", []) if b.get("type") == "text"
-        ]
-        if not chunks:
-            raise BadReply("no text content in Bedrock response")
-        return "".join(chunks)
-    except BadReply:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError(f"Bedrock call failed: {exc}") from exc
-
-
 def _parse_relevance_response(text: str, n_tasks: int) -> list[dict]:
     """Parse the judge's JSON array, tolerating stray code fences.
 
@@ -185,8 +131,7 @@ def _parse_relevance_response(text: str, n_tasks: int) -> list[dict]:
 
 
 def judge_plan_relevance(
-    client: Any,
-    model_id: str,
+    judge: Any,
     prompt_template: str,
     situation: str,
     context: dict,
@@ -195,8 +140,7 @@ def judge_plan_relevance(
     """Run the relevance judge over one plan's tasks.
 
     Args:
-        client: A boto3 ``bedrock-runtime`` client.
-        model_id: Bedrock model or inference-profile ID.
+        judge: A ``BedrockJudge``.
         prompt_template: Prompt text from ``load_relevance_prompt()``.
         situation: The profile's situation sentence.
         context: Dict from ``profile_context()``.
@@ -219,25 +163,30 @@ def judge_plan_relevance(
     prompt = build_relevance_prompt(prompt_template, situation, context, tasks)
 
     def attempt() -> list[dict]:
-        text = _invoke_bedrock(client, model_id, prompt)
-        verdicts = _parse_relevance_response(text, len(tasks))
+        verdicts = _parse_relevance_response(judge.generate(prompt), len(tasks))
         if all(v["verdict"] == "unjudged" for v in verdicts):
             raise BadReply("could not parse judge output")
         return verdicts
 
+    # One call judges the whole plan, so a failed call leaves every task
+    # unjudged. Stepping over it keeps the rest of the run's progress.
     try:
         verdicts = with_retries(attempt, "relevance judge")
-    except (RuntimeError, BadReply) as exc:
-        # One call judges the whole plan, so a failed call leaves every task
-        # unjudged. Stepping over it keeps the rest of the run's progress.
+    except BadReply as exc:
         verdicts = [{"verdict": "unjudged", "rationale": str(exc)} for _ in tasks]
+    except FatalJudgeError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        verdicts = [
+            {"verdict": "unjudged", "rationale": f"judge call failed: {exc}"}
+            for _ in tasks
+        ]
     return [{**task, **verdict} for task, verdict in zip(tasks, verdicts, strict=True)]
 
 
 def score_relevance(
     generation: dict,
-    client: Any,
-    model_id: str,
+    judge: Any,
     prompt_template: str,
 ) -> dict:
     """Score the relevance of tasks in one generation.
@@ -245,8 +194,7 @@ def score_relevance(
     Args:
         generation: A generation dict with ``plan``, ``situation`` and
             ``context`` keys.
-        client: A boto3 ``bedrock-runtime`` client.
-        model_id: Bedrock model ID for the relevance judge.
+        judge: A ``BedrockJudge``.
         prompt_template: Template string from ``load_relevance_prompt()``.
 
     Returns:
@@ -260,7 +208,5 @@ def score_relevance(
     if not tasks:
         return {"tasks": [], "status": "no_tasks"}
 
-    judged = judge_plan_relevance(
-        client, model_id, prompt_template, situation, context, tasks
-    )
+    judged = judge_plan_relevance(judge, prompt_template, situation, context, tasks)
     return {"tasks": judged, "status": "judged"}

@@ -275,6 +275,8 @@ def _cmd_score(args: argparse.Namespace) -> int:
             stacklevel=1,
         )
 
+    from metrics.bedrock_judge import MAX_TOKENS as JUDGE_MAX_TOKENS
+    from metrics.bedrock_judge import BedrockJudge
     from metrics.relevance import DEFAULT_RELEVANCE_REGION
 
     judge_model_id = args.judge_model or os.environ.get("EVAL_ANTHROPIC_MODEL")
@@ -297,19 +299,16 @@ def _cmd_score(args: argparse.Namespace) -> int:
         "metrics": sorted(args.metrics),
         "judge_model": judge_model_id,
         "judge_region": judge_region,
+        "judge_max_tokens": JUDGE_MAX_TOKENS,
     }
-
-    from metrics.bedrock_judge import BedrockJudge
 
     judge = BedrockJudge(model_id=judge_model_id, region=judge_region)
     judge.load_model()  # fail fast if credentials are missing
 
-    relevance_client = None
     relevance_template = None
     if "relevance" in args.metrics:
-        from metrics.relevance import load_relevance_prompt, make_bedrock_client
+        from metrics.relevance import load_relevance_prompt
 
-        relevance_client = make_bedrock_client(judge_region)
         relevance_template = load_relevance_prompt()
 
     consistency_scores: dict[str, list] = {}
@@ -341,12 +340,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
 
             relevance_scores[pid] = [
                 [
-                    score_relevance(
-                        gen,
-                        relevance_client,
-                        judge_model_id,
-                        relevance_template,
-                    )["tasks"]
+                    score_relevance(gen, judge, relevance_template)["tasks"]
                     for gen in gens
                 ]
                 for _ in range(args.N)

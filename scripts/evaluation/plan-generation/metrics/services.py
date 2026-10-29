@@ -1,6 +1,6 @@
 """Which gov.uk services a plan recommends, and how stable that set is across plans.
 
-Kept free of heavy imports so a relevance-only run never loads deepeval.
+Kept free of heavy imports.
 """
 
 import itertools

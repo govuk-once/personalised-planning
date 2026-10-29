@@ -58,6 +58,14 @@ class BadReply(Exception):
     """The judge replied, but with nothing that can be used."""
 
 
+class TruncatedReply(BadReply):
+    """The judge's reply was cut off at the token cap.
+
+    Not retried: the same prompt with the same cap would most likely be cut off
+    again.
+    """
+
+
 class FatalJudgeError(Exception):
     """The judge cannot be used: access is denied or credentials are missing or expired.
 
@@ -93,9 +101,10 @@ def is_transient(exc: Exception) -> bool:
     """Whether a failed judge call is worth retrying.
 
     Retries throttling, server errors, timeouts, connection errors and replies
-    that were empty or not valid. Anything else (bad request, unknown errors) is
-    treated as permanent so it fails at once instead of waiting through retries.
-    Fatal errors (see ``is_fatal``) are not retried either.
+    that were empty or not valid. Anything else (bad request, a reply cut off at
+    the token cap, unknown errors) is treated as permanent so it fails at once
+    instead of waiting through retries. Fatal errors (see ``is_fatal``) are not
+    retried either.
 
     Args:
         exc: The error from one attempt. A ``RuntimeError`` that wraps the
@@ -104,6 +113,8 @@ def is_transient(exc: Exception) -> bool:
     Returns:
         True if another attempt might succeed.
     """
+    if isinstance(exc, TruncatedReply):
+        return False
     if isinstance(exc, BadReply):
         return True
     cause = _cause(exc)
