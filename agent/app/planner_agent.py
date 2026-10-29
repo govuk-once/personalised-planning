@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from shared.log_utils import StructuredLogger
+from shared.retry import BedrockRetryStrategy
 from shared.utils import read_file_content
 from strands import Agent
 from strands.hooks import (
@@ -26,6 +27,8 @@ load_dotenv()
 
 MODEL_ID = os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5")
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
+# Override due to intermittent issues calling Bedrock in eu-west-2
+BEDROCK_REGION = "eu-west-1"
 
 MCP_MODE = os.getenv("MCP_MODE", "remote")
 
@@ -190,6 +193,7 @@ class PlannerAgentRunner:
             tools=[mcp_client],
             system_prompt=system_prompt,
             hooks=[PlannerObservabilityHooks(self.logger)],
+            retry_strategy=BedrockRetryStrategy(),
         )
 
         self.logger.log("INFO", "Starting Planner Agent", model=MODEL_ID, prompt_length=len(prompt))
