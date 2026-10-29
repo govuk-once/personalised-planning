@@ -5,7 +5,7 @@ applications:
       phases:
         build:
           commands:
-            - '[ -f amplify.yml ] || cd ..'
+            - "[ -f amplify.yml ] || cd .."
             - test -n "$AGENT_RUNTIME_ARN" && test -n "$CHAT_AGENT_RUNTIME_ARN" || { echo "This app has no AGENT_RUNTIME_ARN or CHAT_AGENT_RUNTIME_ARN set"; exit 1; }
             - npm install --no-audit --no-fund
             - npm ci --prefix backend --no-audit --no-fund
@@ -15,18 +15,23 @@ applications:
         preBuild:
           commands:
             # The backend phase leaves the shell at the repo root.
-            - '[ -f next.config.ts ] || cd frontend'
+            - "[ -f next.config.ts ] || cd frontend"
             - npm install -g pnpm@12
             - pnpm install --frozen-lockfile
             - node -e "if(require('fs').lstatSync('node_modules/react').isSymbolicLink()){console.error('node_modules is symlinked; Amplify cannot bundle it');process.exit(1)}"
         build:
           commands:
-            - '[ -f next.config.ts ] || cd frontend'
+            - "[ -f next.config.ts ] || cd frontend"
             - BACKEND_FUNCTION_NAME=$(node -p "require('../amplify_outputs.json').custom.backendFunction ?? ''")
             - BACKEND_REGION=$(node -p "require('../amplify_outputs.json').custom.backendRegion ?? ''")
             - test -n "$BACKEND_FUNCTION_NAME" && test -n "$BACKEND_REGION" || { echo "backendFunction or backendRegion missing from amplify_outputs.json"; exit 1; }
-            - printf 'BACKEND_FUNCTION_NAME=%s\nBACKEND_REGION=%s\nMOCK_MODE=%s\n' "$BACKEND_FUNCTION_NAME" "$BACKEND_REGION" "${MOCK_MODE:-false}" > .env.production
+            - RUM_RELEASE_ID=$(git rev-parse HEAD)
+            - echo "BACKEND_FUNCTION_NAME=$BACKEND_FUNCTION_NAME" > .env.production
+            - echo "BACKEND_REGION=$BACKEND_REGION" >> .env.production
+            - echo "MOCK_MODE=${MOCK_MODE:-false}" >> .env.production
+            - echo "NEXT_PUBLIC_RUM_RELEASE_ID=$RUM_RELEASE_ID" >> .env.production
             - pnpm build
+            - bash scripts/upload-source-maps.sh "$SOURCE_MAPS_BUCKET" "$RUM_RELEASE_ID" || echo "Source maps not uploaded"
       artifacts:
         baseDirectory: .next
         files:
