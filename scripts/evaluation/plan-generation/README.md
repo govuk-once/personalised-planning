@@ -69,7 +69,8 @@ stage that touches the app's output directly.
 The metrics harness (Part 4) needs only profiles that have a `situation`, so it
 runs after `situations.py` and needs no `truth.json`. For a weighted run the order is
 `situations.py`, then `weights.py`, then `metrics.harness generate`, then
-`metrics.harness score`; see "Order of a weighted run" below.
+`metrics.harness score`; see "Order of a weighted run" below. `dashboard.py` then
+turns the results into a browser page; see "Viewing results" in Part 4.
 
 ---
 
@@ -1025,21 +1026,57 @@ and Bedrock model access for the judge, but not the agent. Run under
 
 ## Viewing results
 
+`dashboard.py` turns the results files that `score` writes into one HTML page you
+open in a browser. It reads files already on disk, so it needs no AWS credentials,
+no judge model and no install beyond Python's standard library.
+
 ```bash
-python dashboard.py                    # reads data/results/, writes data/results/dashboard.html
-python dashboard.py <dir> -o out.html
+cd scripts/evaluation/plan-generation
+
+# 1. Score into data/results/ (the dashboard's default folder). Without
+#    --results-out, score writes results.json to the current directory instead.
+python -m metrics.harness score data/plans.json -N 2 --results-out data/results/results_w2.json
+
+# 2. Build the page from every results file in that folder
+python dashboard.py                    # writes data/results/dashboard.html
+
+# 3. Open it (macOS; on Linux use xdg-open, or double-click the file)
+open data/results/dashboard.html
 ```
 
-`dashboard.py` embeds every `score` results file in a directory in one HTML page
-(open it from disk; no server or network). A dropdown switches between runs. Per
-run it shows the run's config and coverage warnings, a mean and weighted mean
-for each metric, per-profile scores with their spread, relevance verdicts by
-profile and the most-flagged services, and the judge's evidence: flagged tasks
-with rationales, fact contradictions, structure differences between pairs of
-plans, and services missing from some plans. Picking a profile adds its answers,
-a services-by-plan grid and its plans' tasks with verdicts. Situations, answers
-and weights come from the profiles file the run recorded. Re-run it after each
-`score` to pick up new files; files in other formats are skipped.
+To read results kept elsewhere, or to write the page somewhere else:
+`python dashboard.py <results-dir> -o <out.html>`. The argument is a directory, not
+a single file. Re-run step 2 after every `score` run to add the new file.
+`dashboard_template.html` must stay next to `dashboard.py`, which fills it in.
+
+**Using the page.** A dropdown at the top switches between results files (newest
+first; the file is also in the URL, for example `dashboard.html#results_w2.json`).
+Per file it shows:
+
+- the run's settings and coverage, with warnings for skipped or short profiles, profiles
+  below the minimum weight, and judge calls that returned nothing (left out of the
+  scores);
+- a mean and a weighted mean for each metric, with the lowest-scoring profile;
+- per-profile scores with their spread (click a column heading to sort, hover a
+  profile ID for its answers);
+- relevance verdicts by profile, and the services most often flagged
+  contradicted or irrelevant;
+- the judge's evidence, in tabs: flagged tasks with rationales (tick "Include
+  relevant tasks" to see all), fact contradictions, structure differences
+  between pairs of plans, and services missing from some plans;
+- for a profile you pick (click its row, or use the Profile dropdown): its answers,
+  which services each plan contains, and each plan's tasks with their verdicts.
+
+Situations, answers and weights are not in the results files. The dashboard reads
+them from the profiles file the run recorded (`weights_file`, else `profiles_file`),
+and falls back to the same file name in `data/profiles/` if the recorded path no
+longer exists. If neither is found the page still works but omits them, with a
+warning. Files in other formats in the folder (`truth.py score` output, review
+packets) are skipped with a message.
+
+The page embeds the full contents of the results files and works offline. Like the
+results files, it contains local file paths and the judge's text about each plan, so
+check it before sharing. It never contains the runtime ARN.
 
 ## Limits
 
