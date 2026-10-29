@@ -12,6 +12,11 @@ Three measures, each covering something the others do not:
   lists no differences. Each pair is shown in a random but repeatable order, so
   position bias averages out over repeats.
 
+A judge call that fails or returns an unusable reply is retried (see
+``retry.py``); if it still fails, that pair or service is ``"unjudged"`` and
+left out of the score. Access denied and missing or expired credentials are not
+stepped over: they raise ``FatalJudgeError``.
+
 Requires G >= 2; returns null scores with a note when G < 2.
 """
 
@@ -21,6 +26,7 @@ import pathlib
 import random
 from typing import Any
 
+from metrics.retry import BadReply, FatalJudgeError, with_retries
 from metrics.services import shared_services
 
 _METRICS_DIR = pathlib.Path(__file__).resolve().parent
@@ -108,16 +114,25 @@ def _judge_pair(
         plan_a=_encode_structure(generations[first]),
         plan_b=_encode_structure(generations[second]),
     )
-    try:
+
+    def attempt() -> list:
         parsed = _parse_json_object(judge.generate(prompt)) or {}
+        differences = parsed.get("differences")
+        if not isinstance(differences, list) or not all(
+            isinstance(d, dict) and isinstance(d.get("description"), str)
+            for d in differences
+        ):
+            raise BadReply("could not parse judge output")
+        return differences
+
+    try:
+        differences = with_retries(attempt, f"structure judge, plans {i + 1}-{j + 1}")
+    except BadReply as exc:
+        return {**unjudged, "error": str(exc)}
+    except FatalJudgeError:
+        raise
     except Exception as exc:  # noqa: BLE001
         return {**unjudged, "error": f"judge call failed: {exc}"}
-    differences = parsed.get("differences")
-    if not isinstance(differences, list) or not all(
-        isinstance(d, dict) and isinstance(d.get("description"), str)
-        for d in differences
-    ):
-        return {**unjudged, "error": "could not parse judge output"}
     return {
         **result,
         "same": not differences,
@@ -147,19 +162,29 @@ def _judge_service_facts(judge: Any, template: str, service: dict) -> dict:
     prompt = template.format(
         service=f"{service['name']} ({service['url']})", versions=versions
     )
-    try:
+
+    def attempt() -> dict:
         parsed = _parse_json_object(judge.generate(prompt)) or {}
+        contradictions = parsed.get("contradictions")
+        if not isinstance(contradictions, list) or not all(
+            isinstance(c, dict) and isinstance(c.get("plans"), list)
+            for c in contradictions
+        ):
+            raise BadReply("could not parse judge output")
+        return parsed
+
+    try:
+        parsed = with_retries(attempt, f"fact judge, {service['name']}")
+    except BadReply as exc:
+        return {**unjudged, "error": str(exc)}
+    except FatalJudgeError:
+        raise
     except Exception as exc:  # noqa: BLE001
         return {**unjudged, "error": f"judge call failed: {exc}"}
-    contradictions = parsed.get("contradictions")
-    if not isinstance(contradictions, list) or not all(
-        isinstance(c, dict) and isinstance(c.get("plans"), list) for c in contradictions
-    ):
-        return {**unjudged, "error": "could not parse judge output"}
     return {
         **result,
         "rationale": parsed.get("rationale", ""),
-        "contradictions": contradictions,
+        "contradictions": parsed["contradictions"],
         "status": "judged",
     }
 

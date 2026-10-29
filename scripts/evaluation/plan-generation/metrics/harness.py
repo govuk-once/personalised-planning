@@ -18,6 +18,8 @@ import pathlib
 import sys
 import warnings
 
+from metrics.retry import FatalJudgeError
+
 _VALID_METRICS = frozenset({"consistency", "relevance"})
 
 _PLANS_KIND = "plan-generations"
@@ -56,6 +58,18 @@ def _profile_weights(data) -> dict[str, float]:
 def _short_profiles(plans: dict[str, list], g: int) -> list[str]:
     """Profiles that got at least one plan but fewer than G."""
     return [pid for pid, gens in plans.items() if len(gens) < g]
+
+
+def _consistency_counts(repeats: list[dict]) -> tuple[int, int]:
+    """Pairs and fact checks across a profile's repeats: (judgements, unjudged)."""
+    items = [x for r in repeats for x in (*r["pairs"], *r["fact_checks"])]
+    return len(items), sum(x["status"] != "judged" for x in items)
+
+
+def _relevance_counts(repeats: list[list[list[dict]]]) -> tuple[int, int]:
+    """Tasks across a profile's repeats and plans: (judgements, unjudged)."""
+    tasks = [t for repeat in repeats for plan_tasks in repeat for t in plan_tasks]
+    return len(tasks), sum(t["verdict"] == "unjudged" for t in tasks)
 
 
 def _cmd_generate(args: argparse.Namespace) -> int:
@@ -300,6 +314,8 @@ def _cmd_score(args: argparse.Namespace) -> int:
 
     consistency_scores: dict[str, list] = {}
     relevance_scores: dict[str, list] = {}
+    # Running (judgements, unjudged) per metric, for the summary at the end.
+    totals = {"consistency": [0, 0], "relevance": [0, 0]}
 
     for i, (pid, gens) in enumerate(plans.items(), 1):
         print(f"[{i}/{len(plans)}] {pid}", file=sys.stderr)
@@ -312,6 +328,13 @@ def _cmd_score(args: argparse.Namespace) -> int:
                 score_consistency(gens, judge, situations[pid], context, repeat=n)
                 for n in range(args.N)
             ]
+            judged, unjudged = _consistency_counts(consistency_scores[pid])
+            totals["consistency"][0] += judged
+            totals["consistency"][1] += unjudged
+            print(
+                f"  consistency: {judged} judgements, {unjudged} unjudged",
+                file=sys.stderr,
+            )
 
         if "relevance" in args.metrics:
             from metrics.relevance import score_relevance
@@ -328,6 +351,13 @@ def _cmd_score(args: argparse.Namespace) -> int:
                 ]
                 for _ in range(args.N)
             ]
+            judged, unjudged = _relevance_counts(relevance_scores[pid])
+            totals["relevance"][0] += judged
+            totals["relevance"][1] += unjudged
+            print(
+                f"  relevance: {judged} judgements, {unjudged} unjudged",
+                file=sys.stderr,
+            )
 
     from metrics.aggregate import compute_results
 
@@ -348,6 +378,16 @@ def _cmd_score(args: argparse.Namespace) -> int:
         text = text.replace(runtime_arn, "<runtime-arn>")
     out_path.write_text(text)
     print(f"wrote results to {args.results_out}", file=sys.stderr)
+
+    units = {"consistency": "pairs and fact checks", "relevance": "tasks"}
+    counts = [
+        f"{name} {bad} of {n} {units[name]}" for name, (n, bad) in totals.items() if n
+    ]
+    if counts:
+        print(
+            "unjudged after retries (left out of the scores): " + "; ".join(counts),
+            file=sys.stderr,
+        )
 
     short = _short_profiles(plans, g)
     if failures or short:
@@ -468,7 +508,14 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv=None):
     """Entry point for the metrics harness."""
     args = _parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except FatalJudgeError as exc:
+        # Nothing is written: results.json is only written once judging is done.
+        sys.exit(
+            f"error: scoring stopped, no results written: {exc}\n"
+            "Fix the AWS credentials or Bedrock access and rerun `score`."
+        )
 
 
 if __name__ == "__main__":

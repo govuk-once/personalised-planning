@@ -933,8 +933,13 @@ highest repeat. A smaller `G` gives noisier scores.
   pair so reruns match, to cancel position bias. `pairs` lists every pair's
   differences.
 
-A pair or service whose judge reply cannot be parsed is marked `unjudged`, with
-an `error`, and left out of the score.
+A judge call that fails (for example Bedrock throttling) or whose reply cannot be
+parsed is tried again, up to twice (see **Judge retries** below). If it still fails,
+the pair or service is marked `unjudged`, with an `error`, and left out of the
+score. Relevance works the same way: a task with no usable verdict is `unjudged`,
+with the reason as its `rationale`. The judge makes one call per plan, so a failed
+call leaves all of that plan's tasks unjudged. A reply that skips only some of a
+plan's tasks is not retried; just those tasks are `unjudged`.
 
 The overall aggregate for each metric is the mean of the per-profile scores.
 Consistency scores from before this change (`holistic`, `order_agreement`,
@@ -1089,9 +1094,22 @@ loop and can take minutes. Calls run one after another. At the default `G=3`, a
 16-profile run makes 48 invocations before any judging, plus any retries. Use
 `--profile` for development iteration.
 
-Retries cover plan generation only. A failure in a judge call (for example
-Bedrock throttling) still stops `score`, but the plans are already saved, so
-rerunning it costs only the judge calls.
+**Judge retries.** `--max-attempts` covers plan generation only. A judge call that
+fails with a transient error (throttling, server error, timeout, connection error)
+or returns an empty or unparseable reply is tried again up to twice, waiting 5s,
+then 10s, with a line on stderr for each retry. Other permanent errors (such as a
+bad request) are not retried. If the last try fails, the call does not stop
+`score`: what it judged is marked `unjudged` and left out of the scores.
+`score` prints a line per metric for each profile, and at the end the number left
+unjudged, which the dashboard also shows. If there are many, rerun `score`, which
+costs only the judge calls. The plans are already saved.
+
+The exception is a credentials or permissions problem: access denied, or AWS
+credentials that are missing or expired (including an expired SSO login). Every
+later call would fail the same way, so `score` stops at once with an error and
+exits non-zero instead of marking anything `unjudged`. `results.json` is written
+only when judging finishes, so a stopped run writes nothing; fix the credentials
+and rerun `score`.
 
 Faithfulness (checking a plan against the knowledge-graph results the planner
 saw) is not implemented: the hosted agent returns only the plan, not its

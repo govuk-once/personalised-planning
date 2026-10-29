@@ -9,6 +9,9 @@ Verdicts per task:
 - contradicted — right topic, but a fact about the person rules it out
   (already done, not eligible, wrong vehicle or circumstance)
 - irrelevant — wrong topic entirely
+- unjudged — no usable verdict: the Bedrock call failed or its reply could not
+  be parsed. The reason is the rationale, and aggregate.py leaves the task out
+  of the score.
 """
 
 import json
@@ -16,6 +19,8 @@ import pathlib
 from typing import Any
 
 import boto3
+
+from metrics.retry import BadReply, with_retries
 
 DEFAULT_RELEVANCE_MODEL = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
 DEFAULT_RELEVANCE_REGION = "eu-west-1"
@@ -116,7 +121,8 @@ def _invoke_bedrock(
         The model's text response.
 
     Raises:
-        RuntimeError: If the call fails or the response has no text.
+        RuntimeError: If the call fails.
+        BadReply: If the response has no text.
     """
     body = json.dumps(
         {
@@ -132,8 +138,10 @@ def _invoke_bedrock(
             b["text"] for b in payload.get("content", []) if b.get("type") == "text"
         ]
         if not chunks:
-            raise RuntimeError("no text content in Bedrock response")
+            raise BadReply("no text content in Bedrock response")
         return "".join(chunks)
+    except BadReply:
+        raise
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"Bedrock call failed: {exc}") from exc
 
@@ -195,13 +203,34 @@ def judge_plan_relevance(
         tasks: List from ``collect_relevance_tasks()``.
 
     Returns:
-        List of dicts merging each task with its verdict and rationale.
+        List of dicts merging each task with its verdict and rationale. A call
+        that fails, or whose reply has no usable verdict at all, is retried up
+        to ``retry.RETRIES`` times. If it still fails, every task is
+        ``"unjudged"`` with the error as its rationale, rather than the error
+        being raised. A reply that skips only some tasks is not retried; those
+        tasks are ``"unjudged"``.
+
+    Raises:
+        FatalJudgeError: If access is denied or the credentials are missing or
+            expired; this is not stepped over.
     """
     if not tasks:
         return []
     prompt = build_relevance_prompt(prompt_template, situation, context, tasks)
-    text = _invoke_bedrock(client, model_id, prompt)
-    verdicts = _parse_relevance_response(text, len(tasks))
+
+    def attempt() -> list[dict]:
+        text = _invoke_bedrock(client, model_id, prompt)
+        verdicts = _parse_relevance_response(text, len(tasks))
+        if all(v["verdict"] == "unjudged" for v in verdicts):
+            raise BadReply("could not parse judge output")
+        return verdicts
+
+    try:
+        verdicts = with_retries(attempt, "relevance judge")
+    except (RuntimeError, BadReply) as exc:
+        # One call judges the whole plan, so a failed call leaves every task
+        # unjudged. Stepping over it keeps the rest of the run's progress.
+        verdicts = [{"verdict": "unjudged", "rationale": str(exc)} for _ in tasks]
     return [{**task, **verdict} for task, verdict in zip(tasks, verdicts, strict=True)]
 
 
