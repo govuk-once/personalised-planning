@@ -12,9 +12,9 @@ against a programmatically generated ground-truth set of plans, to evaluate the 
 4. **Evaluate** (`truth.py score`) — compare the app's plans against the answer key and get precision/recall-style scoring, with legally-blocked steps tracked separately from ordinary misses.
 
 Stages 1 and 2 each make a small number of Bedrock calls, reviewed by a
-human before being trusted. Stage 3 calls the plan API once per profile and
-maps results onto step numbers using the spine — no Bedrock unless you add
-`--relevance`. Stage 2's `build` step and stage 4 are pure code — no AI,
+human before being trusted. Stage 3 invokes the hosted planner agent once per
+profile and maps results onto step numbers using the spine — no judge model, no
+AI in the scoring path. Stage 2's `build` step and stage 4 are pure code — no AI,
 no network — so re-running them costs nothing and reruns deterministically.
 
 ## Dependency map
@@ -38,16 +38,24 @@ driving_subgraph.json ──────┐
                         data/driving_profiles.json
                                     │
                                     ▼
-                      run_app.py (needs data/truth.json)
+                      situations.py (adds `situation` to
+                      each profile, in place; needs
+                      data/situations.json)
                                     │
-                                    ▼
-                            app_plans.json (stdout)
-                                    │
-                                    ▼
-                    truth.py score (needs data/truth.json)
-                                    │
-                                    ▼
-                              scoring report
+                  ┌─────────────────┴───────────────┐
+                  ▼                                 ▼
+    run_app.py (needs truth.json)       weights.py (optional; adds `weight`,
+                  │                     writes a NEW profiles file; needs
+                  ▼                     data/weights/*.json)
+        app_plans.json (stdout)                     │
+                  │                                 ▼
+                  ▼                     metrics.harness generate (Part 4): run
+     truth.py score (needs truth.json)  it on the weighted file, or on the
+                  │                     situations.py output if you skip weights
+                  ▼                                 │ plans file
+            scoring report                          ▼
+                                        metrics.harness score ──▶ results.json
+                                        (weights come from the file generate read)
 ```
 
 `plans.py` runs first — everything downstream needs `driving_model.json` and
@@ -55,8 +63,14 @@ driving_subgraph.json ──────┐
 GOV.UK URL(s); it does not need the subgraph. `truth.py build` needs the
 profiles, the model, and the reviewed mapping. `run_app.py` needs the
 profiles and `truth.json` — it uses the spine embedded in `truth.json` to
-map the API's cited URLs onto step numbers. `truth.py score` is the only
+map the agent's cited URLs onto step numbers. `truth.py score` is the only
 stage that touches the app's output directly.
+
+The metrics harness (Part 4) needs only profiles that have a `situation`, so it
+runs after `situations.py` and needs no `truth.json`. For a weighted run the order is
+`situations.py`, then `weights.py`, then `metrics.harness generate`, then
+`metrics.harness score`; see "Order of a weighted run" below. `dashboard.py` then
+turns the results into a browser page; see "Viewing results" in Part 4.
 
 ---
 
@@ -147,7 +161,7 @@ Four things make those results representative rather than merely plentiful.
 
 **Difference is measured by the answers.** Two profiles count as the same only when they answer every question identically (the order of options within a multi-select doesn't count); one representative of each distinct answer set is kept. Without this you get tens of thousands of near-duplicates and no more real coverage.
 
-Answers are the unit because answers are what the plan generator consumes: it is sent the readable question-answers plus age, and never the derived facts. So two profiles that differ in any answer may produce different plans and both are worth keeping — deduplicating on facts instead would collapse genuinely different inputs (a moped and a motorcycle share one vehicle fact) and under-test the generator. Facts are computed and carried on each profile only for review: the assertions a plan is graded against are built from them, and
+Answers are the unit because answers are what the plan generator consumes: it is sent the answers as question ids and option codes, plus age and the profile's `situation` sentence, and never the derived facts. So two profiles that differ in any answer may produce different plans and both are worth keeping — deduplicating on facts instead would collapse genuinely different inputs (a moped and a motorcycle share one vehicle fact) and under-test the generator. Facts are computed and carried on each profile only for review: the assertions a plan is graded against are built from them, and
 they show at a glance why a plan came out the way it did. Because they never reach the generator, it must derive routing from the answers itself, exactly as it would for a real user.
 
 **Dead ends are caught, not hidden.** The questionnaire is tested against thousands of invented answer sets to confirm every question can be reached,
@@ -278,6 +292,7 @@ silently swallowed by the stricter rule it was written to escape.
 ```json
 {
   "id": "P024",
+  "situation": "I want to learn to drive or ride, from getting my provisional licence to passing my test.",
   "answers":  { "q1_vehicle": "car", "q9_theory_support": ["audio_english"] },
   "readable": { "What do you want to learn to drive or ride?": "Car (category B)" },
   "numeric":  { "age": { "value": 43, "range": [42, 85],
@@ -303,6 +318,99 @@ on purpose — that is where plans break.
 are written for the highest-risk profiles first, up to a cap that grows with
 the square root of the profile count rather than linearly, so a model with far
 more genuine branches doesn't multiply persona cost along with it.
+
+`situation` is not written by `plans.py`; add it with `situations.py` (next
+section).
+
+## Adding a situation to each profile (`situations.py`)
+
+In production the planner is sent a `situation` (one first-person sentence
+saying what the person wants help with) as well as their context. Sending the
+same sentence for every profile would contradict profiles that want something
+else, so each profile gets its own.
+
+```bash
+python situations.py data/driving_profiles.json data/situations.json
+```
+
+`data/situations.json` is written by hand. It names a question and gives one
+sentence for each of its option ids:
+
+```json
+{ "question": "q_main_goal",
+  "situations": { "learn_to_drive": "I want to learn to drive or ride, ...",
+                  "change_name_gender": "I need to change the name or gender on my driving licence." } }
+```
+
+The script looks up each profile's answer to that question and writes the
+sentence into the profile as `situation`, in place. Nothing else in the profile
+changes, so ground truth stays valid. It stops without writing anything if a
+profile's answer has no sentence. Running it again overwrites `situation`.
+`run_app.py` and the metrics harness refuse to run on profiles without one.
+
+## Weighting the profiles to represent real users (`weights.py`)
+
+The profiles cover every journey through the questionnaire once, so a rare
+journey counts as much as a common one. To report scores for a realistic mix of
+users instead, give each profile a weight.
+
+```bash
+python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v2.json \
+    -o data/profiles/driving_profiles_v5_w2.json
+```
+
+`data/weights/driving_weights_v2.json` is written by hand. For each question it
+gives the share of people who give each answer, among those asked that question
+(the numbers need not sum to 1, and `_source` keys are notes):
+
+```json
+{ "targets": { "q_vehicle_type": { "_source": "DVSA test volumes",
+                                   "car": 0.85, "motorcycle": 0.08, "moped": 0.06,
+                                   "upgrade_auto_to_manual": 0.01 } } }
+```
+
+The script rescales the profiles' weights, one targeted question at a time and
+repeating until nothing moves, until every answer holds its target share of the
+profiles asked that question. Questions without a target keep the spread they
+already have. It prints each target against the share achieved and the
+effective sample size (`1 / Σw²`), and writes the profiles with a `weight` on
+each (summing to 1). If the effective sample size is below about 15, a handful
+of profiles carry the result; add profiles on the heavily weighted branches.
+
+`--sample N --seed S` instead draws N profiles by weight and writes only the
+distinct ones, each with weight draws / N, for a smaller representative run.
+
+Pass the weighted file to `metrics.harness generate` (Part 4), which skips
+profiles whose weight is below `--min-weight` (default 0.005, i.e. 0.00 at
+2 d.p.) rather than spend agent calls on them, and `score` then adds a
+`weighted_aggregate` next to each aggregate, using the weights in the file `generate`
+read (or the file you give to `score --weights`). Limits: a target applies to
+everyone asked the question, across every branch that asks it; answers are
+weighted separately, so links between them are not modelled; `numeric.age` is
+not reweighted. `driving_weights_placeholder.json` holds placeholder numbers;
+`driving_weights_v2.json` is sourced (see `driving_weights_v2_methodology.md`).
+
+### Order of a weighted run
+
+Weights are added before plans are generated, because `generate` reads them to
+decide which profiles to skip, and `score` picks them up from the same file:
+
+1. `plans.py` writes the profiles, and `situations.py` adds a `situation` to
+   each, in place. Do this first: `weights.py` copies each profile as it finds
+   it, so a weighted file made from profiles without a `situation` has none, and
+   `generate` refuses it.
+2. `weights.py profiles.json weights.json -o profiles_w.json` writes a new file
+   with a `weight` on every profile. The input is not changed.
+3. `python -m metrics.harness generate profiles_w.json -o plans.json` skips
+   profiles weighted below `--min-weight` and records the file it read.
+4. `python -m metrics.harness score plans.json` reads the weights back from that
+   file, so it needs no `--weights`.
+
+If you change the profiles, their situations or the weights file, re-run
+`weights.py` and then `generate`. `score` reads the profiles file as it is when
+you score, not as it was at `generate` time. If you generated from an unweighted
+file and only weighted afterwards, pass the weighted file to `score --weights`:
+without it, `score` finds no weights and reports unweighted aggregates only.
 
 ## The review packets it produces
 
@@ -602,13 +710,13 @@ diff the mapping if GDS reorders a step.
 
 ---
 
-# Part 3 — Calling the plan API (`run_app.py`)
+# Part 3 — Calling the planner agent (`run_app.py`)
 
 ## What this is for
 
-The plan API returns free-text steps, not step numbers. Ground truth uses
-step numbers from the GOV.UK spine. `run_app.py` bridges them: it calls the
-API for each synthetic profile that has a ground-truth entry, maps the
+The planner agent returns free-text steps, not step numbers. Ground truth uses
+step numbers from the GOV.UK spine. `run_app.py` bridges them: it invokes the
+hosted agent for each synthetic profile that has a ground-truth entry, maps the
 returned tasks back onto spine step numbers by URL, and emits the plans in
 the format `truth.py score` expects.
 
@@ -618,11 +726,16 @@ numbers without a separate invocation.
 
 ## How it works
 
-**It only calls the API for profiles with ground truth.** The driving guide
-covers a subset of all profiles (car / Great Britain only). Calling the API
+**It only calls the agent for profiles with ground truth.** The driving guide
+covers a subset of all profiles (car / Great Britain only). Calling the agent
 for profiles outside that scope produces plans that cannot be scored.
 
-**It maps tasks to step numbers by URL.** Each task the API returns carries a
+**It calls the agent the way the backend does.** It invokes the deployed
+AgentCore runtime with each profile's `situation` and a `user_context` of its
+answer codes and age, and adds today's date to the context as the backend Worker does — without it the planner works out
+deadlines from its training cutoff. Each call uses a fresh session.
+
+**It maps tasks to step numbers by URL.** Each task the agent returns carries a
 `gov_service_url`. The spine embedded in `truth.json` carries the GOV.UK
 paths for each step. A URL that belongs to a spine step counts that step as
 covered. No model call sits in this path — the mapping is exact and
@@ -633,26 +746,12 @@ function `truth.py score` uses and accumulates the per-profile results.
 Aggregate precision, recall and F1 are ready by the time all profiles are
 processed, with no second pass needed.
 
-**It optionally judges relevance.** With `--relevance`, a separate Bedrock
-call asks whether each task is relevant to this person's situation —
-"relevant", "premature" or "irrelevant". This is a different question from
-coverage: a task can be a valid GOV.UK page that is not a spine step at all
-(vehicle tax, a booking confirmation), and relevance captures that where F1
-cannot.
-
 ## Why it's built this way
 
 **URL matching keeps the scoring path model-free.** Comparing the API's prose
 step descriptions to spine step titles would need a model, introducing a
 non-deterministic judgement between the app and its score. URL matching is
 exact, repeatable, and cheap.
-
-**Relevance is a separate metric, not a correction to F1.** Precision and
-recall measure whether the right spine steps are covered. Relevance asks
-whether the tasks are appropriate for this specific person. An app can score
-1.0 on F1 while returning tasks irrelevant to the profile; it can also miss
-spine steps while returning nothing irrelevant. Averaging incompatible signals
-hides both failure modes, so they are kept apart.
 
 **Scoring uses the same function as `truth.py score`.** `run_app.py` imports
 `score` from `truth.py` directly, so the inline metrics and the standalone
@@ -662,19 +761,24 @@ scorer cannot diverge.
 
 ## Reference
 
-Calls the plan API for each in-scope synthetic profile, maps returned tasks
-onto spine step numbers, and writes scored plans to stdout and aggregate
-metrics to `results.json`.
+Invokes the hosted planner agent for each in-scope synthetic profile, maps
+returned tasks onto spine step numbers, and writes scored plans to stdout and
+aggregate metrics to `results.json`.
 
 ## Install
 
 ```bash
-pip install -U boto3       # only needed for --relevance
-export AWS_REGION=eu-west-1  # or use a profile / SSO / instance role
+pip install -U boto3
+export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
 ```
 
-Bedrock credentials are only required with `--relevance`. The plan API and
-everything else runs without AWS.
+Run with AWS credentials that allow `bedrock-agentcore:InvokeAgentRuntime` on
+that ARN (for example under `aws-vault exec`). The region is taken from the ARN.
+`agentcore status` shows the deployed runtime ARN. If the deployed endpoint is
+not `DEFAULT`, set `AGENT_ENDPOINT_NAME`, as the backend does.
+
+`run_app.py` calls no judge model. For LLM-based metrics (relevance,
+consistency), see the [metrics harness](#llm-based-metrics-metricsharnesspy).
 
 ## Run
 
@@ -684,25 +788,18 @@ python run_app.py data/driving_profiles.json data/truth.json > data/app_plans.js
 
 # Test a single profile
 python run_app.py data/driving_profiles.json data/truth.json --profile P011 --verbose
-
-# Include LLM-judged relevance
-python run_app.py data/driving_profiles.json data/truth.json --relevance > data/app_plans.json
 ```
 
-The plan API must be running at `--endpoint` before calling this script.
 `truth.json` is required — it carries the per-guide URL-to-step index used
-to map the API's cited URLs onto step numbers.
+to map the agent's cited URLs onto step numbers.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--endpoint` | `http://localhost:8000/plan` | Plan API URL |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime |
 | `--profile` | — | Run one profile id only, for testing |
-| `--raw` | — | Save full API responses here |
+| `--raw` | — | Save full agent responses here |
 | `--verbose` | off | Print per-task URL trace to stderr |
-| `--relevance` | off | Judge task relevance via Bedrock |
-| `--relevance-model` | `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` | Bedrock model for relevance judging |
-| `--relevance-region` | `eu-west-1` | AWS region for relevance judging |
-| `--results-out` | `results.json` | Where to write scoring and relevance results |
+| `--results-out` | `results.json` | Where to write scoring results |
 
 ## The plans it produces
 
@@ -738,20 +835,264 @@ As with `truth.py score`, `presented_a_blocked_step` is kept outside the F1
 average — it is a different class of failure and should not be traded off
 against coverage.
 
-With `--relevance`, a `"relevance"` key is added alongside `"scoring"`,
-reporting aggregate counts of `relevant`, `premature` and `irrelevant`
-verdicts and a per-profile breakdown. The relevance block carries a `"note"`
-field as a reminder that it is LLM-judged and non-deterministic — report it
-alongside precision/recall/F1, never folded into them.
-
 ## Limits
 
-The plan API must be running and reachable at `--endpoint`. A failed API call
-is reported on stderr and the profile is skipped rather than retried.
+The hosted agent must be deployed and your credentials must be allowed to
+invoke it. A failed invocation is reported on stderr and the profile is skipped
+rather than retried. Each call waits up to 5 minutes for a plan.
 
 URLs cited by the app that are not in any guide's spine are reported on
 stderr. They may be legitimate GOV.UK pages outside the step-by-step, or
 miscited URLs that will never score — worth investigating if the unmatched
 count is unexpectedly high.
 
-Relevance judging makes one Bedrock call per profile.
+---
+
+# Part 4 — LLM-based metrics (`metrics/harness.py`)
+
+## What this is for
+
+`run_app.py` scores plans structurally — coverage of spine steps, precision,
+recall, F1. Those metrics do not capture whether a plan is relevant to the
+specific person, or consistent across multiple runs.
+
+The metrics harness adds two LLM-judged metrics that run **independently of
+the main pipeline** — no truth file, no spine, no F1:
+
+- **Relevance** — are the plan's tasks genuinely relevant to this person's
+  situation? Each task is classified `relevant`, `contradicted` (the right topic, but a
+  fact about the person rules it out) or `irrelevant`.
+- **Consistency** — given `G` plan generations for the same profile, does the
+  user get the same plan each time? Three measures, each covering something the
+  others do not: which services the plans recommend (computed, no judge), what
+  they say about those services (LLM-judged), and the plans' steps and summary
+  (LLM-judged).
+
+## How it works
+
+The harness runs in two steps, so the slow part happens once:
+
+1. **`generate`** invokes the hosted planner agent (`--agent-runtime-arn`) `G`
+   times per profile and saves the plans to a plans file. Each agent call can take
+   minutes.
+2. **`score`** reads a plans file, runs each judge `N` times per profile to smooth
+   variance, and writes a `results.json` with per-profile and aggregate scores.
+   Judging is fast, so you can rescore the same plans as often as you like, for
+   example after editing `metrics/relevance_prompt.md`,
+   `metrics/structure_consistency_prompt.md` or `metrics/fact_consistency_prompt.md`.
+
+The plans file records the generation settings (`G`, the runtime ARN, the
+profiles file), every requested profile, the plans with the situation and
+context each was generated from (including `today`, so a rescore judges against
+the same date), and any profiles that failed. `generate` saves it after every profile, so an
+interrupted run keeps the profiles already done. Each `results.json` records which
+plans file it came from (`plans_file`, `plans_generated_at`), the profile it was
+limited to if `--profile` was used (`scored_profile`, a list), and the judge settings.
+
+The plans file contains the runtime ARN, which includes your AWS account ID, so
+check it before sharing. `results.json` never records the ARN: the key is dropped,
+and the ARN is replaced with `<runtime-arn>` if an error message quotes it.
+
+Two knobs control cost and statistical quality:
+- `G` — plan generations per profile (consistency needs G≥2 to be meaningful).
+- `N` — judge repeats per metric per profile.
+
+**Relevance** per profile: a plan's score is the share of its tasks judged
+`relevant`; average the `N` repeats within each plan, then average
+across the plans. The profile's `scores_by_plan`, `min` and `max` show how much its
+plans differ. Plans with no scoreable result are left out of the average.
+
+**Relevance** also reports `repeat_range`: the lowest and highest score the
+profile got across the `N` judge repeats.
+
+**Consistency** per profile. Each score is a share between 0 and 1. The judged
+scores are the mean over the `N` repeats, with `*_range` giving the lowest and
+highest repeat. A smaller `G` gives noisier scores.
+
+- `service_stability` (no judge) is the mean pairwise Jaccard overlap of the
+  services (by URL) each plan recommends. Its range is the lowest and highest
+  pair of plans. With 3–4 services per plan, one extra service moves a pair's
+  overlap by about 0.25, so treat small differences between runs as noise.
+  `services_not_in_every_plan` lists the services that some plans recommend and
+  others do not.
+- `fact_consistency` is the share of services, among those in two or more plans,
+  where the judge finds no contradiction in what the plans say about them. For
+  each such service it makes one call (`metrics/fact_consistency_prompt.md`),
+  comparing every plan's task for it: cost, department, deadline, requirements,
+  how to apply and so on. Wording and extra detail are not contradictions.
+  `fact_checks` lists each judgement, with the contradictions and plan numbers.
+- `structure_consistency` is the share of pairs of plans with the same
+  structure. It makes one call per pair (`G×(G−1)/2` per repeat) using
+  `metrics/structure_consistency_prompt.md`. The judge sees the person's
+  situation and facts and, for each plan, the summary and the title and summary
+  of each step, and lists every difference in step count, what the steps cover,
+  their order, or what the summary tells the person. A pair is the same if it
+  lists none, so an extra step counts as a difference, but wording does not.
+  The services in the steps, and what is said about them, are left to the other
+  two measures. Each pair is shown in a random order, seeded by the repeat and
+  pair so reruns match, to cancel position bias. `pairs` lists every pair's
+  differences.
+
+A pair or service whose judge reply cannot be parsed is marked `unjudged`, with
+an `error`, and left out of the score.
+
+The overall aggregate for each metric is the mean of the per-profile scores.
+Consistency scores from before this change (`holistic`, `order_agreement`,
+`field_mismatches`, `modal_plan_share` and so on) are not comparable.
+
+**Retries and coverage.** A failed plan generation is retried up to
+`--max-attempts` times (default 3), waiting 5s, then 10s, and so on up to 60s.
+Only transient failures are retried: throttling, server errors, timeouts,
+connection errors and empty or malformed replies. Permanent errors (access
+denied, bad request, missing or expired credentials) fail at once. The plans file
+is always written, and `generate` exits 1 if any profile was skipped or short, so a
+script can tell. `score` carries this into a `coverage` block in `results.json`
+listing `profiles_requested`, `profiles_scored`, `skipped_profiles` (each with its
+last error), `plans_per_profile` and `profiles_short` (profiles that got fewer than
+`G` plans). `score` prints a warning for an incomplete plans file but exits 0.
+
+Profiles `generate` skipped for being under `--min-weight` are not failures: they
+are saved in the plans file as `below_min_weight` and listed in
+`coverage.profiles_below_min_weight`. When `score` is weighted, their weight counts as
+unscored in `coverage.weight_scored`, so it shows the share of weight actually
+covered.
+
+Two env vars keep the models separate, with no fallback between them:
+`ANTHROPIC_MODEL` is the model the *hosted app* uses to generate plans (set in
+`agentcore.json`; the harness never reads it), and `EVAL_ANTHROPIC_MODEL` is the judge model. The
+harness exits if `EVAL_ANTHROPIC_MODEL` (or `--judge-model`) is not set.
+
+## Run
+
+```bash
+cd scripts/evaluation/plan-generation
+
+# Unweighted: generate 3 plans per profile, once, then score them
+python -m metrics.harness generate data/profiles/driving_profiles_v5.json -G 3 -o data/plans.json
+python -m metrics.harness score data/plans.json -N 2 --results-out results.json
+
+# Weighted, in this order (weights.py after situations.py, before generate).
+# Profiles weighted below 0.005 are skipped by generate; score finds the weights
+# in the file generate read, so it needs no --weights.
+python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v2.json \
+    -o data/profiles/driving_profiles_v5_w2.json
+python -m metrics.harness generate data/profiles/driving_profiles_v5_w2.json -G 3 -o data/plans.json
+python -m metrics.harness score data/plans.json -N 2
+
+# Plans already generated from an unweighted file: add the weights at score time
+python -m metrics.harness score data/plans.json -N 2 --weights data/profiles/driving_profiles_v5_w2.json
+
+# Score one profile, relevance only, while iterating on the prompt
+python -m metrics.harness score data/plans.json --profile P013 --metrics relevance
+
+# Generate and score a few profiles, weighted (the weights file may hold more profiles)
+python -m metrics.harness generate data/profiles/driving_profiles_v5.json --profile P001 P013 P087 -o data/plans.json
+python -m metrics.harness score data/plans.json --profile P001 P013 --weights data/profiles/driving_profiles_v5_w2.json
+
+# Generate against an explicit runtime
+python -m metrics.harness generate data/profiles/driving_profiles_v5.json -G 3 -o data/plans.json \
+    --agent-runtime-arn arn:aws:bedrock-agentcore:<region>:<account>:runtime/<planner-id>
+```
+
+`generate` needs `AGENT_RUNTIME_ARN` (or `--agent-runtime-arn`) and credentials
+with `bedrock-agentcore:InvokeAgentRuntime` on the runtime. As in `run_app.py`,
+today's date is added to each profile's context and `AGENT_ENDPOINT_NAME` selects
+a non-`DEFAULT` endpoint. `score` needs `EVAL_ANTHROPIC_MODEL` (or `--judge-model`)
+and Bedrock model access for the judge, but not the agent. Run under
+`aws-vault exec` if using AWS SSO.
+
+`generate` flags:
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--profile` | — | Generate for these profile ids only (one or more; put it after the positional arguments) |
+| `-G` | 3 | Plan generations per profile |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
+| `--max-attempts` | 3 | Tries per plan generation, including the first |
+| `--min-weight` | 0.005 | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
+| `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
+
+`score` flags:
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--profile` | — | Score these profile ids only (one or more; put it after `plans`) |
+| `-N` | 1 | Judge repeats per metric per profile |
+| `--metrics` | all | Space-separated subset: `consistency relevance` |
+| `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
+| `--judge-region` | `eu-west-1` | AWS region for judge model |
+| `--weights` | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
+| `--results-out` | `results.json` | Where to write metric results |
+
+## Viewing results
+
+`dashboard.py` turns the results files that `score` writes into one HTML page you
+open in a browser. It reads files already on disk, so it needs no AWS credentials,
+no judge model and no install beyond Python's standard library.
+
+```bash
+cd scripts/evaluation/plan-generation
+
+# 1. Score into data/results/ (the dashboard's default folder). Without
+#    --results-out, score writes results.json to the current directory instead.
+python -m metrics.harness score data/plans.json -N 2 --results-out data/results/results_w2.json
+
+# 2. Build the page from every results file in that folder
+python dashboard.py                    # writes data/results/dashboard.html
+
+# 3. Open it (macOS; on Linux use xdg-open, or double-click the file)
+open data/results/dashboard.html
+```
+
+To read results kept elsewhere, or to write the page somewhere else:
+`python dashboard.py <results-dir> -o <out.html>`. The argument is a directory, not
+a single file. Re-run step 2 after every `score` run to add the new file.
+`dashboard_template.html` must stay next to `dashboard.py`, which fills it in.
+
+**Using the page.** A dropdown at the top switches between results files (newest
+first; the file is also in the URL, for example `dashboard.html#results_w2.json`).
+Per file it shows:
+
+- the run's settings and coverage, with warnings for skipped or short profiles, profiles
+  below the minimum weight, and judge calls that returned nothing (left out of the
+  scores);
+- a mean and a weighted mean for each metric, with the lowest-scoring profile;
+- per-profile scores with their spread (click a column heading to sort, hover a
+  profile ID for its answers);
+- relevance verdicts by profile, and the services most often flagged
+  contradicted or irrelevant;
+- the judge's evidence, in tabs: flagged tasks with rationales (tick "Include
+  relevant tasks" to see all), fact contradictions, structure differences
+  between pairs of plans, and services missing from some plans;
+- for a profile you pick (click its row, or use the Profile dropdown): its answers,
+  which services each plan contains, and each plan's tasks with their verdicts.
+
+Situations, answers and weights are not in the results files. The dashboard reads
+them from the profiles file the run recorded (`weights_file`, else `profiles_file`),
+and falls back to the same file name in `data/profiles/` if the recorded path no
+longer exists. If neither is found the page still works but omits them, with a
+warning. Files in other formats in the folder (`truth.py score` output, review
+packets) are skipped with a message.
+
+The page embeds the full contents of the results files and works offline. Like the
+results files, it contains local file paths and the judge's text about each plan, so
+check it before sharing. It never contains the runtime ARN.
+
+## Limits
+
+Consistency needs at least two plans. With `G < 2` it is null for every profile, and
+a profile that ends up with only one plan after retries is null for that profile
+(a plan cannot be compared against itself).
+
+Each generation is one invocation of the hosted agent, which runs a full agent
+loop and can take minutes. Calls run one after another. At the default `G=3`, a
+16-profile run makes 48 invocations before any judging, plus any retries. Use
+`--profile` for development iteration.
+
+Retries cover plan generation only. A failure in a judge call (for example
+Bedrock throttling) still stops `score`, but the plans are already saved, so
+rerunning it costs only the judge calls.
+
+Faithfulness (checking a plan against the knowledge-graph results the planner
+saw) is not implemented: the hosted agent returns only the plan, not its
+tool-call results.

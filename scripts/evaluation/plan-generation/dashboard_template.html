@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan evaluation results</title>
+<!-- Template for dashboard.py, which replaces __DASHBOARD_DATA__ with the runs. -->
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --series: #2a78d6;
+    --wash: rgba(42, 120, 214, 0.08);
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --none: #c3c2b7;
+    --notice-bg: #fff6e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --series: #3987e5;
+      --wash: rgba(57, 135, 229, 0.14);
+      --none: #52514e;
+      --notice-bg: #2e2510;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series: #3987e5;
+    --wash: rgba(57, 135, 229, 0.14);
+    --none: #52514e;
+    --notice-bg: #2e2510;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; margin: 0; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  h3 { font-size: 16px; margin: 0; }
+  h4 { font-size: 14px; margin: 16px 0 6px; color: var(--ink-2); }
+  a { color: var(--series); }
+  section { margin-top: 32px; }
+  .hint { color: var(--ink-2); margin: 0 0 12px; font-size: 14px; }
+  .titlebar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+  select, button {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--axis); border-radius: 6px; padding: 5px 8px;
+  }
+  button { cursor: pointer; }
+  label.ctl { display: inline-flex; gap: 8px; align-items: center; color: var(--ink-2); font-size: 14px; }
+  .meta { color: var(--ink-2); font-size: 14px; margin: 8px 0 0; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .notice {
+    background: var(--notice-bg); border-left: 4px solid var(--warning);
+    padding: 8px 12px; margin-top: 12px; font-size: 14px; border-radius: 4px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+  }
+
+  /* Headline tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .tile-label { font-weight: 600; }
+  .tile-vals { display: flex; gap: 28px; margin: 8px 0; }
+  .big { font-size: 32px; font-weight: 600; line-height: 1.1; }
+  .sub { font-size: 13px; color: var(--ink-2); }
+  .tile-def { font-size: 13px; color: var(--ink-2); }
+  .tile-foot { font-size: 13px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--grid); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  th { font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  th[data-sort] { cursor: pointer; }
+  th[data-sort]:hover { color: var(--ink); }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #scores tbody tr { cursor: pointer; }
+  #scores tbody tr:hover { background: var(--wash); }
+  #scores tbody tr.sel { background: var(--wash); box-shadow: inset 3px 0 0 var(--series); }
+  .situation-cell { max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+  .mcell { display: flex; align-items: center; gap: 6px; }
+  .mcell .val { font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; }
+  svg.dr .track { stroke: var(--grid); stroke-width: 2; }
+  svg.dr .tick { stroke: var(--axis); stroke-width: 1; }
+  svg.dr .span { stroke: var(--series); stroke-opacity: 0.35; stroke-width: 6; stroke-linecap: round; }
+  svg.dr .dot { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+
+  /* Verdicts */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin-bottom: 10px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .v-relevant { background: var(--good); }
+  .v-contradicted { background: var(--critical); }
+  .v-irrelevant { background: var(--warning); }
+  .v-unjudged { background: var(--none); }
+  .stack-row { display: grid; grid-template-columns: 52px 1fr 104px; gap: 10px; align-items: center; padding: 3px 0; cursor: pointer; }
+  .stack-row:hover .stack-id { color: var(--series); }
+  .stack-id { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .stack { display: flex; gap: 2px; height: 14px; }
+  .stack .seg { min-width: 2px; }
+  .stack .seg:first-child { border-radius: 4px 0 0 4px; }
+  .stack .seg:last-child { border-radius: 0 4px 4px 0; }
+  .stack .seg:only-child { border-radius: 4px; }
+  .stack-label { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  /* Evidence */
+  .filters { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin: 12px 0 16px; }
+  .tabs { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+  .tabs button { border: 0; border-radius: 0; border-right: 1px solid var(--axis); padding: 6px 12px; }
+  .tabs button:last-child { border-right: 0; }
+  .tabs button[aria-selected="true"] { background: var(--series); color: #fff; }
+  .ex-list { display: grid; gap: 10px; }
+  .ex { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .ex-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--ink-2); }
+  .ex-title { font-weight: 600; margin-top: 4px; }
+  .ex ul { margin: 6px 0 0; padding-left: 18px; }
+  .ex li { margin: 3px 0; }
+  .ex details { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+  .chip { display: inline-flex; align-items: center; font-size: 13px; color: var(--ink); }
+  .badge { font-size: 12px; border: 1px solid var(--axis); border-radius: 999px; padding: 0 8px; color: var(--ink-2); }
+  .rep { color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .empty { color: var(--ink-2); font-style: italic; }
+  .count { color: var(--ink-2); font-size: 14px; margin-bottom: 8px; }
+  a.pid { cursor: pointer; text-decoration: underline; }
+
+  /* Profile card */
+  #profileCard .card { margin-bottom: 16px; }
+  .card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  .card-head .sub { flex: 1; }
+  .situation { font-size: 16px; margin: 10px 0; }
+  dl.answers { display: grid; grid-template-columns: minmax(180px, max-content) 1fr; gap: 3px 16px; font-size: 13px; margin: 0; }
+  dl.answers dt { color: var(--ink-2); }
+  dl.answers dd { margin: 0; }
+  .scores-inline { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; margin-top: 12px; }
+  table.matrix td, table.matrix th { padding: 4px 10px; }
+  table.matrix td.c { text-align: center; }
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .plans ol { margin: 4px 0 0; padding-left: 20px; font-size: 14px; }
+  .plans li { margin: 4px 0; }
+
+  #tip {
+    position: fixed; pointer-events: none; z-index: 10; max-width: 320px;
+    background: var(--ink); color: var(--surface); font-size: 13px;
+    padding: 6px 9px; border-radius: 6px; display: none;
+  }
+  details.notes p { color: var(--ink-2); font-size: 14px; max-width: 900px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="titlebar">
+      <h1>Plan evaluation results</h1>
+      <label class="ctl">Results file <select id="file"></select></label>
+    </div>
+    <p id="meta" class="meta"></p>
+    <div id="warnings"></div>
+  </header>
+
+  <section>
+    <h2>Headline scores</h2>
+    <p class="hint">All scores run from 0 to 1, higher is better. The mean gives every profile equal weight; the weighted mean uses profile weights, so it reflects how often each situation occurs.</p>
+    <div id="tiles" class="tiles"></div>
+  </section>
+
+  <section>
+    <h2>Scores by profile</h2>
+    <p class="hint">The dot is the score and the shaded bar is its spread (hover to see what the spread covers). Hover a profile ID for its answers. Click a column heading to sort, or a row to open that profile below.</p>
+    <div class="table-wrap"><table id="scores"></table></div>
+  </section>
+
+  <section class="two" id="relevanceSection">
+    <div>
+      <h2>Relevance verdicts by profile</h2>
+      <p class="hint" id="verdictHint"></p>
+      <div class="legend" id="legend"></div>
+      <div id="verdicts"></div>
+    </div>
+    <div>
+      <h2>Most-flagged services</h2>
+      <p class="hint">Tasks judged contradicted or irrelevant, grouped by the service they link to. Counts are judgements across all plans and judge repeats.</p>
+      <div class="table-wrap"><table id="services"></table></div>
+    </div>
+  </section>
+
+  <section id="evidence">
+    <h2>Evidence and examples</h2>
+    <div class="filters">
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <label class="ctl">Profile <select id="profile"></select></label>
+      <label class="ctl" id="relToggle"><input type="checkbox" id="showRelevant"> Include relevant tasks</label>
+    </div>
+    <div id="profileCard"></div>
+    <div id="examples"></div>
+  </section>
+
+  <section>
+    <details class="notes">
+      <summary>How each metric is computed (from the results file)</summary>
+      <div id="notes"></div>
+    </details>
+  </section>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
+<script>
+const RUNS = JSON.parse(document.getElementById("dashboard-data").textContent);
+const VERDICTS = ["relevant", "contradicted", "irrelevant", "unjudged"];
+const METRIC_INFO = {
+  relevance: {
+    label: "Relevance",
+    def: "Share of plan tasks the judge finds relevant to the person.",
+    range: "lowest to highest plan",
+  },
+  service_stability: {
+    label: "Service stability",
+    def: "Overlap of the services each repeat plan recommends (Jaccard, by URL). No judge.",
+    range: "lowest to highest pair of plans",
+  },
+  fact_consistency: {
+    label: "Fact consistency",
+    def: "Share of services in two or more plans whose facts do not contradict each other.",
+    range: "lowest to highest judge repeat",
+  },
+  structure_consistency: {
+    label: "Structure consistency",
+    def: "Share of plan pairs with the same steps, in the same order, and the same summary.",
+    range: "lowest to highest judge repeat",
+  },
+};
+
+const state = { run: null, sort: { key: "id", dir: 1 }, tab: null, profile: "", showRelevant: false };
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (v) => (v == null || Number.isNaN(v) ? "–" : v.toFixed(2));
+const pct = (v) => (v == null ? "–" : `${(v * 100).toFixed(1)}%`);
+const base = (p) => (p ? String(p).split("/").pop() : "–");
+const pidLink = (id) => `<a class="pid" data-profile="${esc(id)}">${esc(id)}</a>`;
+const chip = (v) => `<span class="chip"><i class="sw v-${esc(v)}"></i>${esc(v)}</span>`;
+
+function metricsFor(res) {
+  const out = [];
+  const rel = res.relevance;
+  if (rel && rel.per_profile) {
+    out.push({
+      key: "relevance", ...METRIC_INFO.relevance,
+      mean: rel.aggregate, weighted: rel.weighted_aggregate,
+      score: (id) => rel.per_profile[id]?.score,
+      rangeOf: (id) => {
+        const p = rel.per_profile[id];
+        return p && p.min != null ? { min: p.min, max: p.max } : null;
+      },
+      extra: (id) => {
+        const r = rel.per_profile[id]?.repeat_range;
+        return r ? `; judge repeats ${fmt(r.min)} to ${fmt(r.max)}` : "";
+      },
+    });
+  }
+  const cons = res.consistency;
+  if (cons && cons.per_profile) {
+    for (const k of ["service_stability", "fact_consistency", "structure_consistency"]) {
+      if (!cons.aggregate || !(k in cons.aggregate)) continue;
+      out.push({
+        key: k, ...METRIC_INFO[k],
+        mean: cons.aggregate[k], weighted: cons.weighted_aggregate?.[k],
+        score: (id) => cons.per_profile[id]?.[k],
+        rangeOf: (id) => cons.per_profile[id]?.[`${k}_range`] || null,
+        extra: () => "",
+      });
+    }
+  }
+  return out;
+}
+
+function profileIds(res) {
+  const ids = new Set();
+  for (const k of ["relevance", "consistency"]) Object.keys(res[k]?.per_profile || {}).forEach((id) => ids.add(id));
+  return [...ids].sort();
+}
+
+const weightOf = (id) => state.run.profiles[id]?.weight;
+
+/* ---------- Header ---------- */
+
+function renderHeader() {
+  const res = state.run.result, c = res.config || {}, cov = res.coverage || {};
+  const when = res.generated_at ? new Date(res.generated_at).toLocaleString() : "–";
+  const parts = [
+    `Scored <b>${esc(when)}</b>`,
+    `judge <b>${esc(c.judge_model || "–")}</b>`,
+    `<b>${esc(c.G ?? "–")}</b> plans per profile`,
+    `<b>${esc(c.N ?? "–")}</b> judge repeats`,
+    `<b>${esc(cov.profiles_scored ?? profileIds(res).length)}</b> of ${esc(cov.profiles_requested ?? "–")} profiles scored`,
+  ];
+  if (cov.weight_scored != null) parts.push(`<b>${pct(cov.weight_scored)}</b> of profile weight covered`);
+  parts.push(`plans <b>${esc(base(c.plans_file))}</b>`, `profiles <b>${esc(base(c.weights_file || c.profiles_file))}</b>`);
+  $("#meta").innerHTML = parts.join(" · ");
+
+  const warn = [];
+  if (cov.skipped_profiles?.length) warn.push(`Skipped profiles: ${cov.skipped_profiles.map(esc).join(", ")}`);
+  if (cov.profiles_short?.length) warn.push(`Profiles with fewer plans than requested (noisier scores): ${cov.profiles_short.map(esc).join(", ")}`);
+  if (cov.profiles_below_min_weight?.length) {
+    warn.push(`${cov.profiles_below_min_weight.length} profiles were not run because their weight is below ${esc(c.min_weight)}.`);
+  }
+  const unjudged = countUnjudged(res);
+  if (unjudged) warn.push(`${unjudged} judge call(s) returned no usable result (unjudged); these are left out of the scores.`);
+  if (!Object.keys(state.run.profiles).length) warn.push("The profiles file for this run was not found, so situations and weights are not shown.");
+  $("#warnings").innerHTML = warn.map((w) => `<div class="notice">${w}</div>`).join("");
+}
+
+function countUnjudged(res) {
+  let n = 0;
+  for (const p of Object.values(res.relevance?.per_profile || {})) n += p.tasks.filter((t) => t.verdict === "unjudged").length;
+  for (const p of Object.values(res.consistency?.per_profile || {})) {
+    n += [...(p.pairs || []), ...(p.fact_checks || [])].filter((x) => x.status && x.status !== "judged").length;
+  }
+  return n;
+}
+
+/* ---------- Tiles ---------- */
+
+function renderTiles(metrics, ids) {
+  $("#tiles").innerHTML = metrics.map((m) => {
+    const scored = ids.filter((id) => m.score(id) != null);
+    const vals = scored.map((id) => m.score(id));
+    const low = scored.reduce((a, id) => (a == null || m.score(id) < m.score(a) ? id : a), null);
+    const foot = low ? `Lowest ${pidLink(low)} ${fmt(m.score(low))} · profiles range ${fmt(Math.min(...vals))} to ${fmt(Math.max(...vals))}` : "No scores";
+    return `<div class="card">
+      <div class="tile-label">${esc(m.label)}</div>
+      <div class="tile-vals">
+        <div><div class="big">${fmt(m.mean)}</div><div class="sub">mean of profiles</div></div>
+        ${m.weighted != null ? `<div><div class="big">${fmt(m.weighted)}</div><div class="sub">weighted mean</div></div>` : ""}
+      </div>
+      <div class="tile-def">${esc(m.def)}</div>
+      <div class="tile-foot">${foot}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- Scores table ---------- */
+
+function dotRange(score, range, tip) {
+  const W = 110, H = 18, pad = 6, y = 9;
+  const x = (v) => pad + v * (W - 2 * pad);
+  let s = `<svg class="dr" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" data-tip="${esc(tip)}">`;
+  s += `<line class="track" x1="${x(0)}" x2="${x(1)}" y1="${y}" y2="${y}"/>`;
+  for (const t of [0, 0.5, 1]) s += `<line class="tick" x1="${x(t)}" x2="${x(t)}" y1="${y - 4}" y2="${y + 4}"/>`;
+  if (range && range.min != null) s += `<line class="span" x1="${x(range.min)}" x2="${x(range.max)}" y1="${y}" y2="${y}"/>`;
+  if (score != null) s += `<circle class="dot" cx="${x(score)}" cy="${y}" r="5"/>`;
+  return `${s}</svg>`;
+}
+
+function renderTable(metrics, ids) {
+  const hasWeights = ids.some((id) => weightOf(id) != null);
+  const sortVal = (id) => {
+    if (state.sort.key === "id") return id;
+    if (state.sort.key === "weight") return weightOf(id) ?? -1;
+    return metrics.find((m) => m.key === state.sort.key)?.score(id) ?? -1;
+  };
+  const sorted = [...ids].sort((a, b) => {
+    const va = sortVal(a), vb = sortVal(b);
+    return (va < vb ? -1 : va > vb ? 1 : 0) * state.sort.dir;
+  });
+  // Profiles often share one situation and differ only in their answers, so the
+  // column is shown only when it tells rows apart; answers are on hover.
+  const showSituation = new Set(ids.map((id) => state.run.profiles[id]?.situation)).size > 1;
+  const arrow = (k) => (state.sort.key === k ? (state.sort.dir > 0 ? " ▲" : " ▼") : "");
+  let html = `<thead><tr><th data-sort="id">Profile${arrow("id")}</th>`;
+  if (hasWeights) html += `<th data-sort="weight" class="num">Weight${arrow("weight")}</th>`;
+  if (showSituation) html += `<th>Situation</th>`;
+  for (const m of metrics) html += `<th data-sort="${m.key}">${esc(m.label)}${arrow(m.key)}</th>`;
+  html += `</tr></thead><tbody>`;
+  for (const id of sorted) {
+    const prof = state.run.profiles[id] || {};
+    const answers = Object.entries(prof.readable || {}).map(([q, a]) => `${q} ${a}`).join(" · ");
+    html += `<tr data-profile="${esc(id)}" class="${state.profile === id ? "sel" : ""}">`
+      + `<td${answers ? ` data-tip="${esc(answers)}"` : ""}>${esc(id)}</td>`;
+    if (hasWeights) html += `<td class="num">${pct(weightOf(id))}</td>`;
+    if (showSituation) html += `<td class="situation-cell" title="${esc(prof.situation)}">${esc(prof.situation || "–")}</td>`;
+    for (const m of metrics) {
+      const s = m.score(id), r = m.rangeOf(id);
+      const tip = `${id} · ${m.label} ${fmt(s)}` + (r ? ` · ${m.range}: ${fmt(r.min)} to ${fmt(r.max)}` : "") + m.extra(id);
+      html += `<td><div class="mcell">${dotRange(s, r, tip)}<span class="val">${fmt(s)}</span></div></td>`;
+    }
+    html += `</tr>`;
+  }
+  $("#scores").innerHTML = `${html}</tbody>`;
+}
+
+/* ---------- Relevance verdicts ---------- */
+
+function renderVerdicts(ids) {
+  const rel = state.run.result.relevance;
+  $("#relevanceSection").hidden = !rel;
+  if (!rel) return;
+  $("#legend").innerHTML = VERDICTS.map((v) => chip(v)).join("");
+  const totals = Object.fromEntries(VERDICTS.map((v) => [v, 0]));
+  let rows = "";
+  for (const id of ids) {
+    const tasks = rel.per_profile[id]?.tasks || [];
+    const counts = Object.fromEntries(VERDICTS.map((v) => [v, 0]));
+    for (const t of tasks) counts[t.verdict in counts ? t.verdict : "unjudged"] += 1;
+    VERDICTS.forEach((v) => { totals[v] += counts[v]; });
+    const segs = VERDICTS.filter((v) => counts[v]).map((v) => {
+      const tip = `${id} · ${v}: ${counts[v]} of ${tasks.length} judgements (${pct(counts[v] / tasks.length)})`;
+      return `<span class="seg v-${v}" style="flex:${counts[v]}" data-tip="${esc(tip)}"></span>`;
+    }).join("");
+    rows += `<div class="stack-row" data-profile="${esc(id)}"><span class="stack-id">${esc(id)}</span>
+      <div class="stack">${segs}</div><span class="stack-label">${counts.relevant} of ${tasks.length} relevant</span></div>`;
+  }
+  $("#verdicts").innerHTML = rows;
+  const all = Object.values(totals).reduce((a, b) => a + b, 0);
+  $("#verdictHint").textContent = `${all} task judgements across all plans and judge repeats: `
+    + VERDICTS.filter((v) => totals[v]).map((v) => `${totals[v]} ${v}`).join(", ") + ".";
+
+  const bySvc = new Map();
+  for (const [id, p] of Object.entries(rel.per_profile)) {
+    for (const t of p.tasks) {
+      if (t.verdict !== "contradicted" && t.verdict !== "irrelevant") continue;
+      const key = t.gov_service_name || t.url || t.title;
+      if (!bySvc.has(key)) bySvc.set(key, { name: key, url: t.url, contradicted: 0, irrelevant: 0, profiles: new Set() });
+      const s = bySvc.get(key);
+      s[t.verdict] += 1;
+      s.profiles.add(id);
+    }
+  }
+  const svcs = [...bySvc.values()].sort((a, b) => (b.contradicted + b.irrelevant) - (a.contradicted + a.irrelevant));
+  $("#services").innerHTML = svcs.length
+    ? `<thead><tr><th>Service</th><th class="num">Contradicted</th><th class="num">Irrelevant</th><th>Profiles</th></tr></thead><tbody>`
+      + svcs.map((s) => `<tr><td>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>` : esc(s.name)}</td>
+        <td class="num">${s.contradicted}</td><td class="num">${s.irrelevant}</td>
+        <td>${[...s.profiles].sort().map(pidLink).join(", ")}</td></tr>`).join("") + `</tbody>`
+    : `<tbody><tr><td class="empty">No tasks were flagged.</td></tr></tbody>`;
+}
+
+/* ---------- Evidence ---------- */
+
+const TABS = [
+  { key: "relevance", label: "Relevance", needs: "relevance" },
+  { key: "fact_consistency", label: "Fact contradictions", needs: "consistency" },
+  { key: "structure_consistency", label: "Structure differences", needs: "consistency" },
+  { key: "service_stability", label: "Service differences", needs: "consistency" },
+];
+
+function renderEvidence(metrics, ids) {
+  const res = state.run.result;
+  const tabs = TABS.filter((t) => res[t.needs]);
+  if (!tabs.some((t) => t.key === state.tab)) state.tab = tabs[0]?.key;
+  $("#tabs").innerHTML = tabs.map((t) => `<button role="tab" data-tab="${t.key}" aria-selected="${t.key === state.tab}">${t.label}</button>`).join("");
+  $("#profile").innerHTML = `<option value="">All profiles</option>` + ids.map((id) => `<option ${id === state.profile ? "selected" : ""}>${esc(id)}</option>`).join("");
+  $("#relToggle").hidden = state.tab !== "relevance";
+  $("#showRelevant").checked = state.showRelevant;
+  $("#profileCard").innerHTML = state.profile ? profileCard(state.profile, metrics) : "";
+  const only = state.profile ? [state.profile] : ids;
+  const render = { relevance: relevanceExamples, fact_consistency: factExamples,
+    structure_consistency: structureExamples, service_stability: stabilityExamples }[state.tab];
+  $("#examples").innerHTML = render ? render(only) : "";
+}
+
+const list = (items, emptyText, countText) => (items.length
+  ? `<div class="count">${countText}</div><div class="ex-list">${items.join("")}</div>`
+  : `<p class="empty">${emptyText}</p>`);
+
+function relevanceExamples(ids) {
+  const rel = state.run.result.relevance;
+  const groups = [];
+  for (const id of ids) {
+    const byTask = new Map();
+    for (const t of rel.per_profile[id]?.tasks || []) {
+      const k = `${t.plan}|${t.title}`;
+      if (!byTask.has(k)) byTask.set(k, { id, plan: t.plan, title: t.title, service: t.gov_service_name, url: t.url, judgements: [] });
+      byTask.get(k).judgements.push(t);
+    }
+    groups.push(...byTask.values());
+  }
+  const rank = (g) => Math.min(...g.judgements.map((j) => ({ contradicted: 0, irrelevant: 1, unjudged: 2 }[j.verdict] ?? 3)));
+  const shown = groups.filter((g) => state.showRelevant || g.judgements.some((j) => j.verdict !== "relevant"))
+    .sort((a, b) => rank(a) - rank(b) || a.id.localeCompare(b.id) || a.plan - b.plan);
+  const items = shown.map((g) => {
+    const verdicts = [...new Set(g.judgements.map((j) => j.verdict))];
+    const disagree = verdicts.length > 1;
+    const notes = (disagree ? g.judgements : g.judgements.slice(0, 1))
+      .map((j) => `<li><span class="rep">repeat ${j.repeat}${disagree ? ` · ${esc(j.verdict)}` : ""}</span>${esc(j.rationale)}</li>`).join("");
+    return `<article class="ex"><div class="ex-head">${verdicts.map(chip).join(" ")}
+        <span>${pidLink(g.id)} · plan ${g.plan}</span>
+        ${disagree ? `<span class="badge">judge repeats disagree</span>` : `<span class="rep">${g.judgements.length} repeat(s) agree</span>`}</div>
+      <div class="ex-title">${esc(g.title)}</div>
+      ${g.service ? `<div class="sub">${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.service)}</a>` : esc(g.service)}</div>` : ""}
+      <ul>${notes}</ul></article>`;
+  });
+  const disagreeing = groups.filter((g) => new Set(g.judgements.map((j) => j.verdict)).size > 1).length;
+  return list(items, "No contradicted or irrelevant tasks.",
+    `${shown.length} of ${groups.length} tasks shown · ${disagreeing} where judge repeats disagree`);
+}
+
+function factExamples(ids) {
+  const cons = state.run.result.consistency;
+  let checks = 0;
+  const items = [];
+  for (const id of ids) {
+    for (const f of cons.per_profile[id]?.fact_checks || []) {
+      checks += 1;
+      if (!f.contradictions?.length && f.status === "judged") continue;
+      const body = f.status !== "judged"
+        ? `<p class="empty">Not judged (${esc(f.status)}).</p>`
+        : `<ul>${f.contradictions.map((c) => `<li><span class="rep">plans ${c.plans.join(" vs ")}</span>${esc(c.description)}</li>`).join("")}</ul>`;
+      items.push(`<article class="ex"><div class="ex-head"><span>${pidLink(id)} · repeat ${f.repeat} · compared plans ${f.plans.join(", ")}</span></div>
+        <div class="ex-title">${f.url ? `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>` : esc(f.name)}</div>
+        ${body}${f.rationale ? `<details><summary>Judge's rationale</summary>${esc(f.rationale)}</details>` : ""}</article>`);
+    }
+  }
+  return list(items, `No contradictions in ${checks} fact checks.`, `${items.length} of ${checks} fact checks found a contradiction`);
+}
+
+function structureExamples(ids) {
+  const cons = state.run.result.consistency;
+  let pairs = 0;
+  const items = [];
+  for (const id of ids) {
+    for (const p of cons.per_profile[id]?.pairs || []) {
+      pairs += 1;
+      if (p.same && p.status === "judged") continue;
+      const a = p.shown_first ?? p.plans[0];
+      const b = p.plans.find((x) => x !== a);
+      const body = p.status !== "judged"
+        ? `<p class="empty">Not judged (${esc(p.status)}).</p>`
+        : `<ul>${(p.differences || []).map((d) => `<li>${esc(d.description)}</li>`).join("")}</ul>`;
+      items.push(`<article class="ex"><div class="ex-head"><span>${pidLink(id)} · repeat ${p.repeat}</span>
+        <span class="rep">Plan A is plan ${a}, Plan B is plan ${b}</span></div>
+        <div class="ex-title">Plan ${p.plans[0]} vs plan ${p.plans[1]}: ${(p.differences || []).length} difference(s)</div>${body}</article>`);
+    }
+  }
+  return list(items, `All ${pairs} judged pairs have the same structure.`, `${items.length} of ${pairs} judged pairs differ`);
+}
+
+function stabilityExamples(ids) {
+  const cons = state.run.result.consistency;
+  const items = [];
+  for (const id of ids) {
+    const p = cons.per_profile[id];
+    if (!p) continue;
+    const g = (p.services_by_plan || []).length;
+    for (const s of p.services_not_in_every_plan || []) {
+      items.push(`<article class="ex"><div class="ex-head"><span>${pidLink(id)} · service stability ${fmt(p.service_stability)}</span></div>
+        <div class="ex-title">${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>` : esc(s.name)}</div>
+        <div class="sub">In plan${s.present_in_plans.length > 1 ? "s" : ""} ${s.present_in_plans.join(", ")} only, out of ${g}</div></article>`);
+    }
+  }
+  return list(items, "Every plan recommends the same services.", `${items.length} service(s) missing from at least one plan`);
+}
+
+function profileCard(id, metrics) {
+  const res = state.run.result;
+  const prof = state.run.profiles[id] || {};
+  const answers = Object.entries(prof.readable || {}).map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("");
+  const scores = metrics.map((m) => `<span>${esc(m.label)} <b>${fmt(m.score(id))}</b></span>`).join("");
+
+  let matrix = "";
+  const byPlan = res.consistency?.per_profile[id]?.services_by_plan;
+  if (byPlan?.length) {
+    const svcs = new Map();
+    byPlan.forEach((plan) => plan.forEach((s) => svcs.set(s.url, s.name)));
+    matrix = `<h4>Services in each plan</h4><div class="table-wrap"><table class="matrix"><thead><tr><th>Service</th>`
+      + byPlan.map((_, i) => `<th class="num">Plan ${i + 1}</th>`).join("") + `</tr></thead><tbody>`
+      + [...svcs].map(([url, name]) => `<tr><td>${esc(name)}</td>`
+        + byPlan.map((plan) => `<td class="c">${plan.some((s) => s.url === url) ? "✓" : `<span class="rep">–</span>`}</td>`).join("")
+        + `</tr>`).join("") + `</tbody></table></div>`;
+  }
+
+  let plans = "";
+  const tasks = res.relevance?.per_profile[id]?.tasks || [];
+  if (tasks.length) {
+    const first = Math.min(...tasks.map((t) => t.repeat));
+    const nPlans = Math.max(...tasks.map((t) => t.plan));
+    const cols = [];
+    for (let p = 1; p <= nPlans; p += 1) {
+      const ts = tasks.filter((t) => t.repeat === first && t.plan === p);
+      cols.push(`<div class="card"><h3>Plan ${p}</h3><ol>${ts.map((t) => `<li>${esc(t.title)}<br>${chip(t.verdict)}</li>`).join("")}</ol></div>`);
+    }
+    plans = `<h4>Tasks in each plan, with relevance verdict (judge repeat ${first})</h4><div class="plans">${cols.join("")}</div>`;
+  }
+
+  return `<div class="card">
+    <div class="card-head"><h3>${esc(id)}</h3>
+      <span class="sub">${prof.weight != null ? `weight ${pct(prof.weight)}` : ""}</span>
+      <button id="clearProfile">Show all profiles</button></div>
+    ${prof.situation ? `<p class="situation">“${esc(prof.situation)}”</p>` : ""}
+    ${answers ? `<dl class="answers">${answers}</dl>` : ""}
+    <div class="scores-inline">${scores}</div>
+    ${matrix}${plans}</div>`;
+}
+
+function renderNotes() {
+  const res = state.run.result;
+  $("#notes").innerHTML = ["relevance", "consistency"].filter((k) => res[k]?.note)
+    .map((k) => `<p><b>${k[0].toUpperCase() + k.slice(1)}.</b> ${esc(res[k].note)}</p>`).join("");
+}
+
+/* ---------- Wiring ---------- */
+
+function render() {
+  const res = state.run.result;
+  const metrics = metricsFor(res);
+  const ids = profileIds(res);
+  if (state.profile && !ids.includes(state.profile)) state.profile = "";
+  renderHeader();
+  renderTiles(metrics, ids);
+  renderTable(metrics, ids);
+  renderVerdicts(ids);
+  renderEvidence(metrics, ids);
+  renderNotes();
+}
+
+function selectRun(file) {
+  state.run = RUNS.find((r) => r.file === file) || RUNS[0];
+  $("#file").value = state.run.file;
+  history.replaceState(null, "", `#${encodeURIComponent(state.run.file)}`);
+  render();
+}
+
+function selectProfile(id, scroll) {
+  state.profile = id;
+  render();
+  if (scroll) $("#evidence").scrollIntoView({ behavior: "smooth" });
+}
+
+$("#file").innerHTML = RUNS.map((r) => {
+  const when = r.result.generated_at ? new Date(r.result.generated_at).toLocaleString() : "";
+  return `<option value="${esc(r.file)}">${esc(r.file)}${when ? ` (${esc(when)})` : ""}</option>`;
+}).join("");
+$("#file").addEventListener("change", (e) => selectRun(e.target.value));
+$("#profile").addEventListener("change", (e) => selectProfile(e.target.value, false));
+$("#showRelevant").addEventListener("change", (e) => { state.showRelevant = e.target.checked; render(); });
+
+document.addEventListener("click", (e) => {
+  const th = e.target.closest("th[data-sort]");
+  if (th) {
+    const k = th.dataset.sort;
+    state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === "id" ? 1 : -1 };
+    render();
+    return;
+  }
+  const tab = e.target.closest("[data-tab]");
+  if (tab) { state.tab = tab.dataset.tab; render(); return; }
+  if (e.target.closest("#clearProfile")) { selectProfile("", false); return; }
+  if (e.target.closest("a[href]")) return;
+  const row = e.target.closest("[data-profile]");
+  if (row) selectProfile(row.dataset.profile, true);
+});
+
+const tip = $("#tip");
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest("[data-tip]");
+  if (!el) { tip.style.display = "none"; return; }
+  tip.textContent = el.dataset.tip;
+  tip.style.display = "block";
+});
+document.addEventListener("mousemove", (e) => {
+  if (tip.style.display !== "block") return;
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  tip.style.left = `${x}px`;
+  tip.style.top = `${e.clientY + 16}px`;
+});
+
+selectRun(decodeURIComponent(location.hash.slice(1)));
+</script>
+</body>
+</html>

@@ -6,6 +6,15 @@ requires-python = ">=3.12.10"
 dependencies = [
     "boto3>=1.43.57",
     "pre-commit>=4.6.0",
+    "deepeval>=3.0.0",
+    # The faithfulness metric runs the planner agent in-process to capture its
+    # MCP tool-call results, so this harness imports agent/app/planner_agent.py.
+    # Pin strands + mcp to the versions agent/uv.lock resolves, so the imported
+    # agent code behaves identically here (newer mcp renamed streamablehttp_client).
+    "strands-agents==1.50.2",
+    "mcp==1.29.0",
+    "python-dotenv>=1.2.2",
+    "pydantic>=2.13.4",
 ]
 
 [tool.ruff]

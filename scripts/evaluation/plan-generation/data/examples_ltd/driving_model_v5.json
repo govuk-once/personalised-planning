@@ -1,0 +1,1190 @@
+{
+  "facts": [
+    {
+      "id": "fact_learning_to_drive",
+      "description": "This person is learning to drive/ride and needs a provisional licence, theory test and practical test route",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "learn_to_drive"
+        ]
+      },
+      "source": [
+        "/learn-to-drive-a-car",
+        "/driving-lessons-learning-to-drive"
+      ]
+    },
+    {
+      "id": "fact_needs_provisional",
+      "description": "This person does not yet have a provisional licence and needs to get one before learning to drive or ride",
+      "value": {
+        "==": [
+          "q_have_provisional",
+          "no"
+        ]
+      },
+      "source": [
+        "/apply-first-provisional-driving-licence"
+      ]
+    },
+    {
+      "id": "fact_vehicle_is_motorcycle_moped",
+      "description": "This person is learning to ride a motorcycle or moped, so CBT and motorcycle-specific rules apply",
+      "value": {
+        "in": [
+          "q_vehicle_type",
+          [
+            "motorcycle",
+            "moped"
+          ]
+        ]
+      },
+      "source": [
+        "/motorcycle-cbt",
+        "/ride-motorcycle-moped"
+      ]
+    },
+    {
+      "id": "fact_needs_cbt",
+      "description": "This person needs to complete compulsory basic training (CBT) before riding on the road",
+      "value": {
+        "and": [
+          {
+            "in": [
+              "q_vehicle_type",
+              [
+                "motorcycle",
+                "moped"
+              ]
+            ]
+          },
+          {
+            "!=": [
+              "q_cbt_exempt",
+              "yes"
+            ]
+          },
+          {
+            "!=": [
+              "fact_car_licence_exempts_moped_theory",
+              true
+            ]
+          }
+        ]
+      },
+      "source": [
+        "/motorcycle-cbt"
+      ]
+    },
+    {
+      "id": "fact_car_licence_exempts_moped_theory",
+      "description": "This person does not need to take a theory test for a moped because they passed their car driving test before 1 February 2001",
+      "value": {
+        "==": [
+          "q_car_licence_before_2001",
+          "yes"
+        ]
+      },
+      "source": [
+        "/motorcycle-cbt",
+        "/theory-test"
+      ]
+    },
+    {
+      "id": "fact_needs_theory_test",
+      "description": "This person needs to pass a theory test before booking their practical driving/riding test",
+      "value": {
+        "and": [
+          {
+            "==": [
+              "q_main_goal",
+              "learn_to_drive"
+            ]
+          },
+          {
+            "!=": [
+              "q_vehicle_type",
+              "upgrade_auto_to_manual"
+            ]
+          },
+          {
+            "!=": [
+              "fact_car_licence_exempts_moped_theory",
+              true
+            ]
+          },
+          {
+            "!=": [
+              "q_has_theory_cert",
+              "yes"
+            ]
+          }
+        ]
+      },
+      "source": [
+        "/theory-test",
+        "/motorcycle-theory-test"
+      ]
+    },
+    {
+      "id": "fact_upgrading_licence",
+      "description": "This person already holds a full licence and is upgrading to a higher category, so some steps (theory test, provisional licence) may not be required",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "upgrade_licence"
+        ]
+      },
+      "source": [
+        "/adding-higher-categories-to-your-driving-licence",
+        "/automatic-driving-licence-to-manual"
+      ]
+    },
+    {
+      "id": "fact_renewing_licence",
+      "description": "This person is renewing or replacing an existing licence rather than learning to drive from scratch",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "renew_replace_licence"
+        ]
+      },
+      "source": [
+        "/renew-driving-licence",
+        "/replace-a-driving-licence"
+      ]
+    },
+    {
+      "id": "fact_age_70_or_over",
+      "description": "This person is 70 or over (or turning 70 within 90 days), so their licence renewal is free and follows a different process",
+      "value": {
+        "==": [
+          "q_renew_reason",
+          "age_70"
+        ]
+      },
+      "source": [
+        "/renew-driving-licence-at-70"
+      ]
+    },
+    {
+      "id": "fact_medical_condition_route",
+      "description": "This person needs to tell DVLA about a medical condition affecting their driving, which may trigger an eyesight or medical test",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "medical_condition"
+        ]
+      },
+      "source": [
+        "/health-conditions-and-driving",
+        "/driving-eyesight-rules"
+      ]
+    },
+    {
+      "id": "fact_taxi_phv_route",
+      "description": "This person is applying for or renewing a taxi or private hire vehicle driver licence, which has its own eligibility and geography rules",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "taxi_phv_licence"
+        ]
+      },
+      "source": [
+        "/taxi-driver-licence"
+      ]
+    },
+    {
+      "id": "fact_taxi_outside_england_wales",
+      "description": "This person needs to use a different licensing process because they are not applying to work in England or Wales",
+      "value": {
+        "in": [
+          "q_taxi_country",
+          [
+            "scotland",
+            "northern_ireland"
+          ]
+        ]
+      },
+      "source": [
+        "/taxi-driver-licence"
+      ]
+    },
+    {
+      "id": "fact_lorry_bus_route",
+      "description": "This person wants to become a qualified HGV or bus driver and needs Driver CPC qualification",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "lorry_bus_driver"
+        ]
+      },
+      "source": [
+        "/become-lorry-bus-driver"
+      ]
+    },
+    {
+      "id": "fact_requalifying_lorry_bus",
+      "description": "This person has previously qualified as an HGV or bus driver and does not need to take all Driver CPC tests again",
+      "value": {
+        "==": [
+          "q_lorry_bus_previous",
+          "yes"
+        ]
+      },
+      "source": [
+        "/become-lorry-bus-driver"
+      ]
+    },
+    {
+      "id": "fact_exempt_from_driver_cpc",
+      "description": "This person is exempt from needing the full Driver CPC because driving is not the main part of their job or the vehicle is exempt",
+      "value": {
+        "==": [
+          "q_lorry_bus_exempt",
+          "yes"
+        ]
+      },
+      "source": [
+        "/become-lorry-bus-driver"
+      ]
+    },
+    {
+      "id": "fact_name_or_gender_change",
+      "description": "This person wants to change the name or gender on their driving licence",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "change_name_gender"
+        ]
+      },
+      "source": [
+        "/change-name-driving-licence"
+      ]
+    },
+    {
+      "id": "fact_lost_old_licence",
+      "description": "This person cannot send their old licence because it was lost, stolen or destroyed, requiring extra evidence and a higher fee",
+      "value": {
+        "==": [
+          "q_have_old_licence",
+          "no"
+        ]
+      },
+      "source": [
+        "/change-name-driving-licence"
+      ]
+    },
+    {
+      "id": "fact_not_gb_resident",
+      "description": "This person is not a resident of Great Britain and must use a different process (Northern Ireland or other country)",
+      "value": {
+        "==": [
+          "q_residency",
+          "not_gb"
+        ]
+      },
+      "source": [
+        "/renew-driving-licence",
+        "/replace-a-driving-licence",
+        "/change-address-driving-licence"
+      ]
+    },
+    {
+      "id": "fact_needs_accessibility_declared",
+      "description": "This person has a reading difficulty, health condition or disability that must be declared in advance when booking the theory test",
+      "value": {
+        "==": [
+          "q_accessibility_need",
+          "yes"
+        ]
+      },
+      "source": [
+        "/book-theory-test"
+      ]
+    },
+    {
+      "id": "fact_replacing_cbt_certificate",
+      "description": "This person wants to replace a lost or stolen CBT certificate",
+      "value": {
+        "==": [
+          "q_main_goal",
+          "replace_cbt_certificate"
+        ]
+      },
+      "source": [
+        "/replace-cbt-certificate"
+      ]
+    },
+    {
+      "id": "fact_cbt_too_old_for_replacement",
+      "description": "This person completed their CBT course more than 2 years ago, so they must take another CBT course instead of getting a replacement certificate",
+      "value": {
+        "==": [
+          "q_cbt_completed_over_2_years_ago",
+          "yes"
+        ]
+      },
+      "source": [
+        "/replace-cbt-certificate"
+      ]
+    }
+  ],
+  "numeric_attributes": [
+    {
+      "id": "age",
+      "unit": "years",
+      "description": "The person's current age in years"
+    },
+    {
+      "id": "cbt_certificate_age",
+      "unit": "years",
+      "description": "How long ago the person completed their CBT course"
+    }
+  ],
+  "numeric_constraints": [
+    {
+      "id": "nc_provisional_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "learn_to_drive"
+        ]
+      },
+      "min": {
+        "value": 15.75
+      },
+      "reason": "You must be at least 15 years and 9 months old to apply for a first provisional driving licence",
+      "source": [
+        "/apply-first-provisional-driving-licence"
+      ]
+    },
+    {
+      "id": "nc_car_drive_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_vehicle_type",
+          "car"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "You can usually start driving a car when you're 17",
+      "source": [
+        "/driving-lessons-learning-to-drive"
+      ]
+    },
+    {
+      "id": "nc_moped_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_vehicle_type",
+          "moped"
+        ]
+      },
+      "min": {
+        "value": 16
+      },
+      "reason": "You can ride a moped from 16 after completing CBT",
+      "source": [
+        "/motorcycle-cbt"
+      ]
+    },
+    {
+      "id": "nc_motorcycle_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_vehicle_type",
+          "motorcycle"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "You can ride a motorcycle up to 125cc from 17 after completing CBT",
+      "source": [
+        "/motorcycle-cbt"
+      ]
+    },
+    {
+      "id": "nc_theory_car_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "and": [
+          {
+            "==": [
+              "q_vehicle_type",
+              "car"
+            ]
+          },
+          {
+            "!=": [
+              "q_pip_mobility",
+              "yes"
+            ]
+          }
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "You can take the car theory test from your 17th birthday onwards",
+      "source": [
+        "/theory-test"
+      ]
+    },
+    {
+      "id": "nc_theory_car_pip_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "and": [
+          {
+            "==": [
+              "q_vehicle_type",
+              "car"
+            ]
+          },
+          {
+            "==": [
+              "q_pip_mobility",
+              "yes"
+            ]
+          }
+        ]
+      },
+      "min": {
+        "value": 16
+      },
+      "reason": "You can take the car theory test from your 16th birthday if you get, or have applied for, the higher rate mobility part of PIP",
+      "overrides": [
+        "nc_theory_car_min_age"
+      ],
+      "source": [
+        "/theory-test"
+      ]
+    },
+    {
+      "id": "nc_theory_moped_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_vehicle_type",
+          "moped"
+        ]
+      },
+      "min": {
+        "value": 16
+      },
+      "reason": "You can take the theory test from your 16th birthday onwards if learning to ride a moped",
+      "source": [
+        "/motorcycle-theory-test"
+      ]
+    },
+    {
+      "id": "nc_theory_motorcycle_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_vehicle_type",
+          "motorcycle"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "You can take the theory test from your 17th birthday onwards if learning to ride a motorcycle",
+      "source": [
+        "/motorcycle-theory-test"
+      ]
+    },
+    {
+      "id": "nc_taxi_london_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_taxi_country",
+          "london"
+        ]
+      },
+      "min": {
+        "value": 21
+      },
+      "reason": "London taxi drivers must be over 21",
+      "source": [
+        "/taxi-driver-licence"
+      ]
+    },
+    {
+      "id": "nc_taxi_other_min_age",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "taxi_phv_licence"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "You must hold a full driving licence for at least 12 months, so must be at least a year past the minimum driving age; no specific minimum age is stated outside London so this is an editorial floor",
+      "source": [
+        "/taxi-driver-licence"
+      ]
+    },
+    {
+      "id": "nc_lorry_bus_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "lorry_bus_driver"
+        ]
+      },
+      "min": {
+        "value": 18
+      },
+      "reason": "You must be over 18 to become an HGV, bus or coach driver (with some exceptions)",
+      "source": [
+        "/become-lorry-bus-driver"
+      ]
+    },
+    {
+      "id": "nc_renew70_min_age",
+      "attribute": "age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_renew_reason",
+          "age_70"
+        ]
+      },
+      "min": {
+        "value": 69.75
+      },
+      "reason": "You can renew online for free if you're 70 or over, or will be 70 in the next 90 days",
+      "source": [
+        "/renew-driving-licence-at-70"
+      ]
+    },
+    {
+      "id": "nc_renew_other_min_age",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "and": [
+          {
+            "==": [
+              "q_main_goal",
+              "renew_replace_licence"
+            ]
+          },
+          {
+            "!=": [
+              "q_renew_reason",
+              "age_70"
+            ]
+          }
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "No minimum age is stated for renewing, replacing or changing details on a licence other than being a licence holder; editorial floor assumes the person is already old enough to hold a licence",
+      "source": [
+        "/renew-driving-licence",
+        "/replace-a-driving-licence"
+      ]
+    },
+    {
+      "id": "nc_change_name_gender_min_age",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "change_name_gender"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "No minimum age is stated for changing name or gender on a licence other than being a licence holder; editorial floor assumes the person already holds a licence",
+      "source": [
+        "/change-name-driving-licence"
+      ]
+    },
+    {
+      "id": "nc_medical_condition_min_age",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "medical_condition"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "No minimum age is stated for reporting a medical condition other than being a licence holder or driver; editorial floor assumes the person is already old enough to hold a licence",
+      "source": [
+        "/health-conditions-and-driving"
+      ]
+    },
+    {
+      "id": "nc_upgrade_licence_min_age",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "upgrade_licence"
+        ]
+      },
+      "min": {
+        "value": 17
+      },
+      "reason": "No minimum age is stated for upgrading an existing licence category other than already holding a relevant licence; editorial floor assumes the person is already a licence holder",
+      "source": [
+        "/adding-higher-categories-to-your-driving-licence",
+        "/automatic-driving-licence-to-manual"
+      ]
+    },
+    {
+      "id": "nc_replace_cbt_min_age",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "replace_cbt_certificate"
+        ]
+      },
+      "min": {
+        "value": 16
+      },
+      "reason": "No minimum age is stated for replacing a CBT certificate other than already holding one, which requires being at least 16 (the minimum age to ride a moped and take CBT)",
+      "source": [
+        "/replace-cbt-certificate",
+        "/motorcycle-cbt"
+      ]
+    },
+    {
+      "id": "nc_cbt_age_other_routes",
+      "attribute": "cbt_certificate_age",
+      "kind": "editorial",
+      "applies_if": {
+        "!=": ["q_main_goal", "replace_cbt_certificate"]
+      },
+      "min": {"value": 0},
+      "max": {"value": 35},
+      "reason": "CBT certificate age is not a routing factor on this journey; editorial ceiling of 35 years since CBT was introduced in 1990"
+    },
+    {
+      "id": "nc_cbt_replacement_certificate_age",
+      "attribute": "cbt_certificate_age",
+      "kind": "eligibility",
+      "applies_if": {
+        "==": [
+          "q_main_goal",
+          "replace_cbt_certificate"
+        ]
+      },
+      "min": {
+        "value": 0
+      },
+      "max": {
+        "value": 2
+      },
+      "reason": "You must take another CBT course if you completed the course more than 2 years ago, rather than getting a replacement certificate; this bound applies to everyone on this route since the corpus gives a single 2-year threshold for the whole route",
+      "source": [
+        "/replace-cbt-certificate"
+      ]
+    }
+  ],
+  "option_filters": [
+    {
+      "question_id": "q_vehicle_type",
+      "option_id": "upgrade_auto_to_manual",
+      "show_if": {
+        "==": [
+          "q_main_goal",
+          "upgrade_licence"
+        ]
+      }
+    },
+    {
+      "question_id": "q_renew_reason",
+      "option_id": "medical_short_term",
+      "show_if": {
+        "==": [
+          "q_main_goal",
+          "renew_replace_licence"
+        ]
+      }
+    },
+    {
+      "question_id": "q_taxi_country",
+      "option_id": "london",
+      "show_if": {
+        "==": [
+          "q_main_goal",
+          "taxi_phv_licence"
+        ]
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "q_main_goal",
+      "order": 0,
+      "text": "What do you want to do?",
+      "type": "single_select",
+      "ask_if": true,
+      "options": [
+        {
+          "id": "learn_to_drive",
+          "label": "Learn to drive a car or ride a motorcycle/moped, from provisional licence through to passing my test"
+        },
+        {
+          "id": "upgrade_licence",
+          "label": "Add a new category or upgrade my existing driving licence (e.g. automatic to manual, car to lorry/bus)"
+        },
+        {
+          "id": "renew_replace_licence",
+          "label": "Renew, replace, or change details on my existing driving licence"
+        },
+        {
+          "id": "medical_condition",
+          "label": "Tell DVLA about a medical condition or eyesight problem"
+        },
+        {
+          "id": "taxi_phv_licence",
+          "label": "Get or renew a taxi or private hire vehicle driver licence"
+        },
+        {
+          "id": "lorry_bus_driver",
+          "label": "Become a qualified HGV or bus/coach driver"
+        },
+        {
+          "id": "change_name_gender",
+          "label": "Change the name or gender on my driving licence"
+        },
+        {
+          "id": "replace_cbt_certificate",
+          "label": "Replace a lost or stolen motorcycle CBT certificate"
+        }
+      ]
+    },
+    {
+      "id": "q_vehicle_type",
+      "order": 1,
+      "text": "What type of vehicle are you learning to drive or ride?",
+      "type": "single_select",
+      "ask_if": {
+        "or": [
+          {
+            "==": [
+              "q_main_goal",
+              "learn_to_drive"
+            ]
+          },
+          {
+            "==": [
+              "q_main_goal",
+              "upgrade_licence"
+            ]
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "car",
+          "label": "Car"
+        },
+        {
+          "id": "motorcycle",
+          "label": "Motorcycle"
+        },
+        {
+          "id": "moped",
+          "label": "Moped"
+        },
+        {
+          "id": "upgrade_auto_to_manual",
+          "label": "Upgrade automatic car licence to manual",
+          "needs_evidence": true
+        }
+      ]
+    },
+    {
+      "id": "q_have_provisional",
+      "order": 2,
+      "text": "Do you already have a provisional driving licence?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "learn_to_drive"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes, I already have one"
+        },
+        {
+          "id": "no",
+          "label": "No, I need to apply for one"
+        }
+      ]
+    },
+    {
+      "id": "q_car_licence_before_2001",
+      "order": 3,
+      "text": "Did you pass your car driving test before 1 February 2001?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_vehicle_type",
+          "moped"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ]
+    },
+    {
+      "id": "q_cbt_exempt",
+      "order": 3,
+      "text": "Do any of these apply to you: you already have a full moped licence from a moped test passed since 1 December 1990, you have a full motorcycle licence and are upgrading category, you live on certain offshore islands, or you're riding a trial e-scooter?",
+      "type": "single_select",
+      "ask_if": {
+        "in": [
+          "q_vehicle_type",
+          [
+            "motorcycle",
+            "moped"
+          ]
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes, one of these applies"
+        },
+        {
+          "id": "no",
+          "label": "No, none of these apply"
+        }
+      ]
+    },
+    {
+      "id": "q_pip_mobility",
+      "order": 3,
+      "text": "Do you get, or have you applied for, the higher weekly rate of the mobility part of Personal Independence Payment (PIP)?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_vehicle_type",
+          "car"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ]
+    },
+    {
+      "id": "q_accessibility_need",
+      "order": 4,
+      "text": "Do you have a reading difficulty, health condition or disability you need to tell DVSA about when booking your theory test?",
+      "type": "single_select",
+      "ask_if": {
+        "and": [
+          {
+            "==": [
+              "q_main_goal",
+              "learn_to_drive"
+            ]
+          },
+          {
+            "!=": [
+              "q_vehicle_type",
+              "upgrade_auto_to_manual"
+            ]
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ]
+    },
+    {
+      "id": "q_has_theory_cert",
+      "order": 5,
+      "text": "Have you already passed your theory test?",
+      "type": "single_select",
+      "ask_if": {
+        "and": [
+          {
+            "==": [
+              "q_main_goal",
+              "learn_to_drive"
+            ]
+          },
+          {
+            "!=": [
+              "q_vehicle_type",
+              "upgrade_auto_to_manual"
+            ]
+          },
+          {
+            "!=": [
+              "fact_car_licence_exempts_moped_theory",
+              true
+            ]
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ],
+      "source": [
+        "/theory-test",
+        "/motorcycle-theory-test"
+      ]
+    },
+    {
+      "id": "q_renew_reason",
+      "order": 1,
+      "text": "What best describes your situation?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "renew_replace_licence"
+        ]
+      },
+      "options": [
+        {
+          "id": "expired_or_expiring",
+          "label": "My photocard licence has expired or is about to expire"
+        },
+        {
+          "id": "age_70",
+          "label": "I am 70 or over, or turning 70 within 90 days"
+        },
+        {
+          "id": "lost_stolen_damaged",
+          "label": "My licence has been lost, stolen, damaged or destroyed"
+        },
+        {
+          "id": "medical_short_term",
+          "label": "I have a short-term medical driving licence to renew"
+        },
+        {
+          "id": "change_address",
+          "label": "I need to change my address"
+        }
+      ]
+    },
+    {
+      "id": "q_have_old_licence",
+      "order": 1,
+      "text": "Do you still have your old driving licence to send to DVLA?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "change_name_gender"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No, it's lost, stolen or destroyed"
+        }
+      ]
+    },
+    {
+      "id": "q_residency",
+      "order": 1,
+      "text": "Are you a resident of Great Britain (England, Scotland or Wales)?",
+      "type": "single_select",
+      "ask_if": {
+        "or": [
+          {
+            "==": [
+              "q_main_goal",
+              "renew_replace_licence"
+            ]
+          },
+          {
+            "==": [
+              "q_main_goal",
+              "change_name_gender"
+            ]
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "gb",
+          "label": "Yes, I live in Great Britain"
+        },
+        {
+          "id": "not_gb",
+          "label": "No, I live in Northern Ireland or elsewhere"
+        }
+      ]
+    },
+    {
+      "id": "q_taxi_country",
+      "order": 1,
+      "text": "Where do you want to work as a taxi or private hire vehicle driver?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "taxi_phv_licence"
+        ]
+      },
+      "options": [
+        {
+          "id": "london",
+          "label": "London"
+        },
+        {
+          "id": "england_wales_outside_london",
+          "label": "Elsewhere in England or Wales"
+        },
+        {
+          "id": "scotland",
+          "label": "Scotland"
+        },
+        {
+          "id": "northern_ireland",
+          "label": "Northern Ireland"
+        }
+      ]
+    },
+    {
+      "id": "q_lorry_bus_previous",
+      "order": 1,
+      "text": "Have you previously qualified as an HGV or bus driver before?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "lorry_bus_driver"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes, I've qualified before"
+        },
+        {
+          "id": "no",
+          "label": "No, this is my first time qualifying"
+        }
+      ]
+    },
+    {
+      "id": "q_lorry_bus_exempt",
+      "order": 1,
+      "text": "Is driving an HGV or bus not the main part of your job, or is the vehicle limited to 28mph or used by services like the armed forces or police?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "lorry_bus_driver"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes, one of these applies"
+        },
+        {
+          "id": "no",
+          "label": "No, I need the full Driver CPC"
+        }
+      ]
+    },
+    {
+      "id": "q_cbt_completed_over_2_years_ago",
+      "order": 1,
+      "text": "Did you complete your CBT course more than 2 years ago?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_main_goal",
+          "replace_cbt_certificate"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes, more than 2 years ago"
+        },
+        {
+          "id": "no",
+          "label": "No, within the last 2 years"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "life_event": "driving",
+    "validation": "1 unresolved"
+  }
+}
