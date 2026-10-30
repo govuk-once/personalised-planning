@@ -3,20 +3,20 @@
 
 ### Summary
 
-We tested whether step by step guides for life events can be generated programmatically from GOV.UK content without content designer input. We used "Having a baby" as the test case, scoped to a typical journey (natural pregnancy, single live birth in the UK, no neonatal care, no bereavement). Our pipeline turned ~1,900 sentences of GOV.UK content into ~170 typed draft tasks. These were reviewed and reconciled into 122 tasks, 85 of which were then selected for a step by step guide for the typical journey. So far the results have been reviewed by the data scientists with LLM assistance (Claude Opus 5). A content designer review is under way. Once the review is complete and feedback actioned, we expect to use the guide as an internal reference for evaluating generated plans for "Having a baby".
+We tested whether step by step guides for life events can be generated programmatically from GOV.UK content without content designer input. We used "Having a baby" as the test case, scoped to a typical journey (natural pregnancy, single live birth in the UK, no neonatal care, no bereavement). Our pipeline turned ~1,900 sentences of GOV.UK content into ~170 typed draft tasks. These were reviewed and reconciled into 122 tasks, 85 of which were then selected for a step by step guide for the typical journey. So far the results have been reviewed by the data scientists with LLM assistance (Claude Opus 5). An information architect is reviewing how the information is presented; the content itself has not yet been checked by a content or subject matter expert. We intend to use the guide as an internal reference for evaluating generated plans for “Having a baby”.
 
 **The process for generating guides is semi-automatic, not automatic.** Automation handled the detection and parsing of GOV.UK content containing tasks, and LLMs performed well at turning unstructured text into structured draft tasks. However, human review and judgement were required at every key decision: what is in scope, which user groups and branches to cover, and whether two draft tasks are duplicates, alternatives, or one task that should be split. For a single branch of one life event, and excluding the content desigher review, this work took three iterations and roughly 6 days in total, of which ~95% was human review and reconciliation rather than pipeline build. The step by step guide and the list of tasks that underpins it will also require ongoing maintenance, because tasks carry metadata such as rates, deadlines and eligibility that change. So producing a guide entails both build and regular update costs.
 
 This has implications for how we design the planner agent. If the agent relied on an approved step by step guide for every life event (see Option 2 below), the human effort would multiply with every life event, branch and user group. That approach also does not seamlessly support a citizen whose needs span several life events. If the agent relied on search alone (see Option 1 below), we would not need an underlying data structure. But plans would be slower and cost more, because the agent makes many more tool calls to gather and synthesise relevant government content. They would also vary more, because the agent has more discretion over which actions to include. [Early testing](https://github.com/MaxwellRiess/UK-Gov-Service-Graph-poc/blob/main/docs/experiment-results-trial3.md) also suggested search was no better on precision and recall than a purpose-built structured graph of government services (the service-graph). The middle path looks best (see Option 3 below): a structured service-graph that the agent queries and turns into a personalised plan.
 
-**Recommendation**: invest in the existing service-graph rather than in generating step by step guides for every life event. In particular: review the schema, add a layer of citizen-facing tasks linked to services, and use structured sources (GOV.UK Knowledge Graph, Content API) to check and refresh the graph, with a record of the evidence behind each fact. Once SME feedback is actioned, we will keep the generated "Having a baby" guide as an evaluation reference.
+**Recommendation**: invest in the existing service-graph rather than in generating step by step guides for every life event. In particular: review the schema, add a layer of citizen-facing tasks linked to services, and use structured sources (GOV.UK Knowledge Graph, Content API) to check and refresh the graph, with a record of the evidence behind each fact. We will keep the generated "Having a baby" guide as an internal evaluation reference.
 
 ---
 
 ### Background
 
 We ran this investigation for two reasons:
-- **Primary:** step by step guides are ideal references for evaluating the plans an agent produces.
+- **Primary:** step by step guides are the best pre-existing canonical reference we have for evaluating the plans an agent produces.
 - **Secondary:** a canonical step by step guide could be used by the planner agent directly.
 
 Step by step guides do not exist for all life events. Producing an official one usually takes a lot of content designer effort and coordination with the relevant departments.
@@ -25,7 +25,7 @@ Step by step guides do not exist for all life events. Producing an official one 
 
 **Approach.** We extracted content programmatically from the GOV.UK Knowledge Graph (Content API data, crawled from the Pregnancy and birth browse page). We used LLMs to synthesise and shortlist tasks. The data scientists reviewed draft and final tasks with LLM assistance (Claude Opus 5). We went through three iterations.
 
-**Review status.** A content desigher is reviewing the guide, with feedback expected w/c November 2. Findings will be added here. **[EVIDENCE: content designer findings, e.g. number of tasks confirmed, corrected, missing or out of scope.]** Until then, the statements below about reconciliation quality and the final guide reflect the data scientists' review only.
+**Review status.** An information architect is reviewing how the guide presents information, with feedback expected w/c 2 November. We would also like a content designer to review the guide independently. This would test our conclusions on the guide's quality and inform estimates of review effort.
 
 **Implementation details.** Pipeline code is contained in this [PR](https://github.com/govuk-once/personalised-planning/pull/53).
 
@@ -52,9 +52,9 @@ The table below summarises effort across 3 iterations. Developing a guide for a 
 
 Key points:
 - **Detecting tasks is easy; turning them into clean tasks is not.** Stages 2–3 automate well. Stages 1, 4, 5 and 6 are where the time went, and they are the stages that grow with each new life event.
-- **Reconciliation is the bottleneck.** The same obligation often appears on several pages with different wording, scope or actor. Telling true duplicates from genuine alternatives (e.g. claiming Statutory Maternity Pay vs Maternity Allowance) needs domain knowledge. **[EVIDENCE: 2–3 worked examples: one merge, one split, one "alternatives" case, showing the raw draft tasks and the final decision.]** **[EVIDENCE: % of draft tasks that changed at this stage.]**
+- **Reconciliation is the bottleneck.** The same obligation often appears on several pages with different wording, scope or actor. Telling true duplicates from genuine alternatives (e.g. claiming Statutory Maternity Pay vs Maternity Allowance) needs domain knowledge. At this stage in our pipeline, 170 structured tasks were reduced to 122 (19 removed as out of scope, 21 dropped as duplicates, 2 split and redistributed, 6 moved to sub-tasks).
 - **The final guide is still LLM-produced.** Shortlisting for the typical journey is done by an LLM, so the guide inherits LLM error and needs review.
-- **Tasks sit in a natural hierarchy.** Most tasks sit under a higher-level `policy` or `service` (e.g. Statutory Maternity Leave). This suggests tasks should hang off services in the graph rather than live in a separate structure. **[EVIDENCE: % of final tasks that map cleanly to a single parent service.]**
+- **Tasks sit in a natural hierarchy.** Most tasks sit under a higher-level `policy` or `service` (e.g. Statutory Maternity Leave). This suggests tasks should hang off services in the graph rather than live in a separate structure.
 
 #### 2. Up-front vs ongoing effort
 
@@ -93,11 +93,11 @@ Key points:
 | Plan consistency | Low | High | Medium–high |
 | Efficiency | Poor. More tool calls, more latency and cost | Good | Good |
 
-**Option 1. No data structure; the agent searches GOV.UK or the Content API.** This removes the need to build and maintain anything. But early experiments with the service-graph showed this approach is inefficient: the agent calls search tools much more often, which adds latency and cost, and precision and recall are no better than with the service-graph **[add link to MR's paper]**. **[EVIDENCE: mean tool calls, latency and cost per plan, search vs service-graph.]** The agent also has a lot of discretion over which actions to recommend, so plans vary more. **[EVIDENCE: variability across repeated runs of the same persona, if measured.]**
+**Option 1. No data structure; the agent searches GOV.UK or the Content API.** This removes the need to build and maintain anything. But early experiments with the service-graph showed this approach is inefficient: the agent calls search tools much more often, which adds latency and cost, and precision and recall are no better than with the service-graph (see [results from early investigation](https://github.com/MaxwellRiess/UK-Gov-Service-Graph-poc/blob/main/docs/experiment-results-trial3.md)). The agent also has a lot of discretion over which actions to recommend, so plans vary more.
 
 **Option 2. The agent uses approved step by step guides.** The agent has the least discretion: its only job is to filter tasks by the user's circumstances. But as the effort analysis above shows, creating and maintaining guides across all key life events, including branches and user sub-groups, would take a lot of human effort. This option also does not support users whose needs span several life events.
 
-**Option 3. The agent uses a structured data source (tool) holding information about services, and pulls what is relevant.** The agent has a fair amount of flexibility in how it uses the tool and turns information about services and their tasks into a personalised plan. Some of the Option 2 challenges still apply, but they are more tractable. The data is held in a structured, searchable form, but it does not have to be turned into a fixed, ordered set of steps for every journey. **[EVIDENCE: current service-graph coverage against the Knowledge Graph for "Having a baby" (33.3% node coverage), which shows the size of the gap the schema work would need to close.]**
+**Option 3. The agent uses a structured data source (tool) holding information about services, and pulls what is relevant.** The agent has a fair amount of flexibility in how it uses the tool and turns information about services and their tasks into a personalised plan. Some of the Option 2 challenges still apply, but they are more tractable. The data is held in a structured, searchable form, but it does not have to be turned into a fixed, ordered set of steps for every journey.
 
 Our trial suggests Option 2 is unlikely to scale across life events, and Option 1 is inefficient and gives the agent too much freedom. That points to Option 3: an improved version of the existing service-graph.
 
