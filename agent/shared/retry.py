@@ -6,6 +6,9 @@ from strands.types.exceptions import ModelThrottledException
 class BedrockRetryStrategy(ModelRetryStrategy):
     """Retry on throttling (default) and transient Bedrock service errors."""
 
+    def __init__(self, max_attempts: int = 3, **kwargs):
+        super().__init__(max_attempts=max_attempts, **kwargs)
+
     def is_retryable(self, exception: Exception) -> bool:
         if isinstance(exception, ModelThrottledException):
             return True
