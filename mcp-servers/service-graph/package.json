@@ -10,16 +10,16 @@
     "package": "npm run build:lambda && zip -r function.zip dist/"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.95.2",
+    "@anthropic-ai/sdk": "^0.131.0",
     "@aws/run-mcp-servers-with-aws-lambda": "^0.5.19",
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.162",
     "@types/node": "^26.6.3",
     "esbuild": "^0.28.0",
-    "tsx": "^4.19.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
