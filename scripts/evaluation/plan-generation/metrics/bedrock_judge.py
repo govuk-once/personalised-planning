@@ -1,21 +1,21 @@
-"""DeepEval judge-model factory backed by AWS Bedrock via boto3."""
+"""The judge model every LLM-judged metric calls: a Claude model on AWS Bedrock."""
 
 import json
-import re
 
 import boto3
-from deepeval.models import DeepEvalBaseLLM
+
+from metrics.retry import BadReply, TruncatedReply
+
+# Reply token cap for every judge call. Relevance judges a whole plan in one
+# call, with a rationale per task, so this has to fit the longest plan.
+MAX_TOKENS = 4096
 
 
-class BedrockJudge(DeepEvalBaseLLM):
-    """Wraps boto3 bedrock-runtime for use as a DeepEval judge model.
+class BedrockJudge:
+    """Calls a Claude model on Bedrock with one prompt and returns its text reply.
 
-    Implements ``generate(prompt, schema=None)``. When a Pydantic schema class
-    is supplied the prompt is augmented with JSON-schema instructions and the
-    response is parsed with ``schema.model_validate_json()``, returning a
-    schema instance directly so DeepEval's ``generate_with_schema_and_extract``
-    can short-circuit straight to ``extract_schema(result)`` without a second
-    JSON parse.
+    Shared by all the judged metrics, so they all use the same model, region and
+    settings.
     """
 
     def __init__(self, model_id: str, region: str) -> None:
@@ -30,61 +30,36 @@ class BedrockJudge(DeepEvalBaseLLM):
             self._client = boto3.client("bedrock-runtime", region_name=self.region)
         return self._client
 
-    def generate(self, prompt: str, schema=None):
-        """Call Bedrock and return a string or a parsed Pydantic schema instance.
+    def generate(self, prompt: str) -> str:
+        """Call Bedrock and return the model's text reply.
 
         Args:
             prompt: The full prompt text.
-            schema: Optional Pydantic model class. When supplied, the response
-                is parsed and returned as an instance of that class.
 
         Returns:
-            A Pydantic model instance when ``schema`` is provided, else the raw
-            response string.
+            The model's text reply.
+
+        Raises:
+            TruncatedReply: If the reply was cut off at ``MAX_TOKENS``.
+            BadReply: If the reply has no text.
+            botocore.exceptions.ClientError: And other boto3 errors, unwrapped,
+                so ``retry.with_retries`` can tell which are worth retrying.
         """
-        self.load_model()
-
-        full_prompt = prompt
-        if schema is not None:
-            schema_json = json.dumps(schema.model_json_schema(), indent=2)
-            full_prompt = (
-                f"{prompt}\n\n"
-                f"Respond with a JSON object that strictly matches this schema:\n"
-                f"```json\n{schema_json}\n```\n"
-                "Return ONLY the JSON object, no extra text or explanation."
-            )
-
+        client = self.load_model()
         body = json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 4096,
-                "messages": [{"role": "user", "content": full_prompt}],
+                "max_tokens": MAX_TOKENS,
+                "messages": [{"role": "user", "content": prompt}],
             }
         )
-        response = self._client.invoke_model(modelId=self.model_id, body=body)
+        response = client.invoke_model(modelId=self.model_id, body=body)
         payload = json.loads(response["body"].read())
+        if payload.get("stop_reason") == "max_tokens":
+            raise TruncatedReply(f"reply cut off at max_tokens={MAX_TOKENS}")
         chunks = [
             b["text"] for b in payload.get("content", []) if b.get("type") == "text"
         ]
-        text = "".join(chunks)
-
-        if schema is None:
-            return text
-
-        # Strip any stray code fences before parsing
-        cleaned = text.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
-            cleaned = re.sub(r"\n?```$", "", cleaned.strip())
-        return schema.model_validate_json(cleaned.strip())
-
-    async def a_generate(self, prompt: str, schema=None):
-        """Async shim — delegates to synchronous ``generate``.
-
-        Acceptable at the low N values this harness uses.
-        """
-        return self.generate(prompt, schema=schema)
-
-    def get_model_name(self) -> str:
-        """Return the Bedrock model ID."""
-        return self.model_id
+        if not chunks:
+            raise BadReply("no text content in Bedrock response")
+        return "".join(chunks)
