@@ -17,7 +17,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = []
+dependencies = [
+    "google-cloud-bigquery[pandas]>=3.47.0",
+    "pandas>=3.1.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/govuk-once/personalised-planning"
