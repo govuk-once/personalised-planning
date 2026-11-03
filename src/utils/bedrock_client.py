@@ -127,6 +127,7 @@ class BedrockClaude:
                 system=[{"text": system}] if system else [],
                 messages=[{"role": "user", "content": [{"text": prompt}]}],
                 toolConfig={"tools": [tool], "toolChoice": {"tool": {"name": tool_name}}},
+                inferenceConfig=inference_config,
             )
             for block in response["output"]["message"]["content"]:
                 if "toolUse" in block:
