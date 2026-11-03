@@ -24,7 +24,8 @@ driving_subgraph.json ──────┐
                              ├──▶ plans.py ──▶ data/driving_model.json ──┬──▶ data/driving_profiles.json
                              │                                          │
         GOV.UK step-by-step  │                                          │
-        URL(s) ──────────────┼──▶ truth.py map ──▶ data/mapping.json    │
+        URL(s) ─── OR ───────┼──▶ truth.py map ──▶ data/mapping.json    │
+        local spine file     │                                          │
                              │        (needs driving_model.json)        │
                              │                                          │
                              │        you review data/mapping.json      │
@@ -619,6 +620,23 @@ non-zero if anything failed, so this can gate a build.
 Guides are read from the GOV.UK content API
 (`https://www.gov.uk/api/content/<slug>`), which returns the step structure as
 JSON. No scraping, no dependence on page markup.
+
+### Using a local spine file
+
+For life events where the spine is a local JSON file rather than a published
+GOV.UK step by step, pass `--spine-file` and `--base-path` instead of
+`--url` / `--urls-file` (the two sources are mutually exclusive):
+
+```bash
+python truth.py map data/model.json \
+    --spine-file data/having_a_baby_sbs.json \
+    --base-path /having-a-baby > data/mapping.json
+```
+
+The file must be a JSON array of step objects. Each step needs at least
+`step`, `title` and `links`; extra fields are preserved in the mapping.
+`--base-path` is the identifier used throughout the pipeline to name this
+guide (e.g. in truth records and scoring output).
 
 ## The mapping
 
