@@ -6,12 +6,9 @@ from GOV.UK content, generating plans with the hosted planner, judging them, and
 reading the results. It ends with what the example run on 28 October 2026 found,
 and how far to trust it.
 
-It is written for the whole team. The parts marked **Detail** go further into
-how things are calculated; you can skip them and still follow the rest.
-
-A slide version of this material, with interactive examples built from the same
-run, is in [auto-evaluation-slides.html](auto-evaluation-slides.html). Open it in
-a browser and use the arrow keys.
+It is written for anyone working on or reviewing the evaluation. The parts
+marked **Detail** go further into how things are calculated; you can skip them
+and still follow the rest.
 
 The command-line reference for every script is in the
 [pipeline README](../README.md). This document explains the method and the
@@ -22,7 +19,7 @@ reasons behind it, and does not repeat every flag.
 1. [Why we evaluate automatically](#1-why-we-evaluate-automatically)
 2. [The process at a glance](#2-the-process-at-a-glance)
 3. [Synthetic users](#3-synthetic-users)
-4. [Two ways to score a plan](#4-two-ways-to-score-a-plan)
+4. [Two routes to score a plan](#4-two-routes-to-score-a-plan)
 5. [The metrics harness](#5-the-metrics-harness)
 6. [Relevance](#6-relevance)
 7. [Consistency](#7-consistency)
@@ -32,27 +29,59 @@ reasons behind it, and does not repeat every flag.
 11. [Example run: learning to drive, 28 October 2026](#11-example-run-learning-to-drive-28-october-2026)
 12. [How far to trust these numbers](#12-how-far-to-trust-these-numbers)
 13. [Running it yourself](#13-running-it-yourself)
-14. [Open questions and next steps](#14-open-questions-and-next-steps)
+14. [Lessons, open questions and next steps](#14-lessons-open-questions-and-next-steps)
 15. [File map](#15-file-map)
 
 ---
 
 ## 1. Why we evaluate automatically
 
-A personalised plan can go wrong in two ways.
+Automated evaluation does two jobs.
+
+- **A signal for every change.** Change the planner's prompt, model or tools,
+  rerun the evaluation, and see whether plans got better or worse. This is
+  evaluation-driven development.
+- **An estimate of plan quality.** It tells us roughly how good plans are for the
+  people who will use them, before real users see them.
+
+Reading plans by hand can't do either. Every change needs checking again, across
+many different kinds of user. So the checks run as code. An AI judge makes the
+calls that need judgement, and every call is saved with its reason so a person
+can check it.
+
+### What we measure
+
+Beyond whether a plan is broadly accurate and complete, a personalised plan can
+go wrong in three ways.
 
 - **It is wrong for this person.** It tells someone to apply for a licence they
   already hold, or it includes a step that has nothing to do with them. We
-  measure this as **relevance**.
+  measure this as **relevance** (section 6).
 - **It changes every time.** Ask the planner twice for the same person and you
   may get two plans with a different number of steps, or a different fee for the
   same service. People can't act on a plan they can't rely on. We measure this as
-  **consistency**.
+  **consistency** (section 7).
+- **It doesn't faithfully represent the content it is based on.** The Service
+  Graph says a service costs one amount, or has one deadline, and the plan says
+  another; or the plan describes a service the planner never looked up. We plan
+  to measure this as **faithfulness**. It isn't built yet (section 14).
 
-Reading plans by hand doesn't scale. Every change to the planner's prompt, model
-or tools needs checking again, across many different kinds of user. So the
-checks run as code. An AI judge makes the calls that need judgement, and every
-call is saved with its reason so a person can check it.
+### Two routes
+
+There are two routes to scoring a plan, described in section 4.
+
+- **Route 1, against a ground truth.** A GOV.UK step by step becomes an answer
+  key, and code checks the planner's steps against it. It has higher fidelity,
+  but only works where a step by step exists, or where we write one ourselves.
+- **Route 2, without a ground truth.** An AI judge reads each plan against the
+  person's answers, and compares several plans for the same person. It works for
+  any life event, but has lower fidelity: the judge can be wrong, and it checks
+  what a plan says, not what it leaves out.
+
+Route 2 gives breadth: it can run on every change, for every life event. Route 1
+gives a trusted reference where one exists. It catches missing steps that Route 2
+can't, and where both run, the AI judge can be checked against an answer key.
+Most of this document is about Route 2, in [metrics/](../metrics/).
 
 ## 2. The process at a glance
 
@@ -64,7 +93,7 @@ flowchart LR
     D --> E[Generate plans<br/>metrics.harness generate]
     E --> F[Judge<br/>metrics.harness score]
     F --> G[Dashboard<br/>dashboard.py]
-    C -. alongside .-> H[Ground truth<br/>truth.py]
+    C -. Route 1 .-> H[Ground truth<br/>truth.py]
     H --> I[F1 scoring<br/>run_app.py]
 ```
 
@@ -78,9 +107,10 @@ flowchart LR
 | 6. Judge | Each plan is judged for relevance, and each profile's plans for consistency. | Claude, as a judge |
 | 7. Dashboard | One HTML page with every score and every reason the judge gave. | Code |
 
-Alongside stages 3 to 5 there is a second, older scoring route that compares
-plans with GOV.UK's published step by steps. Section 4 explains how the two
-differ.
+Stages 1 to 4 serve both routes. Stages 5 to 7 are Route 2. Route 1 branches off
+after stage 3: `truth.py` builds an answer key for each profile, and `run_app.py`
+asks the planner for a plan and scores it against that key with precision,
+recall and F1. Section 4 explains how the two routes differ.
 
 ## 3. Synthetic users
 
@@ -93,9 +123,21 @@ real data.
 
 **The content decides the questions.** Claude reads the guidance for a life event
 and proposes only questions where the answer changes what a person must do. Each
-question has to cite the page that justifies it. The current driving
-questionnaire has 15 questions and 21 derived facts (named conditions such as
-"needs a theory test" that combine several answers).
+question has to cite the page that justifies it. The questionnaire has four
+parts:
+
+- **Questions**, each with the answers it allows, a condition saying when to ask
+  it, and the GOV.UK pages behind it.
+- **Facts**: named conditions such as "needs a theory test" that combine several
+  answers. Each is defined once and reused, so the rules don't sprawl into a
+  decision tree.
+- **Option filters**, which hide answers that don't apply, for example where a
+  nation is served by a different body.
+- **Age limits**: minimum and maximum ages, each marked as stated in the
+  guidance, forced by arithmetic, or an assumption.
+
+The current driving questionnaire has 15 questions and 21 facts. The having a
+baby questionnaire has 9 questions and 13 facts.
 
 **Code checks the questionnaire.** Ordinary code invents thousands of answer
 sets and checks that every question can be reached, every answer can occur and
@@ -111,7 +153,12 @@ once. Rare routes are covered on purpose, because that is where personalised
 plans tend to go wrong.
 
 **Nobody impossible.** Age isn't asked, so it is worked out from the answers.
-Someone who passed a driving test before 1997 can't be 19.
+Someone who passed a driving test before 1997 can't be 19. Ages right on a legal
+limit are chosen on purpose, because that is where plans break.
+
+**Material for reviewers.** Optionally, Claude writes a name and a life for the
+riskiest profiles. Each profile can also get a review packet listing the claims
+its plan must satisfy.
 
 **Each user gets a situation.** In production the planner receives a sentence
 saying what the person wants help with. `situations.py` picks that sentence from
@@ -139,27 +186,49 @@ The derived facts are not sent, so the planner has to work out the route from
 the answers, as it would for a real user.
 
 Nothing in this code is about driving. The same scripts have produced a
-questionnaire for having a baby.
+questionnaire for having a baby; section 13 covers what a new life event needs.
 
 **Limit.** This tells us which journeys exist, not how common they are. Section 9
 covers how we weight profiles to reflect real users.
 
-## 4. Two ways to score a plan
+## 4. Two routes to score a plan
 
-| | Against ground truth | With an AI judge |
+| | Route 1: against ground truth | Route 2: with an AI judge |
 |---|---|---|
 | Files | [truth.py](../truth.py), [run_app.py](../run_app.py) | [metrics/](../metrics/) |
 | Answer key | GOV.UK's published "Learn to drive a car" step by step. Each of its 7 steps is marked required, not required or blocked for each profile. | None. The judge reads each plan against the person's situation and answers. |
 | What it measures | Which of the guide's steps the plan covers: precision, recall and F1. Showing someone a step they are legally blocked from is counted separately, outside F1. | Whether each task is relevant to this person, and whether one person's plans agree with each other. |
 | Where AI is used | Drafting about eight rules that link the guide's steps to the questionnaire. A person checks them once; code then applies them to every profile. | Every judgement. Each comes with a written reason. |
 | Repeatability | Exact. Scoring is pure code, so reruns are free and identical. | Each judgement runs N times, and scores show their range. |
-| Who it covers | Only who a published step by step covers: car learners in Great Britain. | Any profile with a situation, for any life event. |
+| Who it covers | Only who a published step by step covers: car learners in Great Britain. For having a baby, we plan to write a step by step ourselves. | Any profile with a situation, for any life event. |
 
 The two complement each other. Ground truth is the more authoritative check,
 because the answer key comes from GDS's own published guidance, but it only
 works where a step by step exists and only measures which steps were included.
 The judged metrics cover the rest: whether the content of a plan fits the
 person, and whether the planner is stable.
+
+**How the ground truth is built.**
+
+1. **Map.** `truth.py map` fetches the step by step from the GOV.UK content API.
+   Claude writes the rules linking each step to the questionnaire: which fact or
+   answer decides it, which answers block it, and who the guide covers.
+2. **Review.** A person checks the mapping against the published guide. For
+   driving it is eight decisions, small enough to check in one sitting.
+3. **Build.** `truth.py build` applies the mapping to every profile. Each step
+   becomes required, not required or blocked, naming its evidence, such as
+   `theory_ahead=false`.
+4. **Score.** `run_app.py` asks the planner for a plan, matches each task's link
+   to a step, and scores precision, recall and F1. Showing a blocked step is
+   counted on its own.
+
+The only AI output is a small mapping that a person checks and code then applies,
+so a mistake shows up everywhere at once rather than hiding in one plan. The
+mapping is checked for broken references before it is used, and again after any
+hand edit. Ground truth covers only who the guide covers: "Learn to drive a car"
+is car-only and Great Britain only, so motorbike, lorry and tractor routes have
+no answer key. The pipeline leaves them out rather than invent a guide, which
+would bring back the problem of one model marking another.
 
 The rest of this document is about the judged metrics. The README covers
 [ground truth](../README.md#part-2--ground-truth-and-scoring-truthpy) and
@@ -189,9 +258,19 @@ plans.
 
 Two settings control cost and how much to trust the result:
 
-- `G`, plans per profile. Consistency needs at least 2. The default is 3.
+- `G`, plans per profile. Consistency needs at least 2. The default is 3. More
+  plans give steadier consistency scores, but each is a full planner run.
 - `N`, judge runs per measure. Running the judge more than once shows how much
   its verdicts vary.
+
+Changing N only needs `score` run again; changing G needs new plans. Planner
+calls are profiles × G, made one after another. Judge calls per run are one per
+plan for relevance, one per pair of plans for structure, and one per shared
+service for facts, each multiplied by N. The driving run made 164.
+
+**Averaging.** For each profile, average the N runs, then the G plans. Across
+profiles, take the mean of their scores, and a weighted mean when profiles have
+weights (section 9).
 
 The planner's model and the judge's model are set separately, with no fallback
 between them: `ANTHROPIC_MODEL` for the planner (set in `agentcore.json`) and
@@ -299,7 +378,7 @@ and to stop them from quietly shifting the scores.
 ## 9. Weighting profiles to real users
 
 File: [weights.py](../weights.py). Targets:
-`data/weights/driving_weights_v2.json`, with sources in
+`data/examples_ltd/driving_weights_v2.json`, with sources in
 `data/examples_ltd/driving_weights_v2_methodology.md`.
 
 The synthetic profiles cover every route once, so a rare route counts as much as
@@ -327,9 +406,25 @@ can't move a weighted score enough to be worth a planner call. The results then
 report a **weighted** score next to the plain mean for every measure, and
 `coverage.weight_scored` shows how much of the total weight was actually scored.
 
+Answers are weighted one question at a time, so links between answers (such as
+needing a provisional licence before passing the theory test) aren't modelled,
+and age isn't weighted.
+
 **Effective sample size** (`1 / Σw²`) says how many equally weighted profiles the
 weighted result is worth. Below about 15, a handful of profiles carry the
 result.
+
+> **Detail: how raking works.** Start with every profile weighted equally. Take
+> one question, such as "Do you already have a provisional licence?". Among the
+> profiles asked it, add up the weight held by each answer and compare it with
+> that answer's target, say 85% yes and 15% no. Scale each answer's profiles to
+> hit its target: if the "yes" profiles hold 50% of the weight, each of their
+> weights is multiplied by 85 ÷ 50 = 1.7, and each "no" profile's by 15 ÷ 50 =
+> 0.3. The total weight of the profiles asked stays the same. Do the same for the
+> next question, and so on. Fixing one question can pull an earlier one slightly
+> off its target, so repeat the pass until a full pass changes no weight by more
+> than one part in a billion, or for at most 100 passes. Finally, scale the
+> weights to add up to 1. Questions without a target aren't adjusted directly.
 
 ## 10. Reading the results
 
@@ -353,9 +448,35 @@ offline and needs nothing beyond Python. For each run it shows:
 The scores tell you where to look. The evidence tells you what actually happened,
 and as the next section shows, it can change the conclusion.
 
+### What every run records
+
+**The plans file**, written by `generate` and saved after every profile:
+
+- the settings: G, the planner runtime and the profiles file used;
+- every profile requested, including any skipped for low weight;
+- each plan with the exact situation and answers it was made from, including
+  today's date, so a later rescore judges against the same date;
+- profiles whose plans all failed, with the last error.
+
+**`results.json`**, written by `score` once judging has finished:
+
+- which plans file was scored, the judge model and N;
+- coverage: profiles requested and scored, those skipped and why, those with
+  fewer than G plans, and the share of weight scored;
+- each profile's scores with their ranges, and the evidence: every verdict and
+  reason, contradiction and structural difference;
+- the weighted scores and their intervals, when profiles have weights;
+- how many items were left unjudged.
+
+`generate` exits with an error if any profile was skipped or got fewer than G
+plans, so a script can tell. `score` warns about an incomplete plans file but
+still writes results.
+
 ## 11. Example run: learning to drive, 28 October 2026
 
-The committed example is `data/examples_ltd/results_w2.json`.
+The committed example is `data/examples_ltd/results_w2.json`. The profiles,
+weights and questionnaire it was built from, and the plans it scored
+(`plans_w2.json`), are alongside it in `data/examples_ltd/`.
 
 ### Set-up
 
@@ -458,7 +579,8 @@ and what they say about them (0.91) were much more stable.
   P071 alone holds 49% of the weight, so the weighted scores mostly describe P071
   and P085. The weights methodology traces this to the profile set, where the
   most common combination of answers happens to have a single 45-year-old
-  profile. Treat the weighted scores as provisional.
+  profile. Treat the weighted scores as provisional. More profiles on the
+  heavily weighted routes would help (section 14).
 - **Some profiles can't exist.** P018 and P069 have passed the theory test
   without a provisional licence, which isn't possible in Great Britain. Together
   they hold 4.9% of the weight.
@@ -468,24 +590,38 @@ and what they say about them (0.91) were much more stable.
 - **Some weights are assumptions.** There are no public figures for accessibility
   needs or PIP among learner drivers, and the stage shares use transaction
   volumes as a stand-in.
-- **Faithfulness isn't measured.** Checking a plan against what the knowledge
-  graph returned would need the planner's tool results, and the hosted planner
+- **The judge only checks what a plan says.** Relevance can't see a missing
+  step; only ground truth (Route 1) measures that, and it covers car learners
+  only.
+- **Faithfulness isn't measured.** Checking a plan against what the Service
+  Graph returned would need the planner's tool results, and the hosted planner
   returns only the plan.
 
 ## 13. Running it yourself
 
-From `scripts/evaluation/plan-generation`, for a weighted run:
+From `scripts/evaluation/plan-generation`. The `data/` folder is git-ignored
+apart from `data/examples_ltd/`, so the committed files are the way in. With
+them you can reweight the profiles, rescore the saved plans and rebuild the
+dashboard without asking the planner for anything. Step 2 needs a deployed
+planner, which this repository doesn't provide.
 
 ```bash
-# 1. weight the profiles (after situations.py has added a situation to each)
-python weights.py data/profiles/driving_profiles_v5.json data/weights/driving_weights_v2.json \
-    -o data/profiles/driving_profiles_v5_w2.json
+# 1. weight the profiles. The committed file is already weighted,
+#    so this reproduces it.
+python weights.py data/examples_ltd/driving_profiles_v5_w2.json data/examples_ltd/driving_weights_v2.json \
+    -o data/driving_profiles_w2.json
 
-# 2. ask the hosted planner for 3 plans per profile
-python -m metrics.harness generate data/profiles/driving_profiles_v5_w2.json -G 3 -o data/plans.json
+# 2. ask the hosted planner for 3 plans per profile. Skip this step to use the
+#    committed plans, data/examples_ltd/plans_w2.json.
+python -m metrics.harness generate data/driving_profiles_w2.json -G 3 -o data/plans.json
 
-# 3. judge each measure twice
-python -m metrics.harness score data/plans.json -N 2 --results-out data/results/results_w2.json
+# 3. judge each measure twice. Use data/plans.json instead if you ran step 2,
+#    and leave out --weights. The committed plans record the original machine's
+#    path to the profiles, so they need --weights to find the weights.
+mkdir -p data/results
+python -m metrics.harness score data/examples_ltd/plans_w2.json -N 2 \
+    --weights data/examples_ltd/driving_profiles_v5_w2.json \
+    --results-out data/results/results_w2.json
 
 # 4. build the dashboard from every results file in data/results/
 python dashboard.py
@@ -495,15 +631,16 @@ open data/results/dashboard.html
 What each step needs:
 
 - `generate` needs `AGENT_RUNTIME_ARN` (or `--agent-runtime-arn`) and AWS
-  credentials allowed to invoke the hosted planner, for example under
-  `aws-vault exec`.
+  credentials allowed to invoke the hosted planner, for example from
+  `gds-cli aws [PROFILE] -e`, copied into your shell.
 - `score` needs `EVAL_ANTHROPIC_MODEL` (or `--judge-model`) and Bedrock access for
   the judge. It doesn't need the planner.
-- `dashboard.py` needs only Python and works offline.
+- `weights.py` and `dashboard.py` need only Python and work offline.
 
 When working on a judge prompt, score a single profile and a single measure,
-for example `python -m metrics.harness score data/plans.json --profile P013
---metrics relevance`. The plans are already saved, so this costs only the judge
+for example `python -m metrics.harness score data/examples_ltd/plans_w2.json
+--weights data/examples_ltd/driving_profiles_v5_w2.json --profile P071 --metrics
+relevance`. The plans are already saved, so this costs only the judge
 calls.
 
 **Before sharing anything:** plans files record the runtime ARN, which includes
@@ -513,7 +650,63 @@ local file paths and the judge's text about each plan.
 The [README](../README.md) has every flag, the plans and results file formats,
 and the full retry rules.
 
-## 14. Open questions and next steps
+### What isn't published
+
+Some inputs are not in this repository, so parts of the pipeline can't be rerun
+from it.
+
+- **The planner.** `generate`, and the scoring in `run_app.py`, need a deployed
+  planner runtime and permission to call it.
+- **The life-event subgraph**, the input to `plans.py`. It is built from the
+  GOV.UK Knowledge Graph with `src/utils/build_subgraph.py`, which needs
+  BigQuery access. The committed questionnaire and profiles are its outputs, so
+  you can use them, but you can't regenerate them without the subgraph.
+- **The situations template file** for `situations.py`. Each committed profile
+  already has its situation.
+- **The ground-truth mapping and answer keys** for Route 1. `truth.py map` can
+  rebuild the mapping from the committed questionnaire and the step by step's
+  URL, using Claude on Bedrock, and `truth.py build` then applies a reviewed
+  mapping to the committed profiles. Scoring a plan against the result still
+  needs the planner.
+
+### A new life event
+
+Nothing in the code is about driving. Only the content and a few hand-written
+files change.
+
+What you provide:
+
+1. **The content**: a subgraph of the event's GOV.UK pages from the knowledge
+   graph.
+2. **Situation sentences**: one per main goal, in `situations.json`.
+3. **Target shares** for the answers that matter, with sources, if you want
+   weighted scores.
+4. **A step by step**, for ground truth: a GOV.UK one if it covers the event, or
+   one we write ourselves.
+
+What people check: the questionnaire, using its readable summary; the
+ground-truth mapping against the guide; and the sources behind the target
+shares.
+
+| Stage | Learning to drive | Having a baby |
+|---|---|---|
+| Questionnaire | Done, 15 questions | Done, 9 questions |
+| Profiles | Done, 90 | Next |
+| Situations | Done | Next |
+| Weights | Done, sourced | Next |
+| Ground truth | Done, car learners in Great Britain | Next, from our own step by step |
+| Judged run | Done, 28 October 2026 | Next |
+
+## 14. Lessons, open questions and next steps
+
+### What the first run taught us
+
+| Lesson | What we'll change |
+|---|---|
+| **Read the evidence, not just the score.** The biggest drop in relevance came from information the judge wasn't given: each step's status. | Show the relevance judge each step's status, or leave completed steps out of the score. |
+| **One judge run isn't enough.** A genuine contradiction was caught in one of two runs, and some pairs of plans were judged the same in one run and different in the other. | Keep N at 2 or more. Check the judge against people: reviewers label a sample of verdicts, and we measure how often they agree. |
+| **The judge reacts to wording.** A completed step worded "Keep your theory certificate ready" was judged relevant; worded "Apply for…", it was contradicted. | Giving the judge each step's status should remove most of this. The reviewers' sample will show what is left. |
+| **The profile set limits the weighting.** Only 16 profiles were in scope, so one learner carried 49% of the weight, and two scored profiles were impossible. | Ask questions only once the answers they depend on are known, and add profiles on the common routes, so a weighted score doesn't rest on one or two profiles. |
 
 ### Decisions this run raises
 
@@ -534,17 +727,39 @@ These come from `driving_weights_v2_methodology.md`:
   a theory pass without a provisional licence, and sample accessibility and PIP
   together rather than independently.
 - Add age as a weighting dimension, or create several personas per set of answers
-  across age bands.
+  across age bands. For driving, though, the planner barely responds to age:
+  nothing in the plans for P071 or P085 mentions it. Personas that vary the
+  situation sentence would test more.
 - Replace the stand-in shares with GOV.UK page analytics or a learner-driver
   survey.
 - Report how much the scores move with accessibility at 8% and 16%, and PIP
   mobility at 0.5% and 3%.
 - Keep the car-only scope separate from any broader driving-services evaluation.
 
-### Not built yet
+### Extend it
 
-- **Faithfulness**: checking a plan against the knowledge-graph results the
-  planner saw. This needs the hosted planner to return its tool-call results.
+- **Having a baby.** Generate its profile set from the questionnaire already
+  built, write its situations and target shares, then run `generate` and
+  `score`.
+- **Ground truth for having a baby**, from a step by step we write ourselves.
+  `truth.py` currently reads a published step by step from the GOV.UK content
+  API, so it will need a way to take one of ours.
+- **Faithfulness** (not built yet). While it builds a plan, the planner looks up
+  services in the Service Graph, which holds GOV.UK's details for each service.
+  Faithfulness will compare what the plan says about each service (its cost,
+  deadline, eligibility and link) with what those lookups returned in the same
+  run. The score will be the share of the plan's claims that the lookups back
+  up. Relevance asks whether a plan fits the person; faithfulness asks whether it
+  reports GOV.UK's content accurately. This needs the hosted planner to return
+  its tool-call results.
+
+### Make it routine
+
+- Run a fixed profile set on every planner change, and show what changed since
+  the last run.
+- Call the planner in parallel. Calls currently run one after another, each
+  taking minutes.
+- Show ground-truth F1 in the same dashboard as the judged measures.
 
 ## 15. File map
 
@@ -556,7 +771,7 @@ All paths are relative to `scripts/evaluation/plan-generation/`.
 | [prompts.py](../prompts.py) | The Claude prompts and tool schemas used by `plans.py` and `truth.py` |
 | [summary.py](../summary.py) | Writes the readable Markdown summary of a questionnaire, with a branching diagram |
 | [situations.py](../situations.py) | Adds a first-person situation sentence to every profile |
-| [weights.py](../weights.py) | Weights profiles to target answer shares by raking; optional weighted sampling |
+| [weights.py](../weights.py) | Weights profiles to target answer shares by raking; optional weighted sampling (`--sample`) |
 | [truth.py](../truth.py) | Ground truth: maps a GOV.UK step by step onto the questionnaire, builds answer keys, scores plans |
 | [run_app.py](../run_app.py) | Calls the hosted planner and scores its plans against ground truth; shared helpers for calling the planner |
 | [metrics/harness.py](../metrics/harness.py) | The `generate` and `score` commands |
@@ -569,4 +784,4 @@ All paths are relative to `scripts/evaluation/plan-generation/`.
 | [metrics/retry.py](../metrics/retry.py) | Which judge errors are retried, which are marked unjudged, and which stop the run |
 | [metrics/*_prompt.md](../metrics/) | The three judge prompts |
 | [dashboard.py](../dashboard.py) | Builds the HTML dashboard from a folder of results files |
-| `data/examples_ltd/` | The committed example: profiles, weights and methodology, results and dashboard |
+| `data/examples_ltd/` | The committed example: questionnaire, profiles, weights and methodology, the plans, the results and the dashboard |
