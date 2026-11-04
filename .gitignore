@@ -105,3 +105,7 @@ amplify_outputs*.json
 # Local backend: the synthesised stack sam local start-lambda runs
 .local/
 .build/
+
+# Presentation decks
+*slides.html
+*slides.ppt
