@@ -10,7 +10,7 @@ dependencies = [
     # MCP tool-call results, so this harness imports agent/app/planner_agent.py.
     # Pin strands + mcp to the versions agent/uv.lock resolves, so the imported
     # agent code behaves identically here (newer mcp renamed streamablehttp_client).
-    "strands-agents==1.50.2",
+    "strands-agents==1.63.0",
     "mcp==1.29.0",
     "python-dotenv>=1.2.2",
     "pydantic>=2.13.4",
