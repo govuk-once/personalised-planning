@@ -344,21 +344,33 @@ def visible(model, q, answers):
     return [o["id"] for o in q["options"] if o["id"] not in blocked]
 
 
-def walk(model, rng):
+def walk(model, rng, pins=None):
     """Answer the model once, at random, honouring ask/skip and filters.
 
     Args:
         model: The elicitation model.
         rng: Seeded random source.
+        pins: Optional scope, question id mapped to the set of option ids
+            allowed for it. A pinned question is answered only from its
+            pinned options; every other question is answered as usual.
 
     Returns:
-        Answers keyed by question id, for asked questions only.
+        Answers keyed by question id, for asked questions only, or None if
+        the walk left the scope: a pinned question was not asked, or none
+        of its pinned options was shown.
     """
+    pins = pins or {}
     answers = {}
     for q in sorted(model["questions"], key=lambda q: q.get("order", 0)):
         if not ev(model, q.get("ask_if", True), answers):
+            if q["id"] in pins:
+                return None
             continue
         opts = visible(model, q, answers)
+        if q["id"] in pins:
+            opts = [o for o in opts if o in pins[q["id"]]]
+            if not opts:
+                return None
         if not opts:
             continue
         if q.get("type") == "multi_select":
@@ -415,7 +427,7 @@ def signature(model, answers):
     )
 
 
-def generate(model, budget=20_000, seed=0):
+def generate(model, budget=20_000, seed=0, pins=None):
     """Sample hard, keep one profile per distinct plan shape.
 
     Deduplicating on answers alone keeps roughly nine near-identical plans
@@ -426,6 +438,8 @@ def generate(model, budget=20_000, seed=0):
         model: The elicitation model.
         budget: How many walks to attempt.
         seed: Random seed, for reproducibility.
+        pins: Optional scope, passed to `walk`. Walks that leave it are
+            discarded; without pins the result is unchanged.
 
     Returns:
         One representative profile per distinct signature.
@@ -433,9 +447,41 @@ def generate(model, budget=20_000, seed=0):
     rng = random.Random(seed)
     seen = {}
     for _ in range(budget):
-        a = walk(model, rng)
-        seen.setdefault(signature(model, a), a)
+        a = walk(model, rng, pins)
+        if a is not None:
+            seen.setdefault(signature(model, a), a)
     return list(seen.values())
+
+
+def load_pins(model, path):
+    """Read a scope file and check it against the model.
+
+    Args:
+        model: The elicitation model.
+        path: JSON file mapping question id to a list of allowed option ids.
+            Keys starting with an underscore are notes and are ignored.
+
+    Returns:
+        Question id mapped to a set of option ids.
+
+    Raises:
+        ValueError: If a pin names a question or option the model does not
+            have, or allows no options. A typo would otherwise empty the
+            scope, or silently pin nothing.
+    """
+    raw = json.loads(Path(path).read_text())
+    pins = {q: set(as_list(opts)) for q, opts in raw.items() if not q.startswith("_")}
+    questions = {q["id"]: q for q in model.get("questions", [])}
+    for qid, opts in pins.items():
+        if qid not in questions:
+            raise ValueError(f"pin {qid}: no such question in the model")
+        known = {o["id"] for o in questions[qid]["options"]}
+        if not opts or opts - known:
+            raise ValueError(
+                f"pin {qid}: unknown or no options {sorted(opts - known)}; "
+                f"options are {', '.join(sorted(known))}"
+            )
+    return pins
 
 
 # --------------------------------------------------------------------------
@@ -1347,6 +1393,27 @@ def cmd_profiles(args):
             print("  " + e, file=sys.stderr)
         return 1
 
+    # Validation above samples the whole model: pinned out options would
+    # otherwise be reported as unreachable. Only the profiles are scoped.
+    scope = {}
+    if args.pins:
+        try:
+            pins = load_pins(model, args.pins)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"{args.pins}: {exc}", file=sys.stderr)
+            return 1
+        profiles = generate(model, seed=args.seed, pins=pins)
+        if not profiles:
+            print(
+                f"{args.pins}: no walk stays inside the pinned scope", file=sys.stderr
+            )
+            return 1
+        scope = {
+            "pins_file": args.pins,
+            "pins": {q: sorted(o) for q, o in pins.items()},
+        }
+        print(f"pinned scope: {len(profiles)} distinct profiles", file=sys.stderr)
+
     rng = random.Random(args.seed)
     records = [
         {"id": f"P{i:03d}", **describe(model, p, rng)}
@@ -1375,11 +1442,14 @@ def cmd_profiles(args):
                 usage=usage,
             )
 
+    for out in (args.profiles, args.review):
+        if out:
+            Path(out).parent.mkdir(parents=True, exist_ok=True)
     if args.profiles:
         Path(args.profiles).write_text(
             json.dumps(
                 {
-                    "meta": {"life_event": life_event, "count": len(records)},
+                    "meta": {"life_event": life_event, "count": len(records), **scope},
                     "profiles": records,
                 },
                 indent=2,
@@ -1400,6 +1470,7 @@ def cmd_profiles(args):
                         "count": len(packets),
                         "rubric": RUBRIC,
                         "fact_rarity": rarity,
+                        **scope,
                     },
                     "packets": packets,
                 },
@@ -1470,6 +1541,11 @@ def main(argv=None):
     p.add_argument("--profiles", help="write profile records here")
     p.add_argument("--review", help="write review packets here")
     p.add_argument("--personas", action="store_true")
+    p.add_argument(
+        "--pins",
+        help="JSON file mapping question id to allowed option ids; profiles are "
+        "sampled only inside that scope (validation still covers the whole model)",
+    )
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--region", default="eu-west-2")
     p.set_defaults(func=cmd_profiles)

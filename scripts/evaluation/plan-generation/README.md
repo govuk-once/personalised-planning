@@ -233,6 +233,7 @@ python plans.py profiles data/driving_subgraph.json \
 | `--profiles` | — | Write synthetic profiles here |
 | `--review` | — | Write review packets here |
 | `--personas` | off | Have Claude write a name and life for each profile |
+| `--pins` | — | Sample only inside a scope (see "Pinning the scope" below) |
 | `--seed` | 0 | Random seed, for reproducible profile sets |
 | `--region` | `eu-west-2` | AWS region |
 
@@ -322,6 +323,84 @@ more genuine branches doesn't multiply persona cost along with it.
 
 `situation` is not written by `plans.py`; add it with `situations.py` (next
 section).
+
+## Pinning the scope (`--pins`)
+
+A full model can cover far more than one evaluation needs. Having a baby
+yields 9,023 distinct profiles, most of them in branches such as pregnancy
+loss, the devolved nations or adoption. Pinning limits sampling to a chosen
+scope without changing the model:
+
+```bash
+python plans.py profiles data/having_a_baby_subgraph_pruned.json \
+    --model runs/baby_none_consensus/model_refined.json \
+    --pins data/pins/baby_common_path.json \
+    --profiles data/profiles/baby_common_path.json \
+    --review data/review/baby_common_path.json
+```
+
+The pins file maps question ids to the answers allowed for them. Keys starting
+with `_` are notes:
+
+```json
+{
+  "_note": "Common path for having a baby",
+  "q_nation": ["england"],
+  "q_pregnancy_outcome": ["ongoing_or_born_alive"],
+  "q_relationship_to_baby": ["giving_birth", "partner"]
+}
+```
+
+**Approach.** The scope is fixed first, then sampling stays uniform inside it.
+Each walk answers a pinned question only from its pinned answers, and every
+other question at random as usual. A walk is discarded if a pinned question is
+not asked, or none of its pinned answers is shown, so every profile is inside
+the scope. Deduplication then keeps one profile per distinct journey, so every
+journey in the scope appears exactly once, however rare it is. Realism is added
+afterwards and separately: `weights.py` gives each profile a weight so answer
+shares match sourced targets (see "Weighting the profiles" below). Validation
+still samples the whole model, so options outside the scope are not reported as
+unreachable.
+
+**Benefits.**
+- The whole sampling budget goes into the scope, rather than only the share of
+  a full run that happens to land there. Coverage of the scope is complete:
+  if different `--seed` values give the same number of profiles, nothing was
+  missed.
+- The scope is a few whole-answer rules, not a hand-picked list of profiles or
+  pages.
+- Coverage ("is every case handled?") and representativeness ("how well does
+  it do for typical users?") stay separate. Unweighted and weighted scores can
+  be reported side by side.
+- The model is not changed and is still validated in full.
+
+**Disadvantages.**
+- Journeys outside the scope are not tested at all.
+- Weights describe people inside the scope, not the whole population.
+  `weights.py` drops targets for answers no profile gives (with a warning) and
+  rescales the rest, so weighted scores are not population figures.
+- Unweighted scores give rare combinations as much say as common ones.
+- Weights can concentrate on a few profiles, leaving many below
+  `metrics.harness`'s default `--min-weight` of 0.005. Check the effective
+  sample size `weights.py` prints.
+- Raking matches each question's shares separately, so links between answers
+  are not modelled.
+- Widening the scope means regenerating the profiles, weights, ground truth and
+  plans.
+
+**Where each run's decisions are stored.** Every location is a command-line
+argument; by convention files sit under `data/`, one directory per kind, named
+after the life event and scope (e.g. `baby_common_path`):
+
+| Decision | Stored in |
+|---|---|
+| Questionnaire | the model JSON; its `meta` records how it was generated or merged |
+| Scope | the pins file (e.g. `data/pins/baby_common_path.json`), copied into `meta.pins` and `meta.pins_file` of the profiles and review files, together with `--seed` |
+| Situations | the situations file given to `situations.py` |
+| Weight targets and their sources | the weights file (e.g. `data/weights/driving_weights_v2.json`), whose `meta` and `_source` notes cite each target |
+| Weights per profile | the weighted profiles file written by `weights.py` (e.g. `data/profiles/baby_common_path_w.json`) |
+| Spine mapping | `mapping.json`, reviewed by hand |
+| Answer key | `truth.json`, built from the pinned profiles |
 
 ## Adding a situation to each profile (`situations.py`)
 
