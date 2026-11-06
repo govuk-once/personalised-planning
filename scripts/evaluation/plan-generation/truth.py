@@ -37,7 +37,7 @@ import pathlib
 import sys
 from urllib.parse import urlsplit
 
-from prompts import MAP_SYSTEM, MAP_TOOL
+from prompts import map_system, map_tool
 
 MODEL = "eu.anthropic.claude-sonnet-5"
 
@@ -212,21 +212,25 @@ def build_mapping(client, path, steps, model):
             for q in model.get("questions", [])
         ],
     }
+    # Scope guidance depends on whether the questionnaire asks which service
+    # the person wants (q_main_goal) or routes on circumstances alone.
+    has_goal = any(q["id"] == "q_main_goal" for q in model.get("questions", []))
+    tool = map_tool(has_goal)
     response = client.converse(
         modelId=MODEL,
         inferenceConfig={"maxTokens": 8000},
-        system=[{"text": MAP_SYSTEM}],
+        system=[{"text": map_system(has_goal)}],
         messages=[{"role": "user", "content": [{"text": json.dumps(brief, indent=1)}]}],
         toolConfig={
             "tools": [
                 {
                     "toolSpec": {
-                        "name": MAP_TOOL["name"],
-                        "inputSchema": {"json": MAP_TOOL["input_schema"]},
+                        "name": tool["name"],
+                        "inputSchema": {"json": tool["input_schema"]},
                     }
                 }
             ],
-            "toolChoice": {"tool": {"name": MAP_TOOL["name"]}},
+            "toolChoice": {"tool": {"name": tool["name"]}},
         },
     )
     for block in response["output"]["message"]["content"]:

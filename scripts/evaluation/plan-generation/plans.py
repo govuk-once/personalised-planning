@@ -25,7 +25,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from prompts import SYSTEM, TOOL, REPAIR, PERSONA_SYSTEM, PERSONA_TOOL
+from prompts import REPAIR, PERSONA_SYSTEM, PERSONA_TOOL, system_prompt, tool_schema
 from summary import summarize
 
 INF = math.inf
@@ -36,11 +36,115 @@ MAX_MULTI_SELECT = 3  # cap prevents unrealistically exhaustive selections
 # --------------------------------------------------------------------------
 
 
-def load_corpus(path: str) -> tuple[str, str, set[str]]:
+LEGACY_PAGE_CHARS = 5000
+
+# `details` fields holding readable content, in display order. Anything else
+# (change_history, tags, codes, links) is metadata the model cannot cite.
+CONTENT_FIELDS = (
+    "introduction",
+    "introductory_paragraph",
+    "body",
+    "need_to_know",
+    "before_results",
+    "after_results",
+    "more_information",
+    "other_ways_to_apply",
+)
+
+
+def _strip_html(html: str) -> str:
+    """Reduce HTML to text, keeping paragraph breaks."""
+    text = re.sub(r"<(?:br|/p|/li|/h\d|/tr)[^>]*>", "\n", html)
+    text = re.sub(r"<[^>]+>", " ", text)
+    for entity, char in (("&amp;", "&"), ("&nbsp;", " "), ("&lt;", "<"), ("&gt;", ">")):
+        text = text.replace(entity, char)
+    return text
+
+
+def _content_text(value) -> str:
+    """Text of one `details` content field.
+
+    Publishing API bodies come as a list of renderings of the same text
+    (govspeak and HTML); only one is kept, preferring govspeak, so the model
+    reads each passage once. Plain strings are HTML.
+    """
+    if isinstance(value, str):
+        return _strip_html(value)
+    if isinstance(value, list) and value and isinstance(value[0], dict):
+        by_type = {v.get("content_type"): v.get("content", "") for v in value}
+        if "text/govspeak" in by_type:
+            return by_type["text/govspeak"]
+        if "text/html" in by_type:
+            return _strip_html(by_type["text/html"])
+    return ""
+
+
+def _step_by_step_text(nav: dict) -> str:
+    """Flatten a step-by-step's steps into numbered titles and their text."""
+    lines = []
+
+    def walk(items):
+        for item in items or []:
+            if item.get("text"):
+                href = f" ({item['href']})" if item.get("href") else ""
+                lines.append(f"- {item['text']}{href}")
+            walk(item.get("contents"))
+
+    for i, step in enumerate(nav.get("steps", []), 1):
+        lines.append(f"Step {i}: {step.get('title', '')}")
+        walk(step.get("contents"))
+    return "\n".join(lines)
+
+
+def _tidy(text: str) -> str:
+    """Normalise whitespace without flattening paragraphs."""
+    text = text.replace("\r\n", "\n")
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n\s*\n+", "\n\n", text).strip()
+
+
+def page_text(node: dict) -> str:
+    """Readable content of one page: description, then its body.
+
+    Guides keep each part's title and citable path as a sub-heading, so the
+    model can see — and cite — which section a condition comes from.
+    """
+    raw = node.get("details") or "{}"
+    try:
+        details = json.loads(raw) if isinstance(raw, str) else raw
+    except json.JSONDecodeError:
+        details = {}
+    base = node.get("base_path", "")
+    out = [node.get("description") or ""]
+    for part in details.get("parts", []) or []:
+        out.append(f"#### {part.get('title', '')} ({base}/{part.get('slug', '')})")
+        out.append(_content_text(part.get("body")))
+    for field in CONTENT_FIELDS:
+        if field in details:
+            out.append(_content_text(details[field]))
+    if isinstance(details.get("step_by_step_nav"), dict):
+        out.append(_step_by_step_text(details["step_by_step_nav"]))
+    return _tidy("\n\n".join(t for t in out if t))
+
+
+def load_corpus(
+    path: str,
+    legacy: bool = False,
+    shuffle_seed: int | None = None,
+    max_page_chars: int | None = None,
+) -> tuple[str, str, set[str]]:
     """Flatten a subgraph into one prompt block.
 
     Args:
         path: Path to the life-event subgraph JSON.
+        legacy: Reproduce the original flattening: tags stripped from the raw
+            `details` JSON and each page cut at 5,000 characters. That cut
+            includes JSON syntax and a duplicate HTML copy of the text, so most
+            guides lost their later parts — often the eligibility sections.
+        shuffle_seed: If given, present pages in a seeded random order, so a
+            run can be repeated without the subgraph's order biasing it.
+        max_page_chars: Optional per-page cap for the parsed text (no cap by
+            default). Ignored in legacy mode.
 
     Returns:
         A tuple of (life_event, prompt_text, citable_paths). Citable paths
@@ -48,14 +152,24 @@ def load_corpus(path: str) -> tuple[str, str, set[str]]:
         cited at section level far more often than page level.
     """
     graph = json.loads(Path(path).read_text())
+    nodes = list(graph.get("nodes", []))
+    if shuffle_seed is not None:
+        random.Random(shuffle_seed).shuffle(nodes)
     chunks, paths = [], set()
-    for node in graph.get("nodes", []):
+    for node in nodes:
         base = node.get("base_path", "")
         paths.add(base)
         raw = node.get("details") or ""
+        if not isinstance(raw, str):
+            raw = json.dumps(raw)
         for slug in re.findall(r'"slug":\s*"([^"]+)"', raw):
             paths.add(f"{base}/{slug}")
-        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw))[:5000]
+        if legacy:
+            text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw))[:LEGACY_PAGE_CHARS]
+        else:
+            text = page_text(node)
+            if max_page_chars is not None:
+                text = text[:max_page_chars]
         chunks.append(f"### {node.get('title')} ({base})\n{text}")
     return graph.get("life_event", "unknown"), "\n\n".join(chunks), paths
 
@@ -594,7 +708,12 @@ def _check_condition_refs(label, cond, questions, known, errs):
                 )
 
 
-def validate(model, paths, profiles):
+def main_goal_mode(model, default="required"):
+    """The --main-goal mode a model was generated under (from its meta)."""
+    return (model.get("meta") or {}).get("main_goal", default)
+
+
+def validate(model, paths, profiles, main_goal="required"):
     """Check the model resolves and that nothing in it is dead.
 
     Covers only the four fault classes measurement showed ship invisibly:
@@ -609,6 +728,11 @@ def validate(model, paths, profiles):
         model: The elicitation model.
         paths: Citable paths, from `load_corpus`.
         profiles: Sampled answer sets to check reachability against.
+        main_goal: "required" enforces `q_main_goal` as the first,
+            always-asked question; "optional" drops that check (the model may
+            still include `q_main_goal` anywhere); "none" rejects any
+            `q_main_goal`. A renamed choice-of-service question cannot be
+            caught here — compare_models.py lists opening questions to check.
 
     Returns:
         Error strings, empty if the model is sound.
@@ -623,19 +747,25 @@ def validate(model, paths, profiles):
     # first one's and every fact reading it resolves to None. An empty option
     # list surfaces only as a confusing complaint about some other question
     # comparing against an option that no longer exists.
-    main_goal = questions.get("q_main_goal")
-    if not main_goal:
-        errs.append("q_main_goal: missing — the first question must have this id")
-    else:
-        if main_goal.get("order", 0) != min(
-            q.get("order", 0) for q in model.get("questions", [])
-        ):
-            errs.append("q_main_goal: must have the lowest order of all questions")
-        ask = main_goal.get("ask_if", True)
-        if ask is not True:
-            errs.append(
-                "q_main_goal: must be always asked (ask_if must be true or absent)"
-            )
+    if main_goal == "required":
+        goal_q = questions.get("q_main_goal")
+        if not goal_q:
+            errs.append("q_main_goal: missing — the first question must have this id")
+        else:
+            if goal_q.get("order", 0) != min(
+                q.get("order", 0) for q in model.get("questions", [])
+            ):
+                errs.append("q_main_goal: must have the lowest order of all questions")
+            ask = goal_q.get("ask_if", True)
+            if ask is not True:
+                errs.append(
+                    "q_main_goal: must be always asked (ask_if must be true or absent)"
+                )
+    elif main_goal == "none" and "q_main_goal" in questions:
+        errs.append(
+            "q_main_goal: not allowed — route on the person's circumstances, "
+            "not on which service or help they want"
+        )
 
     if len(questions) != len(model.get("questions", [])):
         seen = set()
@@ -805,7 +935,7 @@ def validate(model, paths, profiles):
     return errs
 
 
-def safe_validate(model, paths, seed):
+def safe_validate(model, paths, seed, main_goal="required"):
     """Validate a model, turning a crash while sampling into an error to fix.
 
     A model using an operator or reference outside the supported subset
@@ -816,6 +946,7 @@ def safe_validate(model, paths, seed):
         model: The elicitation model.
         paths: Citable paths, from `load_corpus`.
         seed: Random seed for sampling.
+        main_goal: Passed to `validate`.
 
     Returns:
         A tuple of (errors, profiles). profiles is empty if sampling failed.
@@ -824,7 +955,7 @@ def safe_validate(model, paths, seed):
         profiles = generate(model, seed=seed)
     except (ValueError, KeyError, TypeError, AttributeError, IndexError) as exc:
         return [f"model is broken: {exc}"], []
-    return validate(model, paths, profiles), profiles
+    return validate(model, paths, profiles, main_goal=main_goal), profiles
 
 
 # --------------------------------------------------------------------------
@@ -1080,11 +1211,23 @@ def persona_budget(n_profiles, cap=40, k=4.0):
 # --------------------------------------------------------------------------
 
 
+READ_TIMEOUT_S = 900  # botocore's 60s default is shorter than a long generation
+MAX_ATTEMPTS = 2  # each retry resends the full corpus, which may be billed again
+
+
 def _client(region):
     """Create a Bedrock client lazily, so a pure-compute run needs no boto3."""
     import boto3
+    from botocore.config import Config
 
-    return boto3.client("bedrock-runtime", region_name=region)
+    return boto3.client(
+        "bedrock-runtime",
+        region_name=region,
+        config=Config(
+            read_timeout=READ_TIMEOUT_S,
+            retries={"total_max_attempts": MAX_ATTEMPTS, "mode": "standard"},
+        ),
+    )
 
 
 def _report(usage, model, records, errors):
@@ -1110,16 +1253,30 @@ def cmd_model(args):
     summary, then prints the same diagnostics a sampling run would, so the
     reviewer can judge whether the model is viable before amending it.
     """
-    life_event, corpus, paths = load_corpus(args.subgraph)
+    life_event, corpus, paths = load_corpus(
+        args.subgraph,
+        legacy=args.legacy_corpus,
+        shuffle_seed=args.shuffle_seed,
+        max_page_chars=args.max_page_chars,
+    )
+    print(
+        f"corpus: {len(corpus)} chars (~{len(corpus) // 4} tokens), "
+        f"{'legacy' if args.legacy_corpus else 'parsed'}, "
+        f"order {'shuffled seed ' + str(args.shuffle_seed) if args.shuffle_seed is not None else 'as in subgraph'}, "
+        f"main goal {args.main_goal}",
+        file=sys.stderr,
+    )
     usage = {}
     client = _client(args.region)
+    system = system_prompt(args.main_goal, rationale=args.rationale)
+    tool = tool_schema(rationale=args.rationale)
     user = f"Life event: {life_event}\n\n{corpus}"
-    model = call(client, SYSTEM, user, TOOL, usage=usage)
+    model = call(client, system, user, tool, usage=usage)
     for attempt in range(args.repairs + 1):
         # Full budget, not a cheap sample: a narrow option gated behind two
         # prior answers needs the whole run to appear, and reporting it as
         # dead sends the repair stage chasing a phantom.
-        errors, _ = safe_validate(model, paths, args.seed)
+        errors, _ = safe_validate(model, paths, args.seed, main_goal=args.main_goal)
         if not errors:
             break
         print(f"validation: {len(errors)} issue(s)", file=sys.stderr)
@@ -1129,18 +1286,29 @@ def cmd_model(args):
             break
         model = call(
             client,
-            SYSTEM + "\n\n" + REPAIR,
+            system + "\n\n" + REPAIR,
             f"{user}\n\nModel:\n{json.dumps(model)}\n\nErrors:\n" + "\n".join(errors),
-            TOOL,
+            tool,
             usage=usage,
         )
     model["meta"] = {
         "life_event": life_event,
         "validation": "clean" if not errors else f"{len(errors)} unresolved",
+        # Run settings, so outputs from different runs can be told apart and
+        # compared (compare_models.py reads these).
+        "subgraph": args.subgraph,
+        "main_goal": args.main_goal,
+        "rationale": args.rationale,
+        "corpus": "legacy" if args.legacy_corpus else "parsed",
+        "shuffle_seed": args.shuffle_seed,
+        "max_page_chars": args.max_page_chars,
+        "corpus_chars": len(corpus),
+        "tokens": usage,
     }
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(model, indent=2))
 
-    errors, profiles = safe_validate(model, paths, args.seed)
+    errors, profiles = safe_validate(model, paths, args.seed, main_goal=args.main_goal)
     summary_path = args.summary or str(Path(args.out).with_suffix(".md"))
     Path(summary_path).write_text(summarize(model, life_event, profiles))
     rng = random.Random(args.seed)
@@ -1167,7 +1335,9 @@ def cmd_profiles(args):
     model = json.loads(Path(args.model).read_text())
     usage = {}
 
-    errors, profiles = safe_validate(model, paths, args.seed)
+    errors, profiles = safe_validate(
+        model, paths, args.seed, main_goal=main_goal_mode(model)
+    )
     if errors:
         print(
             f"validation: {len(errors)} issue(s) — fix the model before sampling",
@@ -1264,6 +1434,34 @@ def main(argv=None):
     m.add_argument("--repairs", type=int, default=3)
     m.add_argument("--seed", type=int, default=0)
     m.add_argument("--region", default="eu-west-2")
+    m.add_argument(
+        "--main-goal",
+        choices=["required", "optional", "none"],
+        default="required",
+        help="required: first question must be q_main_goal (original behaviour); "
+        "optional: the model chooses its opening questions; "
+        "none: no question about which service or help the person wants",
+    )
+    m.add_argument(
+        "--rationale",
+        action="store_true",
+        help="ask for a one-sentence rationale on every question",
+    )
+    m.add_argument(
+        "--shuffle-seed",
+        type=int,
+        help="present corpus pages in a seeded random order (default: subgraph order)",
+    )
+    m.add_argument(
+        "--max-page-chars",
+        type=int,
+        help="optional per-page cap on parsed text (default: no cap)",
+    )
+    m.add_argument(
+        "--legacy-corpus",
+        action="store_true",
+        help="original flattening: raw details JSON cut at 5,000 chars per page",
+    )
     m.set_defaults(func=cmd_model)
 
     p = sub.add_parser("profiles", help="sample profiles from a reviewed model")

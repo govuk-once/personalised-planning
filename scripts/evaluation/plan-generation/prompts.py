@@ -1,6 +1,8 @@
 """Prompts for generating a questionnaire from a corpus of government guidance."""
 
-SYSTEM = """\
+import json
+
+SYSTEM_INTRO = """\
 Read this government guidance corpus and design a questionnaire that decides \
 what a person needs to do.
 
@@ -8,8 +10,14 @@ Only include a question if the corpus states different consequences for \
 different answers. Look especially for eligibility gates, exemptions that \
 remove a step entirely, date thresholds, geography where a nation is served \
 by a different body, accessibility needs that must be declared in advance, \
-and states that expire.
+and states that expire."""
 
+# The first-question block comes in three variants (plans.py --main-goal).
+# "required" is the original behaviour; "optional" lets the model decide what
+# to ask first, so the opening questions show which splits it finds in the
+# corpus rather than being forced into a choice of service; "none" rules out
+# any choice-of-service question, so people are routed on circumstances alone.
+MAIN_GOAL_REQUIRED = """\
 Your first question MUST have id `q_main_goal`, the lowest order of all \
 questions, and be always asked (ask_if: true). It asks what the person wants \
 to achieve — the top-level grouping of routes this life event covers. Its \
@@ -25,8 +33,39 @@ options: someone doing the whole journey passes through its earlier stage too, \
 and needs every question that stage would have asked. Model the earlier stage \
 as a follow-up question instead — "do you already have X?" — asked within the \
 fuller option, so the fuller option keeps every question and eligibility check \
-the narrower one has, and adds its own on top.
+the narrower one has, and adds its own on top."""
 
+MAIN_GOAL_OPTIONAL = """\
+Order questions so the earliest are the ones whose answers change the most of \
+what follows — the questions that send people to different parts of the \
+corpus. Ask early questions of everyone (ask_if: true) wherever you can. You \
+may include a question about what the person wants to achieve (id \
+`q_main_goal`) if the corpus covers distinct services a person would choose \
+between, but it is not required and need not come first."""
+
+MAIN_GOAL_NONE = """\
+Order questions so the earliest are the ones whose answers change the most of \
+what follows — the questions that send people to different parts of the \
+corpus. Ask early questions of everyone (ask_if: true) wherever you can.
+
+Every question must ask about the person's circumstances: facts about them, \
+their family, their work or their situation. Do not ask which service, topic \
+or kind of help they want, under any id or wording — route people by their \
+circumstances alone. Do not use the id `q_main_goal`."""
+
+# Opt-in (plans.py --rationale), so runs without it keep their prompt unchanged.
+RATIONALE = """\
+Give every question a `rationale`: one sentence saying which parts of the \
+corpus its answers send people to, and why it comes where it does in the \
+order."""
+
+MAIN_GOAL_BLOCKS = {
+    "required": MAIN_GOAL_REQUIRED,
+    "optional": MAIN_GOAL_OPTIONAL,
+    "none": MAIN_GOAL_NONE,
+}
+
+SYSTEM_BODY = """\
 Output four collections.
 
 questions: id, order, text, type (single_select or multi_select), ask_if, \
@@ -78,9 +117,38 @@ Conditions use JsonLogic: {"==": [a, b]}, {"!=": [a, b]}, {"in": [a, [b]]}, \
 {"any_option_has": [question_id, flag]}. Bare strings resolve as question or \
 fact ids — do NOT wrap them in {"var": ...}. `true` means always ask.
 
-Order questions so anything referenced by an ask_if comes first — \
-`q_main_goal` must have order 0 (or the lowest value used). Every source \
-must be a base_path that appears in the corpus."""
+Order questions so anything referenced by an ask_if comes first{ordering}. \
+Every source must be a base_path that appears in the corpus."""
+
+ORDERING_REQUIRED = " — `q_main_goal` must have order 0 (or the lowest value used)"
+
+
+def system_prompt(main_goal: str = "required", rationale: bool = False) -> str:
+    """Assemble the model-generation system prompt.
+
+    Args:
+        main_goal: "required" forces `q_main_goal` as the first, always-asked
+            question (the original prompt, text unchanged); "optional" lets
+            the model choose its opening questions; "none" forbids any
+            question about which service or help the person wants.
+        rationale: Ask for a one-sentence `rationale` on every question.
+
+    Returns:
+        The system prompt text.
+    """
+    if main_goal not in MAIN_GOAL_BLOCKS:
+        raise ValueError(
+            f"main_goal must be one of {sorted(MAIN_GOAL_BLOCKS)}, got {main_goal!r}"
+        )
+    required = main_goal == "required"
+    body = SYSTEM_BODY.replace("{ordering}", ORDERING_REQUIRED if required else "")
+    parts = [SYSTEM_INTRO, MAIN_GOAL_BLOCKS[main_goal], body]
+    if rationale:
+        parts.append(RATIONALE)
+    return "\n\n".join(parts)
+
+
+SYSTEM = system_prompt("required")
 
 SOURCE_SCHEMA = {"type": "array", "items": {"type": "string"}}
 
@@ -107,6 +175,18 @@ TOOL = {
         "required": ["questions", "facts", "option_filters"],
     },
 }
+
+
+def tool_schema(rationale: bool = False) -> dict:
+    """The emit_model tool, with a `rationale` string on questions if asked for."""
+    if not rationale:
+        return TOOL
+    tool = json.loads(json.dumps(TOOL))
+    tool["input_schema"]["properties"]["questions"]["items"]["properties"][
+        "rationale"
+    ] = {"type": "string"}
+    return tool
+
 
 REPAIR = """\
 Fix only what these errors identify, plus whatever is needed to make those \
@@ -220,6 +300,71 @@ and belongs in scope instead.
 Be conservative. A wrong rule is applied silently to every profile, so omit \
 anything you cannot justify from the guide's own text and the fact \
 descriptions."""
+
+# The SCOPE paragraph above assumes the questionnaire opens with `q_main_goal`.
+# A model generated with `plans.py --main-goal none` (or an optional run that
+# chose not to include one) routes people by circumstances instead, so its
+# mapping takes scope from those. `map_system` / `map_tool` swap the text in;
+# a model that has `q_main_goal` still gets MAP_SYSTEM and MAP_TOOL unchanged.
+MAP_SCOPE_GOAL = """\
+A corpus spanning several services always asks up front which one the \
+person wants via `q_main_goal` — that question's answer is always the \
+primary scope condition. Nobody is legally barred from wanting the wrong \
+service; the guide simply does not cover them. \
+If you find yourself writing a block whose steps list would be empty because \
+nothing is actually being shut, that question decides who the guide is for \
+and belongs in scope instead."""
+
+MAP_SCOPE_CIRCUMSTANCES = """\
+This questionnaire does not ask which service the person wants: it routes \
+people by their circumstances. Work out who the guide is for from those \
+circumstances — where they live, what stage of the life event they are at, \
+their relationship to the person or event the guide is about — and express \
+it as scope, one condition per question. Nobody is legally barred by being \
+outside a guide's scope; the guide simply does not cover them. If you find \
+yourself writing a block whose steps list would be empty because nothing is \
+actually being shut, that question decides who the guide is for and belongs \
+in scope instead."""
+
+MAP_SCOPE_TOOL_GOAL = (
+    "Conditions a profile must satisfy for this "
+    "guide to apply — a corpus spanning several services needs at "
+    "least the one that selects this service. Use an empty list "
+    "only if the guide genuinely covers everyone."
+)
+
+MAP_SCOPE_TOOL_CIRCUMSTANCES = (
+    "Conditions on the person's circumstances that a profile must satisfy for "
+    "this guide to apply. Use an empty list only if the guide genuinely "
+    "covers everyone."
+)
+
+
+def map_system(has_main_goal: bool = True) -> str:
+    """The mapping system prompt, with scope wording to suit the model.
+
+    Args:
+        has_main_goal: Whether the questionnaire has a `q_main_goal` question.
+
+    Returns:
+        MAP_SYSTEM unchanged if it does; otherwise the version whose SCOPE
+        guidance works from the person's circumstances.
+    """
+    if has_main_goal:
+        return MAP_SYSTEM
+    return MAP_SYSTEM.replace(MAP_SCOPE_GOAL, MAP_SCOPE_CIRCUMSTANCES)
+
+
+def map_tool(has_main_goal: bool = True) -> dict:
+    """The mapping tool schema, with the scope description to suit the model."""
+    if has_main_goal:
+        return MAP_TOOL
+    tool = json.loads(json.dumps(MAP_TOOL))
+    tool["input_schema"]["properties"]["scope"]["description"] = (
+        MAP_SCOPE_TOOL_CIRCUMSTANCES
+    )
+    return tool
+
 
 MAP_TOOL = {
     "name": "emit_mapping",
