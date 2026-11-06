@@ -750,6 +750,14 @@ where one question settles it and no fact is needed; `exclude` inverts the match
 so the example above keeps step 6 only for car learners. Exactly one form per
 rule — carrying both is a validation error.
 
+**A step can have several rules, one per condition it needs.** It drops out if
+any of them drops it, so it stays only for people who meet every condition, and
+its `why` names each rule that fired. A step in the having-a-baby guide, for
+example, needs the person to be the birth parent or partner, to be still
+expecting, and to have an employer: three rules. Rules only combine this way.
+A step that applies when *either* of two different questions is satisfied
+needs a fact in the model that captures it.
+
 **`drop_when` is the field to check hardest.** Fact polarity has no convention:
 `theory_ahead=true` means the theory steps apply, `theory_exempt=true` means
 they do not. Same shape, opposite meaning. This cannot be inferred — an earlier
