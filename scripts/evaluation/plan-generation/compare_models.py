@@ -1,10 +1,9 @@
 r"""Compare questionnaire models from several `plans.py model` runs.
 
-Built for the main-goal experiment: did the model, left free to choose its
-opening questions, find the same splits as the graph analysis
-(docs/having-a-baby-subgraph-analysis.md)? For each run it reports the
-opening questions everyone is asked, which content clusters the model cites,
-and which clusters sit under each opening question's branch.
+Shows how runs differ: which opening questions everyone is asked, which content
+clusters each model cites, and which clusters sit under each opening
+question's branch. Useful for checking whether runs with different settings
+(e.g. --main-goal, --shuffle-seed) find the same splits in the content.
 
 Cluster labels come from a subgraph whose nodes carry a `cluster` field
 (e.g. data/having_a_baby_subgraph_pruned.json). The labels are only read

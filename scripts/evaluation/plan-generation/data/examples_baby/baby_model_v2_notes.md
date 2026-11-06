@@ -20,10 +20,48 @@ The model was built in four steps. Steps 3 and 4 were done by hand, so the model
    - Schools and education
    - Divorce, separation or legal issues
 
-   Each page was labelled with a `cluster`. See `docs/having-a-baby-subgraph-analysis.md`. The pruned subgraph (`data/having_a_baby_subgraph_pruned.json`) is not committed. You can read and sample this model without it, but re-validating its sources means rebuilding the subgraph.
+   Each page was labelled with a `cluster` (see "How the subgraph was pruned and clustered" below). The pruned subgraph (`data/having_a_baby_subgraph_pruned.json`) is not committed. You can read and sample this model without it, but re-validating its sources means rebuilding the subgraph.
 2. **Three runs.** `plans.py model --main-goal none --rationale --max-page-chars 12000` was run three times, with shuffle seeds 1, 2 and 3 (referred to below as s1, s2 and s3).
 3. **Merge.** The three runs were combined by hand, without another LLM call and without any scope rule (see "Merge" below). The merged model validated clean and yielded 5,347 distinct profiles.
 4. **Manual review.** Answer combinations that made no sense were fixed, giving the model here, which yields 9,023 distinct profiles (see "Manual review" below). The model's `meta.revisions` lists the same edits.
+
+## How the subgraph was pruned and clustered
+
+A one-off script, not in the repo, did the pruning and clustering. A rebuild can follow the same rules, but it won't run the same code.
+
+**Browse sections.** The subgraph does not record which browse section each page belongs to. Section membership was therefore taken from the live GOV.UK Search API (`filter_mainstream_browse_pages=childcare-parenting/<section>`, queried 2026-11-03). Three sections were excluded:
+- `fostering-adoption-surrogacy`
+- `schools-education`
+- `divorce-separation-legal`
+
+**Pruning rule.**
+1. Drop a seed page only if **every** section it is tagged to is excluded. Pages tagged to more than one section stay if any of their sections is kept: 25 pages are tagged to more than one.
+2. Drop any 1-hop neighbour that is no longer linked from a kept seed.
+3. Also drop excluded-section pages that come back in as neighbours of kept seeds.
+
+**Result.**
+
+| Step | Pages | Links |
+|---|---|---|
+| Original subgraph | 184 | 459 |
+| Excluded-section pages removed | −42 | |
+| Neighbours left unlinked | −22 | |
+| **Pruned subgraph** | **120** | **320** |
+
+The original count is of unique content IDs. Welsh translations share an ID with their English page.
+
+**Tagging anomaly.** Three birth-registration pages are tagged only to Divorce/legal, so the rule removed them:
+- `/adding-fathers-name-birth-certificate`
+- `/adding-second-female-parents-name-birth-certificate`
+- `/correct-birth-registration`
+
+**Clusters.** Louvain community detection (`networkx`) labelled each page with a `cluster`:
+- links treated as two-way;
+- resolution 1.0;
+- the best modularity over seeds 0–19 was 0.48;
+- across 50 runs, the members of each main cluster were grouped together 88–100% of the time.
+
+There are five main clusters (`benefits_core`, `childcare`, `work_leave_pay`, `child_benefit_admin`, `birth_registration`) plus eight small ones. `compare_models.py` reads these labels.
 
 ## Merge
 
