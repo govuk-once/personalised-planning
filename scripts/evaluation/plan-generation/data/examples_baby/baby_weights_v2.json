@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "life_event": "baby",
+    "model": "model_v2.json (baby, merged s1-s3, gating fixes)",
+    "population": "UK residents having a baby, counted as people (birth parent and partner each once), from a known pregnancy to the child's first birthday, plus people within 12 months of a pregnancy loss or a baby's death",
+    "derived_by": "derive_baby_weights.py",
+    "notes": "baby_weights_v2.md",
+    "working": {
+      "uk_live_births": 649753,
+      "uk_maternities": 639521,
+      "people_by_relationship": {
+        "giving_birth": 639521,
+        "partner": 579406,
+        "adopting": 7130,
+        "surrogacy": 990
+      },
+      "outcome_stock_events": {
+        "ongoing_or_born_alive": 1067194,
+        "loss_before_24_weeks": 123827,
+        "stillbirth_24_weeks_plus": 2534,
+        "died_after_birth": 2534
+      },
+      "share_expecting_among_alive": 0.4007,
+      "partner_rate_per_maternity": 0.906
+    }
+  },
+  "targets": {
+    "q_nation": {
+      "england": 0.860308,
+      "wales": 0.040449,
+      "scotland": 0.06936,
+      "northern_ireland": 0.029882,
+      "_source": "Live births 2025: ONS (England, Wales), NRS (Scotland); NISRA 2024 (NI)"
+    },
+    "q_pregnancy_outcome": {
+      "ongoing_or_born_alive": 0.892236,
+      "loss_before_24_weeks": 0.103527,
+      "stillbirth_24_weeks_plus": 0.002119,
+      "died_after_birth": 0.002119,
+      "_source": "Stock = flow x time in window. Lancet 2021 miscarriage 15.3% of recognised pregnancies; ONS stillbirth 3.9/1000 and infant mortality 3.9/1000"
+    },
+    "q_baby_stage": {
+      "expecting": 0.400746,
+      "born": 0.599254,
+      "_source": "Known pregnancy (~34 weeks) vs first year after birth"
+    },
+    "q_relationship_to_baby": {
+      "giving_birth": 0.521187,
+      "partner": 0.472195,
+      "adopting": 0.005811,
+      "surrogacy": 0.000807,
+      "_source": "Maternities (ONS/NRS/NISRA) + partners from ONS 2025 registration type + DfE/NRS/NISRA adoptions + MoJ parental orders"
+    },
+    "q_employment_status": {
+      "employee": 0.670088,
+      "worker": 0.032289,
+      "self_employed": 0.104859,
+      "not_working": 0.192763,
+      "_source": "ONS LFS: ~70% of mothers with child 0-2 employed (incl. maternity leave), ~92.5% of fathers; self-employment and zero-hours shares from LFS"
+    },
+    "q_has_partner": {
+      "yes": 0.863357,
+      "no": 0.136643,
+      "_source": "ONS 2025 registration type: 53.2% married/CP + 32.3% cohabiting; asked of birth parents, adopters and everyone after a loss before 24 weeks (model v2)"
+    },
+    "q_partner_died": {
+      "yes": 0.0003,
+      "no": 0.9997,
+      "_source": "MBRRACE-UK 2025: deaths during or up to 1 year after pregnancy, ~30 per 100,000 maternities"
+    },
+    "q_pregnancy_timing": {
+      "under_26_weeks": 0.609679,
+      "26_weeks_to_11_before_due": 0.088042,
+      "within_11_weeks_of_due": 0.302279,
+      "_source": "Uniform over weeks 6-39.3 of a known pregnancy, plus pregnancies that later miscarry (early weeks)"
+    },
+    "q_baby_age": {
+      "under_6_months": 0.5,
+      "6_to_9_months": 0.25,
+      "9_months_or_older": 0.25,
+      "_source": "Uniform over the first year (window ends at first birthday)"
+    },
+    "q_qualifying_benefits": {
+      "yes": 0.4,
+      "no": 0.6,
+      "_source": "EDITORIAL from DWP UC statistics; refine with Stat-Xplore UC households by age of youngest child = 0"
+    },
+    "q_other_children_under_16": {
+      "yes": 0.55,
+      "no": 0.45,
+      "_source": "ONS E&W first births 42% (2017, rising); NRS 2025 47% no previous live birth"
+    },
+    "q_child_disability": {
+      "yes": 0.021985,
+      "not_known": 0.080149,
+      "no": 0.897866,
+      "_source": "NCARDRS 2020: congenital anomaly 2.2% of births; 'not known' share EDITORIAL"
+    },
+    "q_moving": {
+      "moved_to_uk": 0.03,
+      "moving_abroad": 0.015,
+      "neither": 0.955,
+      "_source": "EDITORIAL from ONS long-term international migration YE Dec 2025"
+    },
+    "q_parent_age": {
+      "under_16": 0.000461,
+      "16_to_17": 0.003585,
+      "18_or_over": 0.995955,
+      "_source": "EDITORIAL from ONS Conceptions in England and Wales 2023"
+    }
+  }
+}

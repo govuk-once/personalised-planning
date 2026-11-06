@@ -1,0 +1,9 @@
+{
+  "_note": "Common path for having a baby: England, pregnancy ongoing or baby alive, expecting or born, birth parent or partner, 18 or over, not moving",
+  "q_nation": ["england"],
+  "q_pregnancy_outcome": ["ongoing_or_born_alive"],
+  "q_baby_stage": ["expecting", "born"],
+  "q_relationship_to_baby": ["giving_birth", "partner"],
+  "q_parent_age": ["18_or_over"],
+  "q_moving": ["neither"]
+}

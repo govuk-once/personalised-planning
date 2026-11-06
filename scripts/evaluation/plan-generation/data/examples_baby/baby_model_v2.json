@@ -1,0 +1,1066 @@
+{
+  "questions": [
+    {
+      "id": "q_nation",
+      "order": 0,
+      "text": "Which part of the UK do you live in?",
+      "type": "single_select",
+      "ask_if": true,
+      "options": [
+        {
+          "id": "england",
+          "label": "England"
+        },
+        {
+          "id": "wales",
+          "label": "Wales"
+        },
+        {
+          "id": "scotland",
+          "label": "Scotland"
+        },
+        {
+          "id": "northern_ireland",
+          "label": "Northern Ireland"
+        }
+      ],
+      "source": [
+        "/sure-start-maternity-grant/eligibility",
+        "/healthy-start",
+        "/free-childcare-if-working/overview",
+        "/register-birth/overview",
+        "/disability-living-allowance-children/overview"
+      ],
+      "rationale": "Scotland and Northern Ireland are served by different bodies or schemes for maternity grants, Healthy Start, birth and stillbirth registration, childcare and disability benefits, so geography is asked first to route everyone else.",
+      "merged_from": {
+        "none_s1": "q_country",
+        "none_s2": "q_country",
+        "none_s3": "q_uk_nation"
+      }
+    },
+    {
+      "id": "q_pregnancy_outcome",
+      "order": 1,
+      "text": "What is the situation with your pregnancy or baby?",
+      "type": "single_select",
+      "ask_if": true,
+      "options": [
+        {
+          "id": "ongoing_or_born_alive",
+          "label": "I'm pregnant (or my partner is), or our baby is alive",
+          "needs_evidence": true
+        },
+        {
+          "id": "loss_before_24_weeks",
+          "label": "The pregnancy ended before 24 weeks"
+        },
+        {
+          "id": "stillbirth_24_weeks_plus",
+          "label": "Our baby was stillborn at 24 weeks of pregnancy or later"
+        },
+        {
+          "id": "died_after_birth",
+          "label": "Our baby died after being born"
+        }
+      ],
+      "source": [
+        "/request-baby-loss-certificate",
+        "/register-stillbirth",
+        "/after-a-death/if-a-child-or-baby-dies",
+        "/sure-start-maternity-grant/eligibility"
+      ],
+      "rationale": "This is the biggest branch point: it decides between registering a birth, registering a stillbirth, requesting a baby loss certificate or registering a death, and whether the standard new-baby claims apply.",
+      "merged_from": {
+        "none_s1": "q_baby_outcome",
+        "none_s2": "q_baby_stage (loss option)",
+        "none_s3": "q_pregnancy_outcome"
+      }
+    },
+    {
+      "id": "q_baby_stage",
+      "order": 2,
+      "text": "Has your baby been born, or your child arrived, yet?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_pregnancy_outcome",
+          "ongoing_or_born_alive"
+        ]
+      },
+      "options": [
+        {
+          "id": "expecting",
+          "label": "Not yet: we're expecting a baby or waiting for a child to arrive"
+        },
+        {
+          "id": "born",
+          "label": "Yes: our baby has been born, or our child has been placed with us"
+        }
+      ],
+      "source": [
+        "/maternity-pay-leave/overview",
+        "/register-birth/overview",
+        "/sure-start-maternity-grant/how-to-claim",
+        "/child-benefit/how-to-claim"
+      ],
+      "rationale": "Whether the baby is born decides which time-limited tasks are active now (registering the birth within 42 days, claiming Child Benefit, grant deadlines) and which are still ahead (giving notice for maternity leave, Maternity Allowance).",
+      "merged_from": {
+        "none_s1": "q_child_age_months (Still pregnant)",
+        "none_s2": "q_baby_stage",
+        "none_s3": "q_baby_born_yet"
+      }
+    },
+    {
+      "id": "q_relationship_to_baby",
+      "order": 3,
+      "text": "What is your relationship to the baby?",
+      "type": "single_select",
+      "ask_if": {
+        "in": [
+          "q_pregnancy_outcome",
+          [
+            "ongoing_or_born_alive",
+            "stillbirth_24_weeks_plus",
+            "died_after_birth"
+          ]
+        ]
+      },
+      "options": [
+        {
+          "id": "giving_birth",
+          "label": "I'm pregnant, or I gave birth to the baby",
+          "needs_evidence": true
+        },
+        {
+          "id": "partner",
+          "label": "I'm the partner or father of the person giving birth",
+          "needs_evidence": true
+        },
+        {
+          "id": "adopting",
+          "label": "I'm adopting, or fostering to adopt",
+          "needs_evidence": true
+        },
+        {
+          "id": "surrogacy",
+          "label": "I'm having a baby through a surrogacy arrangement",
+          "needs_evidence": true
+        }
+      ],
+      "source": [
+        "/maternity-pay-leave/eligibility",
+        "/paternity-pay-leave/eligibility",
+        "/maternity-pay-leave/overview",
+        "/paternity-pay-leave/overview",
+        "/shared-parental-leave-and-pay/eligibility-for-adopters",
+        "/paternity-pay-leave/adoption"
+      ],
+      "rationale": "Maternity, paternity, adoption and surrogacy each have their own leave and pay rules, so this splits the leave-and-pay guidance by route to parenthood. Also asked after a stillbirth at 24 weeks or later or a baby's death, because maternity, paternity and parental bereavement leave and pay can still apply.",
+      "merged_from": {
+        "none_s1": "q_relationship_to_child",
+        "none_s2": "q_route_to_parenthood",
+        "none_s3": "q_role_in_pregnancy"
+      }
+    },
+    {
+      "id": "q_employment_status",
+      "order": 4,
+      "text": "What is your employment status?",
+      "type": "single_select",
+      "ask_if": {
+        "in": [
+          "q_pregnancy_outcome",
+          [
+            "ongoing_or_born_alive",
+            "stillbirth_24_weeks_plus",
+            "died_after_birth"
+          ]
+        ]
+      },
+      "options": [
+        {
+          "id": "employee",
+          "label": "Employee (I work under an employment contract)",
+          "needs_evidence": true
+        },
+        {
+          "id": "worker",
+          "label": "Worker (for example casual, agency or zero-hours)"
+        },
+        {
+          "id": "self_employed",
+          "label": "Self-employed"
+        },
+        {
+          "id": "not_working",
+          "label": "Not currently working"
+        }
+      ],
+      "source": [
+        "/employment-status/employee",
+        "/employment-status/worker",
+        "/maternity-pay-leave/eligibility",
+        "/maternity-allowance/eligibility",
+        "/maternity-allowance/overview"
+      ],
+      "rationale": "Employees can get statutory maternity, paternity, adoption, shared parental and neonatal leave and pay; people who are not employees may get Maternity Allowance instead, so this sends people to very different parts of the guidance. Also asked after a stillbirth at 24 weeks or later or a baby's death, because statutory leave and pay can still apply.",
+      "merged_from": {
+        "none_s1": "q_employment_status",
+        "none_s2": "q_employment_status",
+        "none_s3": "q_employment_status"
+      }
+    },
+    {
+      "id": "q_partner_died",
+      "order": 5,
+      "text": "Has the mother, main adopter or main intended parent of your child died?",
+      "type": "single_select",
+      "ask_if": {
+        "in": [
+          "q_relationship_to_baby",
+          [
+            "partner",
+            "adopting",
+            "surrogacy"
+          ]
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes",
+          "needs_evidence": true
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ],
+      "source": [
+        "/bereaved-partners-paternity-leave/overview",
+        "/bereaved-partners-paternity-leave/eligibility",
+        "/widowed-parents-allowance/eligibility",
+        "/guardians-allowance/overview"
+      ],
+      "rationale": "If the mother, main adopter or main intended parent has died, their partner may get Bereaved Partner's Paternity Leave and Widowed Parent's Allowance instead of the standard leave and benefit routes.",
+      "merged_from": {
+        "none_s1": "q_partner_died",
+        "none_s2": "q_partner_died"
+      }
+    },
+    {
+      "id": "q_has_partner",
+      "order": 6,
+      "text": "Do you have a partner (married, in a civil partnership, or living together as a couple)?",
+      "type": "single_select",
+      "ask_if": {
+        "or": [
+          {
+            "==": [
+              "q_pregnancy_outcome",
+              "loss_before_24_weeks"
+            ]
+          },
+          {
+            "==": [
+              "q_relationship_to_baby",
+              "giving_birth"
+            ]
+          },
+          {
+            "and": [
+              {
+                "in": [
+                  "q_relationship_to_baby",
+                  [
+                    "adopting",
+                    "surrogacy"
+                  ]
+                ]
+              },
+              {
+                "==": [
+                  "q_partner_died",
+                  "no"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ],
+      "source": [
+        "/universal-credit/eligibility",
+        "/shared-parental-leave-and-pay/how-it-works",
+        "/paternity-pay-leave/eligibility",
+        "/child-benefit-tax-charge/overview"
+      ],
+      "rationale": "Having a partner makes Universal Credit a joint claim, decides who pays the High Income Child Benefit Charge, and is needed for Shared Parental Leave, so it changes many later steps. Not asked of the partner of the person giving birth (they have a partner unless that partner has died), or of anyone whose partner has died.",
+      "merged_from": {
+        "none_s2": "q_has_partner",
+        "none_s3": "q_has_partner"
+      }
+    },
+    {
+      "id": "q_pregnancy_timing",
+      "order": 7,
+      "text": "How far along is the pregnancy?",
+      "type": "single_select",
+      "ask_if": {
+        "and": [
+          {
+            "==": [
+              "q_baby_stage",
+              "expecting"
+            ]
+          },
+          {
+            "in": [
+              "q_relationship_to_baby",
+              [
+                "giving_birth",
+                "partner",
+                "surrogacy"
+              ]
+            ]
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "under_26_weeks",
+          "label": "Less than 26 weeks pregnant"
+        },
+        {
+          "id": "26_weeks_to_11_before_due",
+          "label": "26 weeks or more, but more than 11 weeks before the due date"
+        },
+        {
+          "id": "within_11_weeks_of_due",
+          "label": "11 weeks or less before the due date"
+        }
+      ],
+      "source": [
+        "/maternity-allowance/how-to-claim",
+        "/maternity-pay-leave/how-to-claim",
+        "/maternity-pay-leave/leave",
+        "/sure-start-maternity-grant/how-to-claim"
+      ],
+      "rationale": "Maternity Allowance can be claimed from 26 weeks of pregnancy, and maternity leave and the Sure Start Maternity Grant can start from 11 weeks before the due date, so these thresholds decide what can be claimed now and what comes later. Not asked of adopters, who have no pregnancy.",
+      "merged_from": {
+        "none_s1": "q_child_age_months (Still pregnant)",
+        "none_s2": "q_pregnancy_weeks",
+        "none_s3": "q_weeks_pregnant_or_since_birth"
+      }
+    },
+    {
+      "id": "q_baby_age",
+      "order": 8,
+      "text": "How old is your baby or child?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_baby_stage",
+          "born"
+        ]
+      },
+      "options": [
+        {
+          "id": "under_6_months",
+          "label": "Under 6 months"
+        },
+        {
+          "id": "6_to_9_months",
+          "label": "6 months to under 9 months"
+        },
+        {
+          "id": "9_months_or_older",
+          "label": "9 months or older"
+        }
+      ],
+      "source": [
+        "/sure-start-maternity-grant/how-to-claim",
+        "/free-childcare-if-working/overview"
+      ],
+      "rationale": "The Sure Start Maternity Grant must be claimed within 6 months of the birth, and Free Childcare for Working Parents starts from 9 months, so the child's age decides which of these are still open or now available.",
+      "merged_from": {
+        "none_s1": "q_child_age_months",
+        "none_s2": "q_baby_age_weeks + older_child option"
+      }
+    },
+    {
+      "id": "q_qualifying_benefits",
+      "order": 9,
+      "text": "Do you or your partner get Universal Credit, income-related Employment and Support Allowance, Pension Credit or another income-related benefit?",
+      "type": "single_select",
+      "ask_if": true,
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No"
+        }
+      ],
+      "source": [
+        "/sure-start-maternity-grant/eligibility",
+        "/healthy-start",
+        "/help-with-childcare-costs/free-childcare-2-year-olds-extra-support",
+        "/apply-free-school-meals",
+        "/universal-credit/eligibility"
+      ],
+      "rationale": "Getting a qualifying benefit is the gate for several means-tested schemes (Sure Start Maternity Grant, Healthy Start, free childcare for 2-year-olds, free school meals), so it is asked once instead of per scheme.",
+      "merged_from": {
+        "none_s1": "q_benefits_status",
+        "none_s2": "q_qualifying_benefit + q_low_income",
+        "none_s3": "q_household_income_level + q_low_income"
+      }
+    },
+    {
+      "id": "q_other_children_under_16",
+      "order": 10,
+      "text": "Do you already have any other children under 16?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_pregnancy_outcome",
+          "ongoing_or_born_alive"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes"
+        },
+        {
+          "id": "no",
+          "label": "No, this is my first child"
+        }
+      ],
+      "source": [
+        "/sure-start-maternity-grant/eligibility",
+        "/sure-start-maternity-grant/what-youll-get"
+      ],
+      "rationale": "The Sure Start Maternity Grant is usually only for a first child (or a multiple birth when there are children already), so this decides whether that step applies.",
+      "merged_from": {
+        "none_s1": "q_has_other_children_under16",
+        "none_s2": "q_existing_children_under16"
+      }
+    },
+    {
+      "id": "q_child_disability",
+      "order": 11,
+      "text": "Does your baby or child have a disability or long-term health condition?",
+      "type": "single_select",
+      "ask_if": {
+        "==": [
+          "q_pregnancy_outcome",
+          "ongoing_or_born_alive"
+        ]
+      },
+      "options": [
+        {
+          "id": "yes",
+          "label": "Yes",
+          "needs_evidence": true
+        },
+        {
+          "id": "no",
+          "label": "No"
+        },
+        {
+          "id": "not_known",
+          "label": "Not known yet"
+        }
+      ],
+      "source": [
+        "/disability-living-allowance-children/overview",
+        "/help-for-disabled-child/overview",
+        "/help-with-childcare-costs/free-childcare-2-year-olds-extra-support",
+        "/universal-credit/what-youll-get"
+      ],
+      "rationale": "A disabled child opens a separate set of support (Disability Living Allowance for children, extra Universal Credit, extra childcare funding, home adaptations).",
+      "merged_from": {
+        "none_s1": "q_child_disability",
+        "none_s2": "q_child_disability",
+        "none_s3": "q_child_disability"
+      }
+    },
+    {
+      "id": "q_moving",
+      "order": 12,
+      "text": "Have you recently moved to the UK from abroad, or are you planning to move abroad?",
+      "type": "single_select",
+      "ask_if": true,
+      "options": [
+        {
+          "id": "moved_to_uk",
+          "label": "I recently moved to the UK from abroad"
+        },
+        {
+          "id": "moving_abroad",
+          "label": "I'm moving abroad, or planning to"
+        },
+        {
+          "id": "neither",
+          "label": "Neither"
+        }
+      ],
+      "source": [
+        "/child-benefit-move-to-uk",
+        "/child-benefit-abroad",
+        "/tax-right-retire-abroad-return-to-uk"
+      ],
+      "rationale": "Moving into or out of the UK changes Child Benefit eligibility, National Insurance and what to tell HMRC, so it sends a minority of people to separate guidance.",
+      "merged_from": {
+        "none_s1": "q_moving_abroad",
+        "none_s3": "q_recent_move"
+      }
+    },
+    {
+      "id": "q_parent_age",
+      "order": 13,
+      "text": "How old are you?",
+      "type": "single_select",
+      "ask_if": true,
+      "options": [
+        {
+          "id": "under_16",
+          "label": "Under 16"
+        },
+        {
+          "id": "16_to_17",
+          "label": "16 or 17"
+        },
+        {
+          "id": "18_or_over",
+          "label": "18 or over"
+        }
+      ],
+      "source": [
+        "/child-benefit/what-youll-get",
+        "/child-benefit/how-to-claim",
+        "/universal-credit/eligibility"
+      ],
+      "rationale": "Under-16s may need someone else to claim Child Benefit for them, and 16 to 17 year olds can only claim Universal Credit in specific circumstances such as being pregnant or having a young baby.",
+      "merged_from": {
+        "none_s2": "q_age_under16",
+        "none_s3": "q_under_18_circumstances"
+      }
+    }
+  ],
+  "facts": [
+    {
+      "id": "fact_lives_england",
+      "description": "This person lives in England, so England-only schemes such as Free Childcare for Working Parents apply.",
+      "value": {
+        "==": [
+          "q_nation",
+          "england"
+        ]
+      },
+      "source": [
+        "/free-childcare-if-working/overview"
+      ]
+    },
+    {
+      "id": "fact_lives_wales",
+      "description": "This person lives in Wales, so Welsh childcare and early-years schemes apply instead of the England-only ones.",
+      "value": {
+        "==": [
+          "q_nation",
+          "wales"
+        ]
+      },
+      "source": [
+        "/free-childcare-if-working/overview"
+      ]
+    },
+    {
+      "id": "fact_lives_scotland",
+      "description": "This person lives in Scotland, so they use Scottish schemes instead of the GOV.UK ones (for example the Pregnancy and Baby Payment instead of the Sure Start Maternity Grant, Best Start Foods instead of Healthy Start, Child Disability Payment instead of DLA for children, and Scottish registration rules).",
+      "value": {
+        "==": [
+          "q_nation",
+          "scotland"
+        ]
+      },
+      "source": [
+        "/sure-start-maternity-grant/eligibility",
+        "/healthy-start",
+        "/disability-living-allowance-children/overview",
+        "/register-stillbirth"
+      ]
+    },
+    {
+      "id": "fact_lives_northern_ireland",
+      "description": "This person lives in Northern Ireland, so Northern Ireland schemes and services (nidirect) apply instead of the England and Wales ones, including different registration deadlines.",
+      "value": {
+        "==": [
+          "q_nation",
+          "northern_ireland"
+        ]
+      },
+      "source": [
+        "/free-childcare-if-working/overview",
+        "/disability-living-allowance-children/overview",
+        "/register-stillbirth"
+      ]
+    },
+    {
+      "id": "fact_pregnant_or_baby_alive",
+      "description": "This person's pregnancy is ongoing or their baby or child is alive, so the standard maternity, paternity, adoption, registration and claims guidance applies.",
+      "value": {
+        "==": [
+          "q_pregnancy_outcome",
+          "ongoing_or_born_alive"
+        ]
+      },
+      "source": [
+        "/maternity-pay-leave/overview",
+        "/paternity-pay-leave/overview",
+        "/child-benefit/how-to-claim"
+      ]
+    },
+    {
+      "id": "fact_loss_before_24_weeks",
+      "description": "This person's pregnancy ended before 24 weeks, so they may request a baby loss certificate but cannot register a stillbirth or claim Child Benefit for the baby.",
+      "value": {
+        "==": [
+          "q_pregnancy_outcome",
+          "loss_before_24_weeks"
+        ]
+      },
+      "source": [
+        "/request-baby-loss-certificate",
+        "/register-stillbirth"
+      ]
+    },
+    {
+      "id": "fact_stillbirth",
+      "description": "This person's baby was stillborn at 24 weeks or later, so they must register a stillbirth and may still be entitled to maternity or paternity pay and leave, but cannot claim Child Benefit.",
+      "value": {
+        "==": [
+          "q_pregnancy_outcome",
+          "stillbirth_24_weeks_plus"
+        ]
+      },
+      "source": [
+        "/register-stillbirth",
+        "/after-a-death/if-a-child-or-baby-dies"
+      ]
+    },
+    {
+      "id": "fact_baby_died_after_birth",
+      "description": "This person's baby died after being born, so they must register the death, may still get maternity or paternity leave and pay, and Child Benefit continues for up to 8 weeks.",
+      "value": {
+        "==": [
+          "q_pregnancy_outcome",
+          "died_after_birth"
+        ]
+      },
+      "source": [
+        "/after-a-death/if-a-child-or-baby-dies",
+        "/child-benefit-child-parent-dies/if-a-child-dies"
+      ]
+    },
+    {
+      "id": "fact_baby_born",
+      "description": "This person's baby has been born or their child has been placed with them, so time-limited tasks counted from that date (registering the birth, claiming Child Benefit, the grant deadline) are now running.",
+      "value": {
+        "==": [
+          "q_baby_stage",
+          "born"
+        ]
+      },
+      "source": [
+        "/register-birth/overview",
+        "/child-benefit/how-to-claim",
+        "/sure-start-maternity-grant/how-to-claim"
+      ]
+    },
+    {
+      "id": "fact_is_birth_parent",
+      "description": "This person is pregnant or gave birth, so maternity leave, Statutory Maternity Pay and Maternity Allowance rules apply to them rather than paternity rules.",
+      "value": {
+        "==": [
+          "q_relationship_to_baby",
+          "giving_birth"
+        ]
+      },
+      "source": [
+        "/maternity-pay-leave/overview",
+        "/maternity-allowance/overview"
+      ]
+    },
+    {
+      "id": "fact_is_partner",
+      "description": "This person is the partner or father of the person giving birth, so Paternity Leave and Pay and Shared Parental Leave rules apply to them rather than maternity rules.",
+      "value": {
+        "==": [
+          "q_relationship_to_baby",
+          "partner"
+        ]
+      },
+      "source": [
+        "/paternity-pay-leave/eligibility",
+        "/shared-parental-leave-and-pay/how-it-works"
+      ]
+    },
+    {
+      "id": "fact_adopting_or_surrogacy",
+      "description": "This person is adopting or having a baby through surrogacy, so adoption-specific leave and pay rules and surrogacy rules (such as parental orders) apply rather than maternity ones.",
+      "value": {
+        "in": [
+          "q_relationship_to_baby",
+          [
+            "adopting",
+            "surrogacy"
+          ]
+        ]
+      },
+      "source": [
+        "/shared-parental-leave-and-pay/eligibility-for-adopters",
+        "/paternity-pay-leave/adoption"
+      ]
+    },
+    {
+      "id": "fact_is_employee",
+      "description": "This person is classed as an employee, so statutory family leave and pay (maternity, paternity, adoption, shared parental, neonatal) may apply to them.",
+      "value": {
+        "==": [
+          "q_employment_status",
+          "employee"
+        ]
+      },
+      "source": [
+        "/employment-status/employee",
+        "/maternity-pay-leave/eligibility"
+      ]
+    },
+    {
+      "id": "fact_birth_parent_employee",
+      "description": "This person is an employee who is pregnant or gave birth, so they may qualify for Statutory Maternity Leave and Pay.",
+      "value": {
+        "and": [
+          {
+            "==": [
+              "q_relationship_to_baby",
+              "giving_birth"
+            ]
+          },
+          {
+            "==": [
+              "q_employment_status",
+              "employee"
+            ]
+          }
+        ]
+      },
+      "source": [
+        "/maternity-pay-leave/eligibility"
+      ]
+    },
+    {
+      "id": "fact_may_get_maternity_allowance",
+      "description": "This person is pregnant or gave birth but is not an employee, so they cannot get Statutory Maternity Pay but may get Maternity Allowance instead.",
+      "value": {
+        "and": [
+          {
+            "==": [
+              "q_relationship_to_baby",
+              "giving_birth"
+            ]
+          },
+          {
+            "!=": [
+              "q_employment_status",
+              "employee"
+            ]
+          }
+        ]
+      },
+      "source": [
+        "/maternity-allowance/overview",
+        "/maternity-allowance/eligibility"
+      ]
+    },
+    {
+      "id": "fact_has_partner",
+      "description": "This person has a partner (they said so, or they are the partner of the person giving birth and that person is alive), which makes Universal Credit a joint claim, affects who pays the High Income Child Benefit Charge, and is needed for Shared Parental Leave.",
+      "value": {
+        "or": [
+          {
+            "==": [
+              "q_has_partner",
+              "yes"
+            ]
+          },
+          {
+            "and": [
+              {
+                "==": [
+                  "q_relationship_to_baby",
+                  "partner"
+                ]
+              },
+              {
+                "==": [
+                  "q_partner_died",
+                  "no"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "source": [
+        "/universal-credit/eligibility",
+        "/child-benefit-tax-charge/overview",
+        "/shared-parental-leave-and-pay/how-it-works"
+      ]
+    },
+    {
+      "id": "fact_partner_died",
+      "description": "The mother, main adopter or main intended parent of this person's child has died, so they may be eligible for Bereaved Partner's Paternity Leave and Widowed Parent's Allowance instead of the standard routes.",
+      "value": {
+        "==": [
+          "q_partner_died",
+          "yes"
+        ]
+      },
+      "source": [
+        "/bereaved-partners-paternity-leave/overview",
+        "/widowed-parents-allowance/eligibility"
+      ]
+    },
+    {
+      "id": "fact_qualifying_benefits",
+      "description": "This person or their partner gets a qualifying income-related benefit, so means-tested help such as the Sure Start Maternity Grant, Healthy Start and free childcare for 2-year-olds may apply.",
+      "value": {
+        "==": [
+          "q_qualifying_benefits",
+          "yes"
+        ]
+      },
+      "source": [
+        "/sure-start-maternity-grant/eligibility",
+        "/healthy-start",
+        "/help-with-childcare-costs/free-childcare-2-year-olds-extra-support"
+      ]
+    },
+    {
+      "id": "fact_first_child",
+      "description": "This person has no other children under 16, so this is treated as their first child for the Sure Start Maternity Grant.",
+      "value": {
+        "==": [
+          "q_other_children_under_16",
+          "no"
+        ]
+      },
+      "source": [
+        "/sure-start-maternity-grant/eligibility"
+      ]
+    },
+    {
+      "id": "fact_may_get_sure_start_grant",
+      "description": "This person may be able to get the \u00a3500 Sure Start Maternity Grant: they get a qualifying benefit, this is their first child, and they do not live in Scotland.",
+      "value": {
+        "and": [
+          {
+            "==": [
+              "q_qualifying_benefits",
+              "yes"
+            ]
+          },
+          {
+            "==": [
+              "q_other_children_under_16",
+              "no"
+            ]
+          },
+          {
+            "!=": [
+              "q_nation",
+              "scotland"
+            ]
+          }
+        ]
+      },
+      "source": [
+        "/sure-start-maternity-grant/eligibility",
+        "/sure-start-maternity-grant/overview"
+      ]
+    },
+    {
+      "id": "fact_disabled_child",
+      "description": "This person's baby or child has a disability or long-term health condition, so they may be entitled to Disability Living Allowance for children, extra Universal Credit and extra childcare support.",
+      "value": {
+        "==": [
+          "q_child_disability",
+          "yes"
+        ]
+      },
+      "source": [
+        "/disability-living-allowance-children/overview",
+        "/help-for-disabled-child/overview"
+      ]
+    },
+    {
+      "id": "fact_moving_in_or_out_of_uk",
+      "description": "This person has recently moved to the UK or is moving abroad, which changes Child Benefit eligibility, National Insurance and what they need to tell HMRC.",
+      "value": {
+        "in": [
+          "q_moving",
+          [
+            "moved_to_uk",
+            "moving_abroad"
+          ]
+        ]
+      },
+      "source": [
+        "/child-benefit-move-to-uk",
+        "/child-benefit-abroad",
+        "/tax-right-retire-abroad-return-to-uk"
+      ]
+    },
+    {
+      "id": "fact_young_parent",
+      "description": "This person is under 18, so special rules apply to who can claim Child Benefit and when they can claim Universal Credit.",
+      "value": {
+        "in": [
+          "q_parent_age",
+          [
+            "under_16",
+            "16_to_17"
+          ]
+        ]
+      },
+      "source": [
+        "/child-benefit/how-to-claim",
+        "/universal-credit/eligibility"
+      ]
+    }
+  ],
+  "option_filters": [
+    {
+      "question_id": "q_child_disability",
+      "option_id": "not_known",
+      "show_if": {
+        "==": [
+          "q_baby_stage",
+          "expecting"
+        ]
+      }
+    },
+    {
+      "question_id": "q_relationship_to_baby",
+      "option_id": "adopting",
+      "show_if": {
+        "in": [
+          "q_pregnancy_outcome",
+          [
+            "ongoing_or_born_alive",
+            "died_after_birth"
+          ]
+        ]
+      }
+    }
+  ],
+  "numeric_attributes": [
+    {
+      "id": "age",
+      "unit": "years",
+      "description": "The age of the person answering (the parent or partner)."
+    }
+  ],
+  "numeric_constraints": [
+    {
+      "id": "nc_age_under_16",
+      "attribute": "age",
+      "kind": "editorial",
+      "applies_if": {
+        "==": [
+          "q_parent_age",
+          "under_16"
+        ]
+      },
+      "reason": "Answered under 16; the floor of 13 is an editorial assumption, not stated in the corpus.",
+      "min": {
+        "value": 13
+      },
+      "max": {
+        "value": 15
+      }
+    },
+    {
+      "id": "nc_age_16_to_17",
+      "attribute": "age",
+      "kind": "derived",
+      "applies_if": {
+        "==": [
+          "q_parent_age",
+          "16_to_17"
+        ]
+      },
+      "reason": "Answered 16 or 17.",
+      "min": {
+        "value": 16
+      },
+      "max": {
+        "value": 17
+      }
+    },
+    {
+      "id": "nc_age_18_or_over",
+      "attribute": "age",
+      "kind": "derived",
+      "applies_if": {
+        "==": [
+          "q_parent_age",
+          "18_or_over"
+        ]
+      },
+      "reason": "Answered 18 or over; the ceiling of 45 is an editorial assumption for a parent of a new baby.",
+      "min": {
+        "value": 18
+      },
+      "max": {
+        "value": 45
+      }
+    }
+  ],
+  "meta": {
+    "life_event": "baby",
+    "validation": "clean",
+    "main_goal": "none",
+    "rationale": true,
+    "subgraph": "../../../data/having_a_baby_subgraph_pruned.json",
+    "corpus": "parsed",
+    "max_page_chars": 12000,
+    "merged_from": [
+      "runs/baby_none_s1/model.json",
+      "runs/baby_none_s2/model.json",
+      "runs/baby_none_s3/model.json"
+    ],
+    "merge_method": "Hand-merged, no LLM call, no scope rule. A question is kept if an equivalent question appears in at least 2 of the 3 runs; wording is the clearest version, sources are the union of the matched questions' sources, and the gate is the one most runs used. Each question's merged_from field names the run questions it combines; departures from the runs are listed in model.md.",
+    "revisions": [
+      "v2: relationship and employment also asked after a stillbirth at 24+ weeks or a baby's death; 'adopting' hidden after a stillbirth",
+      "v2: q_partner_died moved before q_has_partner; q_has_partner not asked of partners or of anyone whose partner died; fact_has_partner covers partners",
+      "v2: q_pregnancy_timing not asked of adopters",
+      "v2: uses the JSON-logic 'or' operator (new in this model)",
+      "v2: numeric attribute renamed parent_age -> age, the name run_app.py passes to the planner"
+    ]
+  }
+}
