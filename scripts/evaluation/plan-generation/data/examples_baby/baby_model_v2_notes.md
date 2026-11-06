@@ -9,31 +9,32 @@
 | `baby_common_path_pins.json` | The common-path scope, for `plans.py profiles --pins` |
 | `baby_weights_v2.json` | Weight targets for `weights.py`; each target's `_source` field cites where it came from |
 
+The model yields 9,023 distinct profiles unpinned, and 960 when pinned to `baby_common_path_pins.json`.
+
 ## How the model was made
 
-1. **Subgraph.** `src/utils/build_subgraph.py` built the having-a-baby subgraph from the GOV.UK Knowledge Graph. It was then pruned to 120 pages by dropping whole browse sections (Fostering, adoption or surrogacy; Schools and education; Divorce, separation or legal issues), and each page was labelled with a `cluster`. See `docs/having-a-baby-subgraph-analysis.md`. The subgraph (`data/having_a_baby_subgraph_pruned.json`) is not committed, so you can read and sample this model, but you can't re-validate its sources without rebuilding the subgraph.
-2. **Three runs.** `plans.py model --main-goal none --rationale --max-page-chars 12000`, with shuffle seeds 1, 2 and 3.
-3. **Hand merge (v1).** Combined without another LLM call, using the rules and departures below.
-4. **Hand edits (v2).** Fixes for combinations that made no sense. The model's `meta.revisions` records them:
-   - relationship and employment are also asked after a stillbirth at 24+ weeks or a baby's death; "adopting" is hidden after a stillbirth. This resolves the first point under "Worth checking" below for those two questions. Other children and disability are still asked only if the pregnancy is ongoing or the baby is alive;
-   - `q_partner_died` is asked before `q_has_partner`; `q_has_partner` is not asked of partners, or of anyone whose partner died;
-   - `q_pregnancy_timing` is not asked of adopters;
-   - the model uses the JSON-logic `or` operator;
-   - the numeric attribute is renamed from `parent_age` to `age`, the name `run_app.py` passes to the planner.
+The model was built in four steps. Steps 3 and 4 were done by hand, so the model is not the direct output of a `plans.py model` run.
 
-Unpinned, the model yields 9,023 distinct profiles. Pinned to `baby_common_path_pins.json`, it yields 960.
+1. **Subgraph.** `src/utils/build_subgraph.py` built the having-a-baby subgraph from the GOV.UK Knowledge Graph. Three whole browse sections were then dropped, leaving 120 pages:
+   - Fostering, adoption or surrogacy
+   - Schools and education
+   - Divorce, separation or legal issues
 
-The merge notes, as written for v1, follow.
+   Each page was labelled with a `cluster`. See `docs/having-a-baby-subgraph-analysis.md`. The pruned subgraph (`data/having_a_baby_subgraph_pruned.json`) is not committed. You can read and sample this model without it, but re-validating its sources means rebuilding the subgraph.
+2. **Three runs.** `plans.py model --main-goal none --rationale --max-page-chars 12000` was run three times, with shuffle seeds 1, 2 and 3 (referred to below as s1, s2 and s3).
+3. **Merge.** The three runs were combined by hand, without another LLM call and without any scope rule (see "Merge" below). The merged model validated clean and yielded 5,347 distinct profiles.
+4. **Manual review.** Answer combinations that made no sense were fixed, giving the model here, which yields 9,023 distinct profiles (see "Manual review" below). The model's `meta.revisions` lists the same edits.
 
-## How this model was combined
+## Merge
 
-This model combines three runs of `plans.py model --main-goal none --rationale` on the pruned having-a-baby subgraph (`data/having_a_baby_subgraph_pruned.json`), with shuffle seeds 1, 2 and 3. It was merged by hand, without another LLM call and without any scope rule, using these rules:
+### Rules
 
 1. **Keep a question if an equivalent question appears in at least 2 of the 3 runs.** Each question's `merged_from` field names the run questions it combines.
-2. **Wording** is the clearest version; **sources** are the union of the matched questions' sources; the **gate** (who is asked) is the one most runs used.
+2. **Wording, sources and gate.**
+   - Wording is the clearest version.
+   - Sources are the union of the matched questions' sources.
+   - The gate (who is asked) is the one most runs used.
 3. **List everything else for review** (below) instead of dropping it silently.
-
-The model passes the same validation as a generated one (sources exist in the corpus, every question and option is reachable, every fact varies) and yields 5347 distinct profiles.
 
 ### Where the merge departs from the runs
 
@@ -50,11 +51,9 @@ The model passes the same validation as a generated one (sources exist in the co
 | `q_child_disability` | s3 added "not yet known" | "Not known yet" shown only to people who are expecting | needed for people still expecting |
 | `q_parent_age` | s2: "under 16?"; s3: "16 or 17?" | one question: under 16 / 16–17 / 18 or over | the same circumstance asked two ways |
 
-### Worth checking: gates that follow the runs but may be wrong
+### Found in only one run, so not kept
 
-Following the majority, employment, relationship to the baby, other children and disability are asked only when the pregnancy is ongoing or the baby is alive (2 of 3 runs gated them this way). But s3's own fact for stillbirth says the parent "may still be entitled to maternity/paternity/parental bereavement pay and leave". So people after a stillbirth or a baby's death are not asked their employment status, and the leave-and-pay route is closed to them. Widening the employment and relationship gates to everyone except "pregnancy ended before 24 weeks" would fix this, but it isn't what the runs did.
-
-### For review: found in only one run
+These are candidates for a later version.
 
 | Question | Run | What it would route |
 |---|---|---|
@@ -67,6 +66,28 @@ Following the majority, employment, relationship to the baby, other children and
 | About to employ a nanny or carer | s3 | Employer responsibilities |
 | "Outside the UK" as a nation option | s1 | Not living in the UK at all |
 
-### Numeric attributes
+## Manual review
 
-Only parent age (numeric attribute `age`, the name `run_app.py` passes to the planner) is kept, bounded by the `q_parent_age` answer. Pregnancy weeks and baby age are covered by the `q_pregnancy_timing` and `q_baby_age` bands instead. Income and weekly earnings were not kept: s1 and s3 bounded income with editorial floors only, and only s3 used weekly earnings (the £129 a week earnings threshold for statutory pay).
+Following the majority, the merge asked four questions only when the pregnancy was ongoing or the baby was alive (2 of 3 runs gated them this way):
+- employment
+- relationship to the baby
+- other children
+- disability
+
+But s3's own fact for stillbirth says the parent "may still be entitled to maternity/paternity/parental bereavement pay and leave". So people after a stillbirth or a baby's death had no route to leave and pay. The review fixed this, and some other illogical combinations:
+
+- **Relationship and employment** are now asked after a stillbirth at 24+ weeks or a baby's death as well, but not after a pregnancy ended before 24 weeks. "Adopting" is hidden after a stillbirth.
+- **Partner questions.** `q_partner_died` is asked before `q_has_partner`. `q_has_partner` is not asked of partners, since being a partner already implies one (`fact_has_partner` covers it), or of anyone whose partner died.
+- **`q_pregnancy_timing`** is not asked of adopters.
+- **JSON-logic `or`.** The model uses the `or` operator, which these fixes needed.
+- **Numeric attribute.** `parent_age` was renamed to `age`, the name `run_app.py` passes to the planner.
+
+**Still open.** Other children and disability are asked only if the pregnancy is ongoing or the baby is alive.
+
+## Numeric attributes
+
+Parent age (`age`) is the only numeric attribute kept, and the `q_parent_age` answer bounds it. Pregnancy weeks and baby age are covered by the `q_pregnancy_timing` and `q_baby_age` bands instead.
+
+Income and weekly earnings were not kept:
+- s1 and s3 bounded income with editorial floors only.
+- Only s3 used weekly earnings (the £129 a week earnings threshold for statutory pay).
