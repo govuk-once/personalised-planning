@@ -635,6 +635,34 @@ def collect_spines(urls, opener=None):
     return found, failures
 
 
+def load_spine_file(path):
+    """Load a spine from a local JSON file instead of the Content API.
+
+    Args:
+        path: Path to a JSON file containing an array of step objects.
+            Each step must have at least ``step``, ``title`` and ``links``;
+            extra fields are preserved.
+
+    Returns:
+        The step list, in the same shape ``parse_nav`` produces.
+
+    Raises:
+        ValueError: If the file is not a JSON array, or a step is missing
+            a required key.
+    """
+    data = json.loads(pathlib.Path(path).read_text())
+    if not isinstance(data, list):
+        raise ValueError(f"{path}: expected a JSON array, got {type(data).__name__}")
+    required = {"step", "title", "links"}
+    for i, entry in enumerate(data):
+        missing = required - entry.keys()
+        if missing:
+            raise ValueError(
+                f"{path}: step {i} is missing {', '.join(sorted(missing))}"
+            )
+    return data
+
+
 def cmd_map(args):
     """Generate and validate a mapping per step by step.
 
@@ -657,16 +685,27 @@ def cmd_map(args):
             "Consider regenerating the model with derived facts.",
             file=sys.stderr,
         )
-    urls = list(args.url or [])
-    if args.urls_file:
-        urls += read_urls(args.urls_file)
-
-    found, failures = collect_spines(urls)
-    for f in failures:
-        print(f"  {f}", file=sys.stderr)
-    if not found:
-        print("no step by step could be fetched", file=sys.stderr)
-        return 1
+    if args.spine_file:
+        try:
+            steps = load_spine_file(args.spine_file)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"{args.spine_file}: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+        found, failures = {args.base_path: steps}, []
+        print(
+            f"loaded {args.base_path} from {args.spine_file} ({len(steps)} steps)",
+            file=sys.stderr,
+        )
+    else:
+        urls = list(args.url or [])
+        if args.urls_file:
+            urls += read_urls(args.urls_file)
+        found, failures = collect_spines(urls)
+        for f in failures:
+            print(f"  {f}", file=sys.stderr)
+        if not found:
+            print("no step by step could be fetched", file=sys.stderr)
+            return 1
 
     # Imported here rather than at the top so the checks above can fail
     # helpfully on a machine with no Bedrock credentials or SDK installed.
@@ -887,6 +926,19 @@ def main(argv=None):
         help="text file of step-by-step URLs, one per line. "
         "Blank lines and # comments are ignored.",
     )
+    m.add_argument(
+        "--spine-file",
+        metavar="FILE",
+        help="local JSON file containing a spine (array of step objects) "
+        "instead of fetching from GOV.UK. Mutually exclusive with "
+        "--url / --urls-file. Requires --base-path.",
+    )
+    m.add_argument(
+        "--base-path",
+        metavar="PATH",
+        help="identifier for the spine loaded via --spine-file, "
+        "e.g. /having-a-baby. Required with --spine-file.",
+    )
     m.add_argument("--region", default="eu-west-2")
     m.set_defaults(fn=cmd_map)
 
@@ -902,8 +954,17 @@ def main(argv=None):
     s.set_defaults(fn=cmd_score)
 
     args = ap.parse_args(argv)
-    if args.command == "map" and not args.url and not args.urls_file:
-        ap.error("map needs --url or --urls-file")
+    if args.command == "map":
+        has_url = args.url or args.urls_file
+        has_file = args.spine_file
+        if has_file and has_url:
+            ap.error("--spine-file cannot be combined with --url / --urls-file")
+        if has_file and not args.base_path:
+            ap.error("--spine-file requires --base-path")
+        if args.base_path and not has_file:
+            ap.error("--base-path requires --spine-file")
+        if not has_url and not has_file:
+            ap.error("map needs --url, --urls-file, or --spine-file")
     return args.fn(args)
 
 
