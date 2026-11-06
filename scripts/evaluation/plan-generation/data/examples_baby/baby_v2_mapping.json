@@ -1,0 +1,787 @@
+{
+  "mappings": [
+    {
+      "step_by_step": "/having-a-baby",
+      "blocks": [],
+      "rules": [
+        {
+          "step": 1,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ],
+          "why": "Step 1 covers checking Statutory Maternity Pay/leave for the birth parent and Paternity Leave/Pay for the partner; adopting or surrogacy parents have different leave schemes and are not covered by this maternity/paternity guide."
+        },
+        {
+          "step": 2,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ],
+          "why": "Telling the employer and claiming maternity/paternity leave applies to birth parents and partners; adoption/surrogacy use separate processes."
+        },
+        {
+          "step": 2,
+          "fact": "fact_baby_born",
+          "drop_when": true,
+          "why": "This step (telling employer you're expecting, by the qualifying week) is a pre-birth notification task that no longer applies once the baby has already been born."
+        },
+        {
+          "step": 2,
+          "question": "q_employment_status",
+          "answers": [
+            "employee",
+            "worker"
+          ],
+          "why": "Telling an employer and giving paternity notice need an employer; self-employed and non-working people have none.",
+          "added_by": "manual review 2026-11-06"
+        },
+        {
+          "step": 3,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ],
+          "why": "Giving notice for Statutory Maternity Leave/Pay, Maternity Allowance, or Paternity notice applies to birth parents and partners specifically."
+        },
+        {
+          "step": 3,
+          "fact": "fact_baby_born",
+          "drop_when": true,
+          "why": "Giving notice for leave/pay to start is a pre-birth task that no longer applies once the baby has already been born."
+        },
+        {
+          "step": 4,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ],
+          "why": "Shared Parental Leave rules in this guide apply to birth parents and partners sharing leave; not relevant to adoption/surrogacy routes covered elsewhere."
+        },
+        {
+          "step": 4,
+          "question": "q_employment_status",
+          "answers": [
+            "employee",
+            "worker"
+          ],
+          "why": "Shared Parental Leave is arranged with an employer.",
+          "added_by": "manual review 2026-11-06"
+        },
+        {
+          "step": 5,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ],
+          "why": "Antenatal time off (paid for birth parent, unpaid for partner) applies specifically to these two roles."
+        },
+        {
+          "step": 5,
+          "fact": "fact_baby_born",
+          "drop_when": true,
+          "why": "Antenatal care appointments happen during pregnancy; once the baby is born this step is in the past and no longer applies."
+        },
+        {
+          "step": 6,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth"
+          ],
+          "why": "Starting maternity leave applies only to the birth parent, not the partner."
+        },
+        {
+          "step": 6,
+          "question": "q_employment_status",
+          "answers": [
+            "employee",
+            "worker"
+          ],
+          "why": "Statutory Maternity Leave is taken from an employer. (Strictly, leave is for employees only; workers can get pay but not leave.)",
+          "added_by": "manual review 2026-11-06"
+        },
+        {
+          "step": 6,
+          "fact": "fact_baby_born",
+          "drop_when": true,
+          "why": "Maternity leave starts before or at the birth; once the baby is born, starting it is in the past.",
+          "added_by": "manual review 2026-11-06"
+        },
+        {
+          "step": 7,
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ],
+          "why": "Taking compulsory maternity leave or paternity leave after the birth applies specifically to the birth parent and partner."
+        },
+        {
+          "step": 7,
+          "question": "q_employment_status",
+          "answers": [
+            "employee",
+            "worker"
+          ],
+          "why": "Compulsory maternity leave and Paternity Leave are taken from an employer. (Strictly, leave is for employees only.)",
+          "added_by": "manual review 2026-11-06"
+        },
+        {
+          "step": 10,
+          "question": "q_employment_status",
+          "answers": [
+            "employee",
+            "worker"
+          ],
+          "why": "Keeping-in-touch days, flexible working and returning to work need a job with an employer.",
+          "added_by": "manual review 2026-11-06"
+        }
+      ],
+      "scope": [
+        {
+          "question": "q_pregnancy_outcome",
+          "answers": [
+            "ongoing_or_born_alive"
+          ]
+        },
+        {
+          "question": "q_relationship_to_baby",
+          "answers": [
+            "giving_birth",
+            "partner"
+          ]
+        },
+        {
+          "question": "q_nation",
+          "answers": [
+            "northern_ireland"
+          ],
+          "exclude": true
+        }
+      ],
+      "validation": "clean",
+      "spine": [
+        {
+          "step": 1,
+          "title": "Check what leave, pay and support you can get",
+          "intro": "When: as early in pregnancy as possible.",
+          "links": [
+            "/maternity-pay-leave",
+            "/employers-maternity-pay-leave",
+            "/paternity-pay-leave",
+            "/shared-parental-leave-and-pay"
+          ],
+          "label": "1",
+          "optional": false,
+          "timing": {
+            "type": "when",
+            "text": "as early in pregnancy as possible."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Check if you can get Statutory Maternity Pay",
+              "task_ids": [
+                "statutory-maternity-pay--check-eligibility-for-statutory-maternity-pay"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Work out your leave and pay dates with the maternity planner",
+              "task_ids": [
+                "maternity-leave--plan-your-maternity-leave-dates-using-the-maternity-planner"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Partner",
+              "condition": null,
+              "text": "Check if you can get Paternity Leave and Pay",
+              "task_ids": [
+                "paternity-leave-and-pay--check-eligibility-for-paternity-leave-and-pay"
+              ]
+            },
+            {
+              "kind": "or_route",
+              "actor": "Either parent",
+              "condition": "if you plan to share leave",
+              "text": "Check if you can get Shared Parental Leave and Pay and check your entitlement with the planning tool",
+              "task_ids": [
+                "shared-parental-leave-and-pay--check-eligibility-for-shared-parental-leave-and-pay",
+                "shared-parental-leave-and-pay--check-shared-parental-leave-and-pay-entitlement-using-planning-tool"
+              ]
+            }
+          ],
+          "task_ids": [
+            "statutory-maternity-pay--check-eligibility-for-statutory-maternity-pay",
+            "maternity-leave--plan-your-maternity-leave-dates-using-the-maternity-planner",
+            "paternity-leave-and-pay--check-eligibility-for-paternity-leave-and-pay",
+            "shared-parental-leave-and-pay--check-eligibility-for-shared-parental-leave-and-pay",
+            "shared-parental-leave-and-pay--check-shared-parental-leave-and-pay-entitlement-using-planning-tool"
+          ]
+        },
+        {
+          "step": 2,
+          "title": "Tell your employer you're expecting",
+          "intro": "Deadline: by the end of the 15th week before the due date (the \"qualifying week\").",
+          "links": [
+            "/maternity-pay-leave",
+            "/employers-maternity-pay-leave",
+            "/working-when-pregnant-your-rights",
+            "/paternity-pay-leave"
+          ],
+          "label": "2",
+          "optional": false,
+          "timing": {
+            "type": "deadline",
+            "text": "by the end of the 15th week before the due date (the \"qualifying week\")."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Tell your employer you're pregnant and when you want to start leave",
+              "task_ids": [
+                "maternity-leave--tell-your-employer-about-your-pregnancy-and-when-you-want-to-start-leave"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Partner",
+              "condition": null,
+              "text": "Give notice of the due date to claim Paternity Leave and Pay",
+              "task_ids": [
+                "paternity-leave-and-pay--give-notice-of-due-date-to-claim-paternity-pay-and-leave"
+              ]
+            },
+            {
+              "kind": "conditional",
+              "actor": "Birth parent",
+              "condition": "if needed",
+              "text": "Raise any health and safety risk concerns with your employer",
+              "task_ids": [
+                "employment-rights--raise-health-and-safety-risk-concerns-with-employer"
+              ]
+            }
+          ],
+          "task_ids": [
+            "maternity-leave--tell-your-employer-about-your-pregnancy-and-when-you-want-to-start-leave",
+            "paternity-leave-and-pay--give-notice-of-due-date-to-claim-paternity-pay-and-leave",
+            "employment-rights--raise-health-and-safety-risk-concerns-with-employer"
+          ]
+        },
+        {
+          "step": 3,
+          "title": "Give notice for your leave and pay",
+          "intro": "Deadline: at least 28 days before you want your leave/pay to start.",
+          "links": [
+            "/maternity-pay-leave",
+            "/employers-maternity-pay-leave",
+            "/maternity-allowance"
+          ],
+          "label": "3",
+          "optional": false,
+          "timing": {
+            "type": "deadline",
+            "text": "at least 28 days before you want your leave/pay to start."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Give notice for Statutory Maternity Leave",
+              "task_ids": [
+                "maternity-leave--give-employer-correct-notice-for-statutory-maternity-leave"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Give notice to claim Statutory Maternity Pay and give proof of pregnancy \u2014 the MATB1 certificate",
+              "task_ids": [
+                "statutory-maternity-pay--give-notice-to-your-employer-to-claim-statutory-maternity-pay",
+                "statutory-maternity-pay--give-your-employer-proof-of-pregnancy-for-smp"
+              ]
+            },
+            {
+              "kind": "or_route",
+              "actor": "Birth parent",
+              "condition": "if you can't get SMP",
+              "text": "Apply for Maternity Allowance using the MA1 form",
+              "task_ids": [
+                "maternity-allowance--apply-for-maternity-allowance-if-not-eligible-for-smp",
+                "maternity-allowance--claim-maternity-allowance-using-the-ma1-form"
+              ]
+            },
+            {
+              "kind": "conditional",
+              "actor": "Partner",
+              "condition": "if the baby is due before 25 July 2026 and you don't yet have 26 weeks' service",
+              "text": "Give shorter notice",
+              "task_ids": [
+                "paternity-leave-and-pay--give-shorter-notice-if-baby-due-before-25-july-2026-and-employed"
+              ],
+              "status": "expired",
+              "status_reason": "Condition applies only to babies due before 25 July 2026"
+            }
+          ],
+          "task_ids": [
+            "maternity-leave--give-employer-correct-notice-for-statutory-maternity-leave",
+            "statutory-maternity-pay--give-notice-to-your-employer-to-claim-statutory-maternity-pay",
+            "statutory-maternity-pay--give-your-employer-proof-of-pregnancy-for-smp",
+            "maternity-allowance--apply-for-maternity-allowance-if-not-eligible-for-smp",
+            "maternity-allowance--claim-maternity-allowance-using-the-ma1-form"
+          ]
+        },
+        {
+          "step": 4,
+          "title": "Arrange Shared Parental Leave instead",
+          "intro": "Only if you chose to share leave in Step 1. Replaces the straightforward maternity/paternity split.",
+          "links": [
+            "/shared-parental-leave-and-pay"
+          ],
+          "label": "3a",
+          "optional": true,
+          "timing": null,
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Give binding notice to end your maternity leave early for SPL and to end maternity pay for ShPP",
+              "task_ids": [
+                "shared-parental-leave-and-pay--give-binding-notice-to-end-maternity-or-adoption-leave-for-spl",
+                "shared-parental-leave-and-pay--give-binding-notice-to-end-maternity-or-adoption-pay-for-shpp"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Give written notice of your SPL and ShPP dates (at least 8 weeks before leave starts)",
+              "task_ids": [
+                "shared-parental-leave-and-pay--give-employer-written-notice-of-spl-and-shpp-leave-dates"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Tell your employer your plans for booking blocks of leave",
+              "task_ids": [
+                "shared-parental-leave-and-pay--tell-employer-your-plans-for-booking-blocks-of-spl"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Agree SPLIT (keeping-in-touch) days",
+              "task_ids": [
+                "shared-parental-leave-and-pay--agree-split-days-with-your-employer"
+              ]
+            }
+          ],
+          "task_ids": [
+            "shared-parental-leave-and-pay--give-binding-notice-to-end-maternity-or-adoption-leave-for-spl",
+            "shared-parental-leave-and-pay--give-binding-notice-to-end-maternity-or-adoption-pay-for-shpp",
+            "shared-parental-leave-and-pay--give-employer-written-notice-of-spl-and-shpp-leave-dates",
+            "shared-parental-leave-and-pay--tell-employer-your-plans-for-booking-blocks-of-spl",
+            "shared-parental-leave-and-pay--agree-split-days-with-your-employer"
+          ]
+        },
+        {
+          "step": 5,
+          "title": "Take time off for antenatal care",
+          "intro": "When: during pregnancy, as appointments arise.",
+          "links": [
+            "/working-when-pregnant-your-rights",
+            "/paternity-pay-leave"
+          ],
+          "label": "4",
+          "optional": false,
+          "timing": {
+            "type": "when",
+            "text": "during pregnancy, as appointments arise."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Take paid time off for antenatal care",
+              "task_ids": [
+                "antenatal-rights--take-paid-time-off-for-antenatal-care"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Partner",
+              "condition": null,
+              "text": "Take unpaid time off to go to antenatal appointments with your partner",
+              "task_ids": [
+                "antenatal-rights--take-unpaid-time-off-to-accompany-your-partner-to-antenatal-appointments"
+              ]
+            }
+          ],
+          "task_ids": [
+            "antenatal-rights--take-paid-time-off-for-antenatal-care",
+            "antenatal-rights--take-unpaid-time-off-to-accompany-your-partner-to-antenatal-appointments"
+          ]
+        },
+        {
+          "step": 6,
+          "title": "Start your maternity leave",
+          "intro": "When: from up to 11 weeks before the due date.",
+          "links": [
+            "/maternity-pay-leave",
+            "/employers-maternity-pay-leave"
+          ],
+          "label": "5",
+          "optional": false,
+          "timing": {
+            "type": "when",
+            "text": "from up to 11 weeks before the due date."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Start your maternity leave \u2014 this begins your Statutory Maternity Leave (up to 52 weeks)",
+              "task_ids": [
+                "maternity-leave--start-maternity-leave-up-to-11-weeks-before-due-date",
+                "maternity-leave--take-statutory-maternity-leave"
+              ]
+            },
+            {
+              "kind": "instruction",
+              "actor": null,
+              "condition": null,
+              "text": "your leave can start automatically if you're off work with a pregnancy-related illness in the 4 weeks before your due date",
+              "task_ids": [
+                "maternity-leave--know-when-leave-starts-automatically-due-to-pregnancy-related-illness"
+              ]
+            },
+            {
+              "kind": "expectation",
+              "actor": null,
+              "condition": null,
+              "text": "your Statutory Maternity Pay (or Maternity Allowance) is paid for up to 39 weeks",
+              "task_ids": [
+                "statutory-maternity-pay--receive-statutory-maternity-pay"
+              ]
+            }
+          ],
+          "task_ids": [
+            "maternity-leave--start-maternity-leave-up-to-11-weeks-before-due-date",
+            "maternity-leave--take-statutory-maternity-leave",
+            "maternity-leave--know-when-leave-starts-automatically-due-to-pregnancy-related-illness",
+            "statutory-maternity-pay--receive-statutory-maternity-pay"
+          ]
+        },
+        {
+          "step": 7,
+          "title": "After the birth, take your leave",
+          "intro": "When: from the birth.",
+          "links": [
+            "/working-when-pregnant-your-rights",
+            "/maternity-pay-leave",
+            "/paternity-pay-leave"
+          ],
+          "label": "6",
+          "optional": false,
+          "timing": {
+            "type": "when",
+            "text": "from the birth."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Birth parent",
+              "condition": null,
+              "text": "Take your compulsory maternity leave \u2014 at least 2 weeks off after the birth",
+              "task_ids": [
+                "maternity-leave--take-compulsory-maternity-leave-after-birth"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Partner",
+              "condition": null,
+              "text": "Take your 2 weeks' Paternity Leave, within 52 weeks of the birth",
+              "task_ids": [
+                "paternity-leave-and-pay--take-paternity-leave-within-52-weeks-of-the-birth"
+              ]
+            }
+          ],
+          "task_ids": [
+            "maternity-leave--take-compulsory-maternity-leave-after-birth",
+            "paternity-leave-and-pay--take-paternity-leave-within-52-weeks-of-the-birth"
+          ]
+        },
+        {
+          "step": 8,
+          "title": "Register your baby's birth",
+          "intro": "Deadline: within 42 days of the birth.",
+          "links": [
+            "/register-birth",
+            "/parental-rights-responsibilities",
+            "/order-copy-birth-death-marriage-certificate"
+          ],
+          "label": "7",
+          "optional": false,
+          "timing": {
+            "type": "deadline",
+            "text": "within 42 days of the birth."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Register the birth. Which route applies depends on your circumstances \u2014 one of:",
+              "task_ids": [
+                "birth-registration--register-the-birth-within-42-days"
+              ],
+              "routes": [
+                {
+                  "kind": "task",
+                  "actor": null,
+                  "condition": null,
+                  "text": "married or civil partners",
+                  "task_ids": [
+                    "birth-registration--register-birth-as-married-or-civil-partner-parents"
+                  ]
+                },
+                {
+                  "kind": "task",
+                  "actor": null,
+                  "condition": null,
+                  "text": "unmarried, to include both parents",
+                  "task_ids": [
+                    "birth-registration--register-birth-as-unmarried-parents-to-include-both-parents"
+                  ]
+                },
+                {
+                  "kind": "task",
+                  "actor": null,
+                  "condition": null,
+                  "text": "a married/civil-partner same-sex female couple",
+                  "task_ids": [
+                    "birth-registration--register-birth-as-married-or-civil-partner-same-sex-female-couple"
+                  ]
+                },
+                {
+                  "kind": "task",
+                  "actor": null,
+                  "condition": null,
+                  "text": "an unmarried same-sex female couple with a parenthood agreement",
+                  "task_ids": [
+                    "birth-registration--register-birth-as-unmarried-same-sex-female-couple-to-include-both"
+                  ]
+                },
+                {
+                  "kind": "task",
+                  "actor": null,
+                  "condition": null,
+                  "text": "without the father's details",
+                  "task_ids": [
+                    "birth-registration--register-birth-without-the-fathers-details"
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "conditional",
+              "actor": "Partner / second parent",
+              "condition": "if parental responsibility isn't automatic",
+              "text": "get parental responsibility \u2014 either register the birth jointly or sign a parental responsibility agreement or apply for parental responsibility if you didn't register jointly",
+              "task_ids": [
+                "birth-registration--register-birth-jointly-to-get-parental-responsibility",
+                "other--sign-a-parental-responsibility-agreement",
+                "other--apply-for-parental-responsibility-if-not-registered-jointly"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Get the birth certificate \u2014 buy it once the birth is registered, and order any extra copies, at the register office or by phone",
+              "task_ids": [
+                "certificates--buy-a-birth-certificate-for-your-baby",
+                "certificates--order-extra-copies-of-the-birth-certificate",
+                "certificates--order-certificate-from-local-register-office",
+                "certificates--order-a-certificate-by-phone"
+              ]
+            }
+          ],
+          "task_ids": [
+            "birth-registration--register-the-birth-within-42-days",
+            "birth-registration--register-birth-as-married-or-civil-partner-parents",
+            "birth-registration--register-birth-as-unmarried-parents-to-include-both-parents",
+            "birth-registration--register-birth-as-married-or-civil-partner-same-sex-female-couple",
+            "birth-registration--register-birth-as-unmarried-same-sex-female-couple-to-include-both",
+            "birth-registration--register-birth-without-the-fathers-details",
+            "birth-registration--register-birth-jointly-to-get-parental-responsibility",
+            "other--sign-a-parental-responsibility-agreement",
+            "other--apply-for-parental-responsibility-if-not-registered-jointly",
+            "certificates--buy-a-birth-certificate-for-your-baby",
+            "certificates--order-extra-copies-of-the-birth-certificate",
+            "certificates--order-certificate-from-local-register-office",
+            "certificates--order-a-certificate-by-phone"
+          ]
+        },
+        {
+          "step": 9,
+          "title": "Claim money and support for your child",
+          "intro": "When: after the birth. These are largely parallel \u2014 do the ones you're eligible for.",
+          "links": [
+            "/maternity-pay-leave",
+            "/child-benefit",
+            "/sure-start-maternity-grant",
+            "/healthy-start"
+          ],
+          "label": "8",
+          "optional": false,
+          "timing": {
+            "type": "when",
+            "text": "after the birth. These are largely parallel \u2014 do the ones you're eligible for."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Check what you can get with a benefits calculator",
+              "task_ids": [
+                "universal-credit--check-benefits-eligibility-using-a-benefits-calculator"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Claim Child Benefit (from 48 hours after registering the birth) and choose how it's paid; (if you're claiming as a jobseeker, do it within 3 months)",
+              "task_ids": [
+                "child-benefit--claim-child-benefit-for-your-child",
+                "child-benefit--choose-how-child-benefit-is-paid",
+                "child-benefit--claim-child-benefit-as-a-jobseeker"
+              ]
+            },
+            {
+              "kind": "conditional",
+              "actor": "Birth parent",
+              "condition": "if you get a qualifying benefit and usually have no other children under 16",
+              "text": "Apply for a Sure Start Maternity Grant",
+              "task_ids": [
+                "sure-start-maternity-grant--apply-for-a-sure-start-maternity-grant"
+              ]
+            },
+            {
+              "kind": "conditional",
+              "actor": "Either parent",
+              "condition": "if eligible",
+              "text": "Apply for Healthy Start",
+              "task_ids": [
+                "healthy-start--request-a-healthy-start-application-form-by-email"
+              ]
+            }
+          ],
+          "task_ids": [
+            "universal-credit--check-benefits-eligibility-using-a-benefits-calculator",
+            "child-benefit--claim-child-benefit-for-your-child",
+            "child-benefit--choose-how-child-benefit-is-paid",
+            "child-benefit--claim-child-benefit-as-a-jobseeker",
+            "sure-start-maternity-grant--apply-for-a-sure-start-maternity-grant",
+            "healthy-start--request-a-healthy-start-application-form-by-email"
+          ]
+        },
+        {
+          "step": 10,
+          "title": "Plan and take your return to work",
+          "intro": "When: towards the end of leave.",
+          "links": [
+            "/employee-rights-when-on-leave",
+            "/flexible-working"
+          ],
+          "label": "9",
+          "optional": false,
+          "timing": {
+            "type": "when",
+            "text": "towards the end of leave."
+          },
+          "items": [
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Agree keeping-in-touch (KIT) days with your employer",
+              "task_ids": [
+                "employment-rights--agree-keeping-in-touch-days-with-employer"
+              ]
+            },
+            {
+              "kind": "conditional",
+              "actor": "Either parent",
+              "condition": "if you want to change your hours",
+              "text": "Apply for flexible working",
+              "task_ids": [
+                "flexible-working--apply-for-flexible-working"
+              ]
+            },
+            {
+              "kind": "task",
+              "actor": "Either parent",
+              "condition": null,
+              "text": "Return to work, checking your job protection rights",
+              "task_ids": [
+                "employment-rights--return-to-work-after-leave-checking-job-protection-rules"
+              ]
+            }
+          ],
+          "task_ids": [
+            "employment-rights--agree-keeping-in-touch-days-with-employer",
+            "flexible-working--apply-for-flexible-working",
+            "employment-rights--return-to-work-after-leave-checking-job-protection-rules"
+          ]
+        }
+      ],
+      "revisions": [
+        {
+          "by": "manual review 2026-11-06",
+          "change": "removed 3 step 9 rules (q_qualifying_benefits=yes, fact_first_child, q_nation not scotland)",
+          "reason": "they come from the Sure Start Maternity Grant item only; step 9 also has Child Benefit and the benefits calculator, which apply to everyone"
+        },
+        {
+          "by": "manual review 2026-11-06",
+          "change": "added q_employment_status in [employee, worker] to steps 2, 4, 6, 7 and 10",
+          "reason": "the generated mapping ignored employment, so non-working and self-employed people were told to tell an employer and return to work"
+        },
+        {
+          "by": "manual review 2026-11-06",
+          "change": "added fact_baby_born drop_when true to step 6",
+          "reason": "starting maternity leave is in the past once the baby is born"
+        },
+        {
+          "by": "manual review 2026-11-06",
+          "change": "no rule added to step 3",
+          "reason": "it includes the Maternity Allowance form for birth parents without SMP, so it applies to every employment status; 'partner only if employed' cannot be expressed with rules"
+        }
+      ],
+      "generated_from": "baby_v2_mapping_generated.json"
+    }
+  ]
+}
