@@ -238,8 +238,8 @@ Produce three things.
 RULES: for each step whose relevance depends on the person, say what decides \
 it. Two ways to write a rule — use whichever fits.
 
-Prefer a FACT when one already fits: name the ONE fact that decides the step, \
-and say whether the step drops out when that fact is true or when it is \
+Prefer a FACT when one already fits: name the ONE fact that decides the step \
+(or one of its conditions — see below), and say whether the step drops out when that fact is true or when it is \
 false. Polarity matters and has no convention: a fact meaning "a test lies \
 ahead" drops its step when false, while a fact meaning "exempt from the test" \
 drops it when true. Read each fact's description rather than its name.
@@ -254,6 +254,18 @@ and everyone else keeps it — the reverse case.
 
 Do not invent a fact to work around this; cite the question and answers \
 directly. Omit any step that applies to everyone.
+
+A step that needs several conditions at once gets one rule per condition. \
+It drops out if any of its rules drops it, so it stays only for people who \
+meet every condition. Rules combine only this way: if a step applies when \
+EITHER of two different questions is satisfied, no set of rules can express \
+it — use a fact that captures it, or leave that condition out.
+
+A plan covers the whole journey ahead, not only what the person must do now. \
+A step later in the journey still applies to someone at an earlier stage: \
+do not drop it because they have not reached it yet. Drop a step for stage \
+only when the person is past it and it no longer applies — for example, \
+steps to take before a birth, once the baby is born.
 
 Check in particular for a question asking whether the person already holds \
 what this guide leads towards, or has already done what an early step asks — \

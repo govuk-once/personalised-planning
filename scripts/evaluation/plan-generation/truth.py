@@ -279,7 +279,6 @@ def check_mapping(mapping, steps, model):
             if a not in questions[qid]
         ]
 
-    seen = [r["step"] for r in mapping.get("rules", [])]
     for rule in mapping.get("rules", []):
         has_fact, has_question = "fact" in rule, "question" in rule
         if has_fact and has_question:
@@ -311,8 +310,6 @@ def check_mapping(mapping, steps, model):
             errs.append(f"rule for step {rule['step']}: needs 'fact' or 'question'")
         if rule["step"] not in numbers:
             errs.append(f"rule references step {rule['step']}, which does not exist")
-    for n in sorted({s for s in seen if seen.count(s) > 1}):
-        errs.append(f"step {n} has more than one rule")
 
     for block in mapping.get("blocks", []):
         qid = block["question"]
@@ -384,13 +381,22 @@ def verdicts(model, steps, answers, mapping, resolve):
         if answers.get(block["question"]) in set(block["answers"]):
             for n in block["steps"]:
                 blocked.setdefault(n, block["why"])
-    rules = {r["step"]: r for r in mapping.get("rules", [])}
+    # A step can have several rules, one per condition it needs. It drops out
+    # if any of them drops it, so it stays only when every condition holds.
+    rules = {}
+    for r in mapping.get("rules", []):
+        rules.setdefault(r["step"], []).append(r)
 
     out = []
     for step in steps:
         n = step["step"]
         rule = rules.get(n)
-        drop, why = rule_drops(rule, answers, model, resolve) if rule else (False, "")
+        fired = []
+        for r in rule or []:
+            r_drop, r_why = rule_drops(r, answers, model, resolve)
+            if r_drop:
+                fired.append(r_why)
+        drop, why = bool(fired), "; ".join(fired)
         if n in blocked:
             out.append(
                 {
@@ -415,7 +421,7 @@ def verdicts(model, steps, answers, mapping, resolve):
                     "step": n,
                     "title": step["title"],
                     "verdict": "required",
-                    "why": "decided by a rule that did not drop this step"
+                    "why": "decided by rules that did not drop this step"
                     if rule
                     else "applies to everyone",
                 }
