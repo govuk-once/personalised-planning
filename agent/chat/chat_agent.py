@@ -7,7 +7,7 @@ import boto3
 from botocore.config import Config as BotocoreConfig
 from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from shared.log_utils import StructuredLogger
 from shared.retry import BedrockRetryStrategy
 from shared.utils import read_file_content, strip_nulls
@@ -148,7 +148,7 @@ def _build_mcp_client_service_graph() -> MCPClient:
     agents talk to the same service-graph MCP server.
     """
     if GRAPH_MCP_URL and GRAPH_MCP_URL.startswith("http"):
-        return MCPClient(lambda: streamablehttp_client(GRAPH_MCP_URL))
+        return MCPClient(lambda: streamable_http_client(GRAPH_MCP_URL))
 
     return MCPClient(
         lambda: stdio_client(
