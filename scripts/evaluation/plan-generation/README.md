@@ -332,12 +332,17 @@ loss, the devolved nations or adoption. Pinning limits sampling to a chosen
 scope without changing the model:
 
 ```bash
-python plans.py profiles data/having_a_baby_subgraph_pruned.json \
-    --model runs/baby_none_consensus/model_refined.json \
-    --pins data/pins/baby_common_path.json \
+python plans.py profiles ../../../data/having_a_baby_subgraph_pruned.json \
+    --model data/examples_baby/baby_model_v2.json \
+    --pins data/examples_baby/baby_common_path_pins.json \
     --profiles data/profiles/baby_common_path.json \
     --review data/review/baby_common_path.json
 ```
+
+The model and pins file are committed examples; `data/examples_baby/baby_model_v2_notes.md`
+says how the model was made. The subgraph is not committed: build it with
+`src/utils/build_subgraph.py` and prune it as described in
+`docs/having-a-baby-subgraph-analysis.md`.
 
 The pins file maps question ids to the answers allowed for them. Keys starting
 with `_` are notes:
