@@ -20,7 +20,7 @@ Placed in `agent/app/` alongside `main.py`. Key requirements:
 - Set `CLAUDE_CODE_USE_BEDROCK=1` — without this the SDK tries to use the Anthropic API directly instead of Bedrock
 
 ```dockerfile
-FROM python:3.12-bookworm
+FROM python:3.12-slim-trixie
 
 WORKDIR /app
 
