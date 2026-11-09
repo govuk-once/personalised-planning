@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-trixie
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/home/agentuser/.local/bin:$PATH"
