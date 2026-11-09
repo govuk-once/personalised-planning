@@ -12,11 +12,11 @@ remove a step entirely, date thresholds, geography where a nation is served \
 by a different body, accessibility needs that must be declared in advance, \
 and states that expire."""
 
-# The first-question block comes in three variants (plans.py --main-goal).
-# "required" is the original behaviour; "optional" lets the model decide what
-# to ask first, so the opening questions show which splits it finds in the
-# corpus rather than being forced into a choice of service; "none" rules out
-# any choice-of-service question, so people are routed on circumstances alone.
+# The first-question block comes in two variants (plans.py --main-goal).
+# "required" is the original behaviour; "none" rules out any choice-of-service
+# question, so people are routed on circumstances alone. An "optional" variant,
+# letting the model choose whether to ask one, was tried and dropped: the model
+# added `q_main_goal` as its first question anyway.
 MAIN_GOAL_REQUIRED = """\
 Your first question MUST have id `q_main_goal`, the lowest order of all \
 questions, and be always asked (ask_if: true). It asks what the person wants \
@@ -34,14 +34,6 @@ and needs every question that stage would have asked. Model the earlier stage \
 as a follow-up question instead — "do you already have X?" — asked within the \
 fuller option, so the fuller option keeps every question and eligibility check \
 the narrower one has, and adds its own on top."""
-
-MAIN_GOAL_OPTIONAL = """\
-Order questions so the earliest are the ones whose answers change the most of \
-what follows — the questions that send people to different parts of the \
-corpus. Ask early questions of everyone (ask_if: true) wherever you can. You \
-may include a question about what the person wants to achieve (id \
-`q_main_goal`) if the corpus covers distinct services a person would choose \
-between, but it is not required and need not come first."""
 
 MAIN_GOAL_NONE = """\
 Order questions so the earliest are the ones whose answers change the most of \
@@ -61,7 +53,6 @@ order."""
 
 MAIN_GOAL_BLOCKS = {
     "required": MAIN_GOAL_REQUIRED,
-    "optional": MAIN_GOAL_OPTIONAL,
     "none": MAIN_GOAL_NONE,
 }
 
@@ -128,8 +119,7 @@ def system_prompt(main_goal: str = "required", rationale: bool = False) -> str:
 
     Args:
         main_goal: "required" forces `q_main_goal` as the first, always-asked
-            question (the original prompt, text unchanged); "optional" lets
-            the model choose its opening questions; "none" forbids any
+            question (the original prompt, text unchanged); "none" forbids any
             question about which service or help the person wants.
         rationale: Ask for a one-sentence `rationale` on every question.
 
@@ -147,8 +137,6 @@ def system_prompt(main_goal: str = "required", rationale: bool = False) -> str:
         parts.append(RATIONALE)
     return "\n\n".join(parts)
 
-
-SYSTEM = system_prompt("required")
 
 SOURCE_SCHEMA = {"type": "array", "items": {"type": "string"}}
 
@@ -314,9 +302,8 @@ anything you cannot justify from the guide's own text and the fact \
 descriptions."""
 
 # The SCOPE paragraph above assumes the questionnaire opens with `q_main_goal`.
-# A model generated with `plans.py --main-goal none` (or an optional run that
-# chose not to include one) routes people by circumstances instead, so its
-# mapping takes scope from those. `map_system` / `map_tool` swap the text in;
+# A model generated with `plans.py --main-goal none` routes people by
+# circumstances instead, so its mapping takes scope from those. `map_system` / `map_tool` swap the text in;
 # a model that has `q_main_goal` still gets MAP_SYSTEM and MAP_TOOL unchanged.
 MAP_SCOPE_GOAL = """\
 A corpus spanning several services always asks up front which one the \
@@ -431,10 +418,7 @@ MAP_TOOL = {
             },
             "scope": {
                 "type": "array",
-                "description": "Conditions a profile must satisfy for this "
-                "guide to apply — a corpus spanning several services needs at "
-                "least the one that selects this service. Use an empty list "
-                "only if the guide genuinely covers everyone.",
+                "description": MAP_SCOPE_TOOL_GOAL,
                 "items": {
                     "type": "object",
                     "properties": {
