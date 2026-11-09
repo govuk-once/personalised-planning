@@ -195,16 +195,35 @@ def filter_excluded_edge_types(edges_df: pd.DataFrame) -> pd.DataFrame:
     return edges_df.loc[~edges_df["type"].isin(EXCLUDE_EDGE_TYPES)].reset_index(drop=True)
 
 
+def child_browse_pages(browse_page_id: str, edges_df: pd.DataFrame) -> set[str]:
+    """
+    Second-level browse pages under a top-level browse page.
+
+    Content is only tagged (via mainstream_browse_pages) to second-level
+    browse pages, so a top-level page has to be expanded to its children
+    first. 'children' is stored parent -> child. Returns an empty set for a
+    second-level page.
+    """
+    return set(
+        edges_df.loc[
+            (edges_df["source_content_id"] == browse_page_id) & (edges_df["type"] == "children"),
+            "target_content_id",
+        ]
+    )
+
+
 def content_under_browse_page(browse_page_id: str, edges_df: pd.DataFrame) -> pd.DataFrame:
     """
-    All real content tagged under a browse page.
+    All real content tagged under a browse page, including under its child
+    browse pages if it is a top-level page.
 
     Reverse lookup: mainstream_browse_pages is stored content -> browse page,
     so we filter on target_content_id (the browse page), not source_content_id.
     """
+    browse_page_ids = {browse_page_id} | child_browse_pages(browse_page_id, edges_df)
     return (
         edges_df.loc[
-            (edges_df["target_content_id"] == browse_page_id)
+            (edges_df["target_content_id"].isin(browse_page_ids))
             & (edges_df["type"] == "mainstream_browse_pages"),
             ["source_content_id", "source_base_path"],
         ]
@@ -235,6 +254,8 @@ def build_life_event_subgraph(
     tagged = content_under_browse_page(browse_page_id, edges_df)
     seeds = set(tagged["source_content_id"])
     print(f"{len(seeds)} pages tagged under browse page {browse_page_id}")
+    if not seeds:
+        raise ValueError(f"No content tagged under browse page {browse_page_id} or its children")
 
     clean_edges_df = filter_excluded_edge_types(edges_df)
     reachable_edges_df = dedupe_edges(

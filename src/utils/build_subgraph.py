@@ -40,19 +40,16 @@ NODES_TABLE = "govuk-knowledge-graph.public.publishing_api_editions_current"
 
 LIFE_EVENT = "baby"
 
-START_CONTENT_ID = (
-    "6028e11b-592e-40ec-81e6-312c9fcb749d"  # /browse/childcare-parenting/pregnancy-birth
-)
+START_CONTENT_ID = "451c8029-6fe3-41cf-80e8-717debd317bd"  # /browse/childcare-parenting
 # START_CONTENT_ID_DRIVING = "6af0f337-4da6-415c-a760-55b612d0e3e3"  # /browse/driving/learning-to-drive
 
 KNOWN_PATHS = {
-    "/register-birth",  # gro-register-birth
-    "/order-copy-birth-death-marriage-certificate",  # gro-certificates
-    "/paternity-pay-leave",  # hmrc-spp
-    "/maternity-pay-leave/pay",  # hmrc-smp
-    "/maternity-allowance",  # dwp-maternity-allowance
-    "/sure-start-maternity-grant",  # dwp-sure-start-grant
-    "/request-baby-loss-certificate",  # dhsc-baby-loss-certificate
+    "/pregnancy-birth",  # gro-register-birth
+    "/fostering-adoption-surrogacy",  # gro-certificates
+    "/financial-help-children",  # hmrc-spp
+    "/childcare",  # hmrc-smp
+    "/schools-education",  # dwp-maternity-allowance
+    "/divorce-separation-legal",  # dwp-sure-start-grant
 }
 # KNOWN_PATHS = {
 #     "/apply-first-provisional-driving-licence",  # dvla-provisional-licence

@@ -122,7 +122,7 @@ npm run mcp                 # Start local MCP server via stdio
 docker compose up --build   # Agents (8080, 8081) + DynamoDB Local (8001); the backend runs under SAM (backend/README.md)
 ```
 
-Run under `aws-vault exec` to pass AWS credentials to the containers.
+Get AWS credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell to pass them to the containers.
 
 ## Code Style
 

@@ -773,7 +773,8 @@ export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:<region>:<account>:runtime/<p
 ```
 
 Run with AWS credentials that allow `bedrock-agentcore:InvokeAgentRuntime` on
-that ARN (for example under `aws-vault exec`). The region is taken from the ARN.
+that ARN (for example, get them with `gds-cli aws [PROFILE] -e` and copy them
+into your shell). The region is taken from the ARN.
 `agentcore status` shows the deployed runtime ARN. If the deployed endpoint is
 not `DEFAULT`, set `AGENT_ENDPOINT_NAME`, as the backend does.
 
@@ -1003,8 +1004,8 @@ python -m metrics.harness generate data/profiles/driving_profiles_v5.json -G 3 -
 with `bedrock-agentcore:InvokeAgentRuntime` on the runtime. As in `run_app.py`,
 today's date is added to each profile's context and `AGENT_ENDPOINT_NAME` selects
 a non-`DEFAULT` endpoint. `score` needs `EVAL_ANTHROPIC_MODEL` (or `--judge-model`)
-and Bedrock model access for the judge, but not the agent. Run under
-`aws-vault exec` if using AWS SSO.
+and Bedrock model access for the judge, but not the agent. If using AWS SSO, get
+credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell.
 
 `generate` flags:
 

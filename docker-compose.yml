@@ -12,7 +12,8 @@ services:
     environment:
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-west-2}
       # Passed through from whatever exports them in your shell —
-      # run docker compose under `aws-vault exec` so these are populated.
+      # get credentials with `gds-cli aws [PROFILE] -e` and copy them into your
+      # shell before running docker compose, so these are populated.
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN

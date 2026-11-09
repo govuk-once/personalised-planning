@@ -33,25 +33,30 @@ def _is_harness_result(doc) -> bool:
     )
 
 
-def _resolve(path: str | None) -> pathlib.Path | None:
+def _resolve(path: str | None, near: pathlib.Path) -> pathlib.Path | None:
     """Find a profiles file recorded in a run's config, even if the repo moved.
 
-    The harness records absolute paths, so fall back to the same file name under
-    `data/profiles/` when the recorded path no longer exists.
+    The harness records the path it was given, which may not exist where the
+    dashboard is built. Fall back to the same file name beside the results file,
+    then under `data/profiles/`.
     """
     if not path:
         return None
     p = pathlib.Path(path)
     if p.is_file():
         return p
-    fallback = HERE / "data" / "profiles" / p.name
-    return fallback if fallback.is_file() else None
+    for folder in (near, HERE / "data" / "profiles"):
+        if (folder / p.name).is_file():
+            return folder / p.name
+    return None
 
 
-def _profile_context(doc: dict) -> dict[str, dict]:
+def _profile_context(doc: dict, near: pathlib.Path) -> dict[str, dict]:
     """Situation, readable answers and weight for each profile the run scored."""
     config = doc.get("config", {})
-    path = _resolve(config.get("weights_file")) or _resolve(config.get("profiles_file"))
+    path = _resolve(config.get("weights_file"), near) or _resolve(
+        config.get("profiles_file"), near
+    )
     if path is None:
         return {}
     data = json.loads(path.read_text())
@@ -89,7 +94,7 @@ def build(results_dir: pathlib.Path) -> tuple[list[dict], list[str]]:
             skipped.append(f"{path.name} (not a metrics.harness results file)")
             continue
         try:
-            profiles = _profile_context(doc)
+            profiles = _profile_context(doc, results_dir)
         except (OSError, json.JSONDecodeError, KeyError) as e:
             print(f"warning: {path.name}: no profile details ({e})", file=sys.stderr)
             profiles = {}
