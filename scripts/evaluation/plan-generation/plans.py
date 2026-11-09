@@ -36,8 +36,6 @@ MAX_MULTI_SELECT = 3  # cap prevents unrealistically exhaustive selections
 # --------------------------------------------------------------------------
 
 
-LEGACY_PAGE_CHARS = 5000
-
 # `details` fields holding readable content, in display order. Anything else
 # (change_history, tags, codes, links) is metadata the model cannot cite.
 CONTENT_FIELDS = (
@@ -129,22 +127,24 @@ def page_text(node: dict) -> str:
 
 def load_corpus(
     path: str,
-    legacy: bool = False,
     shuffle_seed: int | None = None,
     max_page_chars: int | None = None,
 ) -> tuple[str, str, set[str]]:
     """Flatten a subgraph into one prompt block.
 
+    Each page's readable text is parsed out of its `details` (see
+    `page_text`). An earlier version stripped tags from the raw JSON and cut
+    each page at 5,000 characters; that cut included JSON syntax and a
+    duplicate HTML copy, so most guides lost their later parts, often the
+    eligibility sections. Models made that way record `corpus: legacy` in
+    their meta.
+
     Args:
         path: Path to the life-event subgraph JSON.
-        legacy: Reproduce the original flattening: tags stripped from the raw
-            `details` JSON and each page cut at 5,000 characters. That cut
-            includes JSON syntax and a duplicate HTML copy of the text, so most
-            guides lost their later parts — often the eligibility sections.
         shuffle_seed: If given, present pages in a seeded random order, so a
             run can be repeated without the subgraph's order biasing it.
         max_page_chars: Optional per-page cap for the parsed text (no cap by
-            default). Ignored in legacy mode.
+            default).
 
     Returns:
         A tuple of (life_event, prompt_text, citable_paths). Citable paths
@@ -164,12 +164,9 @@ def load_corpus(
             raw = json.dumps(raw)
         for slug in re.findall(r'"slug":\s*"([^"]+)"', raw):
             paths.add(f"{base}/{slug}")
-        if legacy:
-            text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw))[:LEGACY_PAGE_CHARS]
-        else:
-            text = page_text(node)
-            if max_page_chars is not None:
-                text = text[:max_page_chars]
+        text = page_text(node)
+        if max_page_chars is not None:
+            text = text[:max_page_chars]
         chunks.append(f"### {node.get('title')} ({base})\n{text}")
     return graph.get("life_event", "unknown"), "\n\n".join(chunks), paths
 
@@ -775,10 +772,10 @@ def validate(model, paths, profiles, main_goal="required"):
         paths: Citable paths, from `load_corpus`.
         profiles: Sampled answer sets to check reachability against.
         main_goal: "required" enforces `q_main_goal` as the first,
-            always-asked question; "optional" drops that check (the model may
-            still include `q_main_goal` anywhere); "none" rejects any
-            `q_main_goal`. A renamed choice-of-service question cannot be
-            caught here — compare_models.py lists opening questions to check.
+            always-asked question; "none" rejects any `q_main_goal`. Any other
+            value, such as "optional" recorded by older models, skips both
+            checks. A renamed choice-of-service question cannot be caught
+            here — compare_models.py lists opening questions to check.
 
     Returns:
         Error strings, empty if the model is sound.
@@ -1301,13 +1298,11 @@ def cmd_model(args):
     """
     life_event, corpus, paths = load_corpus(
         args.subgraph,
-        legacy=args.legacy_corpus,
         shuffle_seed=args.shuffle_seed,
         max_page_chars=args.max_page_chars,
     )
     print(
         f"corpus: {len(corpus)} chars (~{len(corpus) // 4} tokens), "
-        f"{'legacy' if args.legacy_corpus else 'parsed'}, "
         f"order {'shuffled seed ' + str(args.shuffle_seed) if args.shuffle_seed is not None else 'as in subgraph'}, "
         f"main goal {args.main_goal}",
         file=sys.stderr,
@@ -1345,7 +1340,8 @@ def cmd_model(args):
         "subgraph": args.subgraph,
         "main_goal": args.main_goal,
         "rationale": args.rationale,
-        "corpus": "legacy" if args.legacy_corpus else "parsed",
+        # Always "parsed" now; older models may record "legacy".
+        "corpus": "parsed",
         "shuffle_seed": args.shuffle_seed,
         "max_page_chars": args.max_page_chars,
         "corpus_chars": len(corpus),
@@ -1507,10 +1503,9 @@ def main(argv=None):
     m.add_argument("--region", default="eu-west-2")
     m.add_argument(
         "--main-goal",
-        choices=["required", "optional", "none"],
+        choices=["required", "none"],
         default="required",
         help="required: first question must be q_main_goal (original behaviour); "
-        "optional: the model chooses its opening questions; "
         "none: no question about which service or help the person wants",
     )
     m.add_argument(
@@ -1527,11 +1522,6 @@ def main(argv=None):
         "--max-page-chars",
         type=int,
         help="optional per-page cap on parsed text (default: no cap)",
-    )
-    m.add_argument(
-        "--legacy-corpus",
-        action="store_true",
-        help="original flattening: raw details JSON cut at 5,000 chars per page",
     )
     m.set_defaults(func=cmd_model)
 
