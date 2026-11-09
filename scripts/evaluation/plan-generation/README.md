@@ -214,8 +214,20 @@ question, fact and numeric constraint with its source. Review and amend
 | `-o`, `--out` | `data/model.json` | Where to write the generated questionnaire |
 | `--summary` | `--out` with `.md` | Where to write the readable summary |
 | `--repairs` | 3 | Validation rounds before giving up |
-| `--seed` | 0 | Random seed, for reproducible profile sets |
+| `--seed` | 0 | Random seed for the sampling validation uses |
 | `--region` | `eu-west-2` | AWS region |
+| `--main-goal` | `required` | `required`: the first, always-asked question must be `q_main_goal` (which service or help the person wants). `none`: no such question; people are routed on their circumstances alone |
+| `--rationale` | off | Ask for a one-sentence rationale on every question |
+| `--shuffle-seed` | — | Present the corpus pages in a seeded random order (default: subgraph order) |
+| `--max-page-chars` | no cap | Per-page cap on the parsed page text |
+
+`--main-goal required` suits a corpus covering services a person chooses
+between, such as driving (learn to drive, renew a licence, tell DVLA about a
+medical condition and so on). `none` suits a life
+event where what someone needs follows from their circumstances, such as having
+a baby. An `optional` mode, letting the model decide whether to ask
+`q_main_goal`, was tried and removed: the model added it as the first question
+anyway.
 
 **2. Sample profiles from the reviewed model:**
 
