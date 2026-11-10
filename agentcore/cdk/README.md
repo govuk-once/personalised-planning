@@ -1,26 +1,26 @@
-# AgentCore CDK Project
+# AgentCore CDK app
 
-This CDK project is managed by the AgentCore CLI. It deploys your agent infrastructure into AWS using the `@aws/agentcore-cdk` L3 constructs.
+This CDK app is managed by the AgentCore CLI. It deploys everything declared in `agentcore/agentcore.json` into AWS
+through the `@aws/agentcore-cdk` constructs. It is two files:
 
-## Structure
+- `bin/cdk.ts` — the entry point. It reads the project once (`readAgentCoreProject`), creates one stack per deployment
+  target (`resolveTargetStacks`), and turns `agentcore.json` into the application's props (`transformAgentCoreJson`).
+  Everything about how `agentcore.json` is interpreted lives in the library, so it changes with the library version, not
+  with this file.
+- `lib/cdk-stack.ts` — `AgentCoreStack`, which instantiates one `AgentCoreApplication`. This is the file you edit.
 
-- `bin/cdk.ts` — Entry point. Reads project configuration from `agentcore/` and creates a stack per deployment target.
-- `lib/cdk-stack.ts` — Defines `AgentCoreStack`, which wraps the `AgentCoreApplication` L3 construct.
-- `test/cdk.test.ts` — Unit tests for stack synthesis.
-
-## Useful commands
-
-- `npm run build` compile TypeScript to JavaScript
-- `npm run test` run unit tests
-- `npx cdk synth` emit the synthesized CloudFormation template
-- `npx cdk deploy` deploy this stack to your default AWS account/region
-- `npx cdk diff` compare deployed stack with current state
-
-## Usage
-
-You typically don't need to interact with this directory directly. The AgentCore CLI handles synthesis and deployment:
+## To deploy a new agent version
 
 ```bash
-agentcore deploy    # synthesizes and deploys via CDK
-agentcore status    # checks deployment status
+agentcore build    # synthesizes the CloudFormation templates into agentcore/cdk/cdk.out
+agentcore deploy   # synthesizes, then deploys the stack for the selected target
+agentcore status   # reports the resources agentcore.json declares
 ```
+
+`npm run build` compiles the app, and `npx cdk synth` / `npx cdk diff` work from this directory too.
+
+If a runtime or harness is configured with an `executionRoleArn`, CDK cannot modify that imported role: every grant
+emits a synth-time warning listing the permissions that were not attached, and the role must already carry them.
+
+`agentcore status` reports only the resources `agentcore.json` declares; resources you add here are visible
+through CloudFormation (`aws cloudformation describe-stack-resources`).
