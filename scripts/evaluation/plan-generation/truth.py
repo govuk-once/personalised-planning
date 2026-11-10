@@ -37,7 +37,7 @@ import pathlib
 import sys
 from urllib.parse import urlsplit
 
-from prompts import MAP_SYSTEM, MAP_TOOL
+from prompts import map_system, map_tool
 
 MODEL = "eu.anthropic.claude-sonnet-5"
 
@@ -212,21 +212,25 @@ def build_mapping(client, path, steps, model):
             for q in model.get("questions", [])
         ],
     }
+    # Scope guidance depends on whether the questionnaire asks which service
+    # the person wants (q_main_goal) or routes on circumstances alone.
+    has_goal = any(q["id"] == "q_main_goal" for q in model.get("questions", []))
+    tool = map_tool(has_goal)
     response = client.converse(
         modelId=MODEL,
         inferenceConfig={"maxTokens": 8000},
-        system=[{"text": MAP_SYSTEM}],
+        system=[{"text": map_system(has_goal)}],
         messages=[{"role": "user", "content": [{"text": json.dumps(brief, indent=1)}]}],
         toolConfig={
             "tools": [
                 {
                     "toolSpec": {
-                        "name": MAP_TOOL["name"],
-                        "inputSchema": {"json": MAP_TOOL["input_schema"]},
+                        "name": tool["name"],
+                        "inputSchema": {"json": tool["input_schema"]},
                     }
                 }
             ],
-            "toolChoice": {"tool": {"name": MAP_TOOL["name"]}},
+            "toolChoice": {"tool": {"name": tool["name"]}},
         },
     )
     for block in response["output"]["message"]["content"]:
@@ -275,7 +279,6 @@ def check_mapping(mapping, steps, model):
             if a not in questions[qid]
         ]
 
-    seen = [r["step"] for r in mapping.get("rules", [])]
     for rule in mapping.get("rules", []):
         has_fact, has_question = "fact" in rule, "question" in rule
         if has_fact and has_question:
@@ -307,8 +310,6 @@ def check_mapping(mapping, steps, model):
             errs.append(f"rule for step {rule['step']}: needs 'fact' or 'question'")
         if rule["step"] not in numbers:
             errs.append(f"rule references step {rule['step']}, which does not exist")
-    for n in sorted({s for s in seen if seen.count(s) > 1}):
-        errs.append(f"step {n} has more than one rule")
 
     for block in mapping.get("blocks", []):
         qid = block["question"]
@@ -380,13 +381,22 @@ def verdicts(model, steps, answers, mapping, resolve):
         if answers.get(block["question"]) in set(block["answers"]):
             for n in block["steps"]:
                 blocked.setdefault(n, block["why"])
-    rules = {r["step"]: r for r in mapping.get("rules", [])}
+    # A step can have several rules, one per condition it needs. It drops out
+    # if any of them drops it, so it stays only when every condition holds.
+    rules = {}
+    for r in mapping.get("rules", []):
+        rules.setdefault(r["step"], []).append(r)
 
     out = []
     for step in steps:
         n = step["step"]
         rule = rules.get(n)
-        drop, why = rule_drops(rule, answers, model, resolve) if rule else (False, "")
+        fired = []
+        for r in rule or []:
+            r_drop, r_why = rule_drops(r, answers, model, resolve)
+            if r_drop:
+                fired.append(r_why)
+        drop, why = bool(fired), "; ".join(fired)
         if n in blocked:
             out.append(
                 {
@@ -411,7 +421,7 @@ def verdicts(model, steps, answers, mapping, resolve):
                     "step": n,
                     "title": step["title"],
                     "verdict": "required",
-                    "why": "decided by a rule that did not drop this step"
+                    "why": "decided by rules that did not drop this step"
                     if rule
                     else "applies to everyone",
                 }
@@ -620,7 +630,7 @@ def collect_spines(urls, opener=None):
     for url in urls:
         try:
             path, steps = fetch_spine(url, opener)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:  # ValueError covers json.JSONDecodeError
             failures.append(f"{url}: {type(exc).__name__}: {exc}")
             continue
         if path in found:
@@ -629,6 +639,34 @@ def collect_spines(urls, opener=None):
         found[path] = steps
         print(f"fetched {path} ({len(steps)} steps)", file=sys.stderr)
     return found, failures
+
+
+def load_spine_file(path):
+    """Load a spine from a local JSON file instead of the Content API.
+
+    Args:
+        path: Path to a JSON file containing an array of step objects.
+            Each step must have at least ``step``, ``title`` and ``links``;
+            extra fields are preserved.
+
+    Returns:
+        The step list, in the same shape ``parse_nav`` produces.
+
+    Raises:
+        ValueError: If the file is not a JSON array, or a step is missing
+            a required key.
+    """
+    data = json.loads(pathlib.Path(path).read_text())
+    if not isinstance(data, list):
+        raise ValueError(f"{path}: expected a JSON array, got {type(data).__name__}")
+    required = {"step", "title", "links"}
+    for i, entry in enumerate(data):
+        missing = required - entry.keys()
+        if missing:
+            raise ValueError(
+                f"{path}: step {i} is missing {', '.join(sorted(missing))}"
+            )
+    return data
 
 
 def cmd_map(args):
@@ -653,16 +691,27 @@ def cmd_map(args):
             "Consider regenerating the model with derived facts.",
             file=sys.stderr,
         )
-    urls = list(args.url or [])
-    if args.urls_file:
-        urls += read_urls(args.urls_file)
-
-    found, failures = collect_spines(urls)
-    for f in failures:
-        print(f"  {f}", file=sys.stderr)
-    if not found:
-        print("no step by step could be fetched", file=sys.stderr)
-        return 1
+    if args.spine_file:
+        try:
+            steps = load_spine_file(args.spine_file)
+        except (OSError, ValueError) as exc:  # ValueError covers json.JSONDecodeError
+            print(f"{args.spine_file}: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+        found, failures = {args.base_path: steps}, []
+        print(
+            f"loaded {args.base_path} from {args.spine_file} ({len(steps)} steps)",
+            file=sys.stderr,
+        )
+    else:
+        urls = list(args.url or [])
+        if args.urls_file:
+            urls += read_urls(args.urls_file)
+        found, failures = collect_spines(urls)
+        for f in failures:
+            print(f"  {f}", file=sys.stderr)
+        if not found:
+            print("no step by step could be fetched", file=sys.stderr)
+            return 1
 
     # Imported here rather than at the top so the checks above can fail
     # helpfully on a machine with no Bedrock credentials or SDK installed.
@@ -883,6 +932,19 @@ def main(argv=None):
         help="text file of step-by-step URLs, one per line. "
         "Blank lines and # comments are ignored.",
     )
+    m.add_argument(
+        "--spine-file",
+        metavar="FILE",
+        help="local JSON file containing a spine (array of step objects) "
+        "instead of fetching from GOV.UK. Mutually exclusive with "
+        "--url / --urls-file. Requires --base-path.",
+    )
+    m.add_argument(
+        "--base-path",
+        metavar="PATH",
+        help="identifier for the spine loaded via --spine-file, "
+        "e.g. /having-a-baby. Required with --spine-file.",
+    )
     m.add_argument("--region", default="eu-west-2")
     m.set_defaults(fn=cmd_map)
 
@@ -898,8 +960,17 @@ def main(argv=None):
     s.set_defaults(fn=cmd_score)
 
     args = ap.parse_args(argv)
-    if args.command == "map" and not args.url and not args.urls_file:
-        ap.error("map needs --url or --urls-file")
+    if args.command == "map":
+        has_url = args.url or args.urls_file
+        has_file = args.spine_file
+        if has_file and has_url:
+            ap.error("--spine-file cannot be combined with --url / --urls-file")
+        if has_file and not args.base_path:
+            ap.error("--spine-file requires --base-path")
+        if args.base_path and not has_file:
+            ap.error("--base-path requires --spine-file")
+        if not has_url and not has_file:
+            ap.error("map needs --url, --urls-file, or --spine-file")
     return args.fn(args)
 
 
