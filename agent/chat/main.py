@@ -54,8 +54,8 @@ async def main(payload: dict | None = None, context: RequestContext | None = Non
     data = payload or {}
     messages = data.get("messages") or []
 
-    # Support plain-text invocation via `agentcore invoke --prompt '...'`, which
-    # sends {"prompt": "..."} rather than {"messages": [...]}.
+    # Support a {"prompt": "..."} payload (e.g. `agentcore invoke --payload
+    # '{"prompt": "..."}'`) as well as {"messages": [...]}.
     if not messages and data.get("prompt"):
         prompt_str = data["prompt"]
         try:

@@ -12,9 +12,8 @@ my-project/
 │   ├── aws-targets.json    # Deployment targets (account + region)
 │   ├── .env.local          # Secrets — API keys (gitignored)
 │   ├── .llm-context/       # TypeScript type definitions for AI assistants
-│   │   ├── agentcore.ts    # AgentCoreProjectSpec types
-│   │   ├── aws-targets.ts  # Deployment target types
-│   │   └── mcp.ts          # Gateway and MCP tool types
+│   │   ├── agentcore.ts    # AgentCoreProjectSpec types (including gateways)
+│   │   └── aws-targets.ts  # Deployment target types
 │   └── cdk/                # CDK infrastructure (@aws/agentcore-cdk)
 ├── app/                    # Agent application code
 └── evaluators/             # Custom evaluator code (if any)
@@ -81,7 +80,7 @@ The repo root already has a `.python-version` file set to `3.12` — no further 
 
 2. Install the AgentCore CLI
 
-The CLI is a global npm package — it lives on your machine, not inside the repo.
+The CLI is a global npm package — it lives on your machine, not inside the repo. This project uses CLI v1 (`agentcore --version` should print 1.x). To upgrade an existing install, run `agentcore update`.
 
 ```bash
 npm install -g @aws/agentcore
@@ -144,16 +143,20 @@ cd mcp-servers/service-graph
 npm install
 ```
 
-4. Navigate to Agentcore CLI project `cd PersonalisedPlanning`
+4. Navigate to the repo root (the directory containing `agentcore/`)
 
-5. Run in one terminal:
+5. Run the planner in one terminal (it prints the runtime's output):
 ```bash
-agentcore dev --logs
+agentcore dev --agent planner
 ```
+To run the conversation agent alongside it, use another terminal and another port: `agentcore dev --agent conversation --port 8081`.
 
-6. From another terminal send request:
+6. From another terminal send a request:
 ```bash
-agentcore dev "how do I get provisional driver's license?"
+agentcore invoke --runtime planner --local --payload '{"prompt": "how do I get provisional driver'\''s license?"}'
+
+# Conversation agent (if started on port 8081)
+agentcore invoke --runtime conversation --local --port 8081 --payload '{"messages": [{"role":"user","content":"I want to learn to drive"}]}'
 ```
 
 ### Deploy agent
@@ -164,20 +167,20 @@ agentcore dev "how do I get provisional driver's license?"
 - `PLANNER_SECRET_ID=<secret_name>`
 - `MCP_MODE=remote`
 
-3. Navigate to Agentcore CLI project `cd PersonalisedPlanning`
+3. Navigate to the repo root (the directory containing `agentcore/`)
 
 4. Install CDK dependencies (run once, or whenever `agentcore/cdk/package.json` changes):
 ```bash
 (cd agentcore/cdk && npm install)
 ```
-Skipping this causes `agentcore deploy` to fail at the build step with `tsc: command not found`.
+Skipping this causes `agentcore build` to fail with `tsc: command not found`.
 
-5.  Build and push the image locally first:
+5. Build the project. This validates `agentcore.json` and synthesizes the CDK app into `agentcore/cdk/cdk.out`, catching config errors before anything touches AWS:
 ```bash
-agentcore package --runtime planner
+agentcore build
 ```
 
-6. Deploy the CDK stack:
+6. Deploy the stack. The container images for both runtimes are built in AWS by CodeBuild, so no local Docker build or push is needed:
 ```bash
 agentcore deploy
 ```
@@ -190,43 +193,49 @@ aws iam put-role-policy --role-name <role-name> --policy-name AllowPlannerSecret
 
 8. Send prompt:
 ```bash
-agentcore invoke --runtime planner "your prompt here"
+agentcore invoke --runtime planner --payload '{"prompt": "your prompt here"}'
+```
+
+9. Check the logs:
+```bash
+agentcore logs runtime --name planner --since 15m
 ```
 
 
-## AgentCore Commands
+## AgentCore Commands (CLI v1)
 
 | Command | Description |
 | --- | --- |
 | `agentcore create` | Create a new AgentCore project |
-| `agentcore add` | Add resources (agent, memory, credential, gateway, evaluator, policy) |
-| `agentcore remove` | Remove resources |
-| `agentcore dev` | Run agent locally with hot-reload |
-| `agentcore deploy` | Deploy to AWS via CDK |
-| `agentcore status` | Show deployment status |
-| `agentcore invoke` | Invoke agent (local or deployed) |
-| `agentcore logs` | View agent logs |
-| `agentcore traces` | View agent traces |
-| `agentcore eval` | Run evaluations |
-| `agentcore package` | Package agent artifacts |
-| `agentcore validate` | Validate configuration |
-| `agentcore pause` | Pause a deployed agent |
-| `agentcore resume` | Resume a paused agent |
-| `agentcore fetch` | Fetch remote resource definitions |
-| `agentcore import` | Import existing resources |
-| `agentcore update` | Check for CLI updates |
+| `agentcore add <resource>` | Add resources (runtime, memory, credentials, gateway, evaluator, policy, harness, …) |
+| `agentcore remove <resource> --name <name>` | Remove a resource |
+| `agentcore dev --agent <runtime>` | Run a runtime locally |
+| `agentcore build` | Validate the project and synthesize the CDK app |
+| `agentcore deploy` | Deploy to AWS via CDK (run after `agentcore build`) |
+| `agentcore status` | Show deployed resources and their ARNs |
+| `agentcore invoke --runtime <runtime> --payload '<json>'` | Invoke a runtime (`--local` for the dev server) |
+| `agentcore logs runtime --name <runtime>` | Search or tail (`--tail`) runtime logs |
+| `agentcore traces` | View traces |
+| `agentcore runtime <subcommand>` | Inspect deployed runtimes: `get`, `list`, `version`, `endpoint`, `shell`, `exec` |
+| `agentcore eval <subcommand>` | Evaluators, online evals, datasets, batch evaluations, A/B tests |
+| `agentcore export` | Convert project resources into editable code you own |
+| `agentcore migrate` | Migrate a v0 project to the v1 format (already done for this repo) |
+| `agentcore update` | Check for and install CLI updates |
+
+Run `agentcore <command> --help` for each command's options.
 
 ## Configuration
 
 Edit the JSON files in `agentcore/` to configure your project. See `agentcore/.llm-context/` for type definitions and validation constraints.
 
-The project uses a **flat resource model** — agents, memories, credentials, gateways, evaluators, and policies are top-level arrays in `agentcore.json`. Resources are independent; agents discover memories and credentials at runtime via environment variables or SDK calls.
+The project uses a **flat resource model** — runtimes, memories, credentials, gateways, evaluators, and policies are top-level arrays in `agentcore.json`. Resources are independent; agents discover memories and credentials at runtime via environment variables or SDK calls.
 
 ## Resources
 
 | Resource | Purpose |
 | --- | --- |
-| Agent (runtime) | HTTP, MCP, or A2A agent deployed to AgentCore Runtime |
+| Runtime | HTTP, MCP, or A2A agent deployed to AgentCore Runtime |
+| Harness | Config-defined agent (`harness.yaml`) managed by AgentCore |
 | Memory | Persistent context storage with configurable strategies |
 | Credential | API key or OAuth credential providers |
 | Gateway | MCP gateway that routes tool calls to targets |
@@ -237,9 +246,8 @@ The project uses a **flat resource model** — agents, memories, credentials, ga
 
 ### Agent Types
 
-- **Template agents**: Created from framework templates (Strands, LangChain/LangGraph, GoogleADK, OpenAI Agents, Autogen)
-- **BYO agents**: Bring your own code with `agentcore add agent --type byo`
-- **Import agents**: Import existing Bedrock agents with `agentcore import`
+- **Runtimes**: your own agent code, added with `agentcore add runtime` (both agents in this project are runtimes)
+- **Harnesses**: config-defined agents, added with `agentcore add harness`
 
 ### Build Types
 

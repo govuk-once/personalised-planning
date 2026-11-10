@@ -26,38 +26,40 @@ The `agentcore/` directory is a declarative model of the deployed infrastructure
 
 ### Mental Model
 
-The project uses a **flat resource model**. Agents, memories, credentials, gateways, evaluators, and policies are independent top-level arrays in `agentcore.json`. There is no binding between resources in the schema — each resource is provisioned independently. Agents discover memories and credentials at runtime via environment variables or SDK calls.
+The project uses the AgentCore CLI v1 project format (`"version": 2` in `agentcore.json`, migrated from v0 with `agentcore migrate`, so `migratedFrom` keeps the v0 AWS resource names). It uses a **flat resource model**. Runtimes, memories, credentials, gateways, evaluators, and policies are independent top-level arrays in `agentcore.json`. There is no binding between resources in the schema — each resource is provisioned independently. Agents discover memories and credentials at runtime via environment variables or SDK calls.
 
 ### Critical Invariants
 
 1. **Schema-First Authority:** `agentcore.json` is the source of truth. Never edit generated CDK code in `cdk/` directly.
 2. **Resource Identity:** The `name` field determines the CloudFormation Logical ID. **Renaming** destroys and recreates; modifying other fields updates in-place.
-3. **Schema Validation:** Conform to types in `agentcore/.llm-context/*.ts`. Run `agentcore validate` to check.
-4. **Resource Removal:** Use `agentcore remove`, then `agentcore deploy` to tear down.
+3. **Schema Validation:** Conform to types in `agentcore/.llm-context/*.ts`. Run `agentcore build` to check: it loads the project and synthesizes the CDK app, failing on invalid config.
+4. **Resource Removal:** Use `agentcore remove <resource> --name <name>`, then `agentcore build` and `agentcore deploy` to tear it down.
 
 ### Schema Reference
 
-| JSON Config                           | Schema File                             | Root Type               |
-| ------------------------------------- | --------------------------------------- | ----------------------- |
-| `agentcore/agentcore.json`            | `agentcore/.llm-context/agentcore.ts`   | `AgentCoreProjectSpec`  |
-| `agentcore/agentcore.json` (gateways) | `agentcore/.llm-context/mcp.ts`         | `AgentCoreMcpSpec`      |
-| `agentcore/aws-targets.json`          | `agentcore/.llm-context/aws-targets.ts` | `AwsDeploymentTarget[]` |
+| JSON Config                  | Schema File                             | Root Type               |
+| ---------------------------- | --------------------------------------- | ----------------------- |
+| `agentcore/agentcore.json`   | `agentcore/.llm-context/agentcore.ts`   | `AgentCoreProjectSpec`  |
+| `agentcore/aws-targets.json` | `agentcore/.llm-context/aws-targets.ts` | `AwsDeploymentTarget[]` |
 
 When modifying JSON config files: read the corresponding `.llm-context/*.ts` file, check constraint comments (`@regex`, `@min`, `@max`), use exact enum string literals, use CloudFormation-safe names.
 
-### AgentCore CLI
+### AgentCore CLI (v1)
 
-| Command                       | Description                                               |
-| ----------------------------- | --------------------------------------------------------- |
-| `agentcore dev`               | Run agent locally with hot-reload                         |
-| `agentcore deploy`            | Synthesize CDK and deploy to AWS                          |
-| `agentcore status`            | Show deployment status                                    |
-| `agentcore invoke`            | Invoke agent (local or deployed)                          |
-| `agentcore validate`          | Validate configuration                                    |
-| `agentcore logs` / `traces`   | View agent logs or traces                                 |
-| `agentcore add <resource>`    | Add agent, memory, credential, gateway, evaluator, policy |
-| `agentcore remove <resource>` | Remove a resource                                         |
-| `agentcore pause` / `resume`  | Pause or resume a deployed agent                          |
+Deploy by running `agentcore build` and then `agentcore deploy`. Both use the `default` target unless you pass `--target`.
+
+| Command                                                  | Description                                                                 |
+| -------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `agentcore dev --agent <runtime>`                        | Run a runtime locally (`--port` to change port, `--mode browser` for the Agent Inspector UI) |
+| `agentcore build`                                        | Validate the project and synthesize the CDK app into `agentcore/cdk/cdk.out` |
+| `agentcore deploy`                                       | Synthesize and deploy to AWS. Container images are built in AWS by CodeBuild |
+| `agentcore status`                                       | Show deployed resources and their ARNs                                      |
+| `agentcore invoke --runtime <runtime> --payload '<json>'` | Invoke a deployed runtime (add `--local` for the `agentcore dev` server)   |
+| `agentcore logs runtime --name <runtime>`                | Search or tail (`--tail`) runtime logs; `agentcore traces` for traces       |
+| `agentcore runtime <get\|list\|version\|endpoint\|shell\|exec>` | Inspect deployed runtimes, versions and endpoints                  |
+| `agentcore add <resource>`                               | Add a runtime, memory, credentials, gateway, evaluator, policy, harness, … |
+| `agentcore remove <resource> --name <name>`              | Remove a resource from `agentcore.json`                                     |
+| `agentcore update`                                       | Check for and install CLI updates                                           |
 
 ## Development Commands
 

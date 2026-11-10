@@ -104,18 +104,18 @@ result = block.input.get("result", {}).get("result")
 
 ## Redeploying after code-only changes
 
-`agentcore deploy` uses content-addressed CDK asset caching. If no tracked file has changed, it reuses the cached ZIP from S3 and CodeBuild won't pick up your changes.
+Always deploy with `agentcore build` followed by `agentcore deploy`:
 
-**Preferred approach**, use `agentcore package` first to build image locally. Docker needs to be running:
 ```bash
-agentcore package --runtime planner
-agentcore deploy
+agentcore build    # validate agentcore.json and synthesize the CDK app into agentcore/cdk/cdk.out
+agentcore deploy   # deploy the stack; CodeBuild rebuilds the container image for any runtime whose code changed
 ```
 
-**Alternative approach**, touch any `.py` file before deploying:
+`agentcore deploy` uses content-addressed CDK asset caching: the image is only rebuilt when a file in the runtime's `codeLocation` (`agent/`) changes. If a deploy doesn't pick up your changes, touch any `.py` file and run both commands again:
 
 ```bash
 echo "# redeploy $(date)" >> agent/app/main.py
+agentcore build
 agentcore deploy
 ```
 
@@ -128,9 +128,9 @@ agentcore deploy
 ## To test run
 1. Check out branch
 2. Authenticate with GDS CLI to obtain AWS credentials
-3. `cd PersonalisedPlanning`
-4. `agentcore package --runtime planner` — build and push the image locally first
-5. `agentcore deploy` — deploy the CDK stack
+3. `cd` to the repo root (the directory containing `agentcore/`)
+4. `agentcore build` — validate the project and synthesize the CDK app
+5. `agentcore deploy` — deploy the stack (container images are built in AWS by CodeBuild)
 6. Attach the Secrets Manager IAM policy (manual step until it's baked into CDK) if running for the first time or completely recreating the stack:
 
 ```bash
@@ -143,9 +143,16 @@ Also do this step for the conversational agent.
 7. Test each runtime:
 
 ```bash
-# Planner — plain text prompt
-agentcore invoke --runtime planner --prompt "I want to apply for tax-free childcare"
+# Planner — the JSON payload takes a "prompt" (or "situation") string
+agentcore invoke --runtime planner --payload '{"prompt": "I want to apply for tax-free childcare"}'
 
-# Conversation agent — pass messages as a JSON object
-agentcore invoke --runtime conversation --prompt '{"messages": [{"role":"user","content":"I just had a baby and lost my job"}]}'
+# Conversation agent — the payload takes the messages so far
+agentcore invoke --runtime conversation --payload '{"messages": [{"role":"user","content":"I just had a baby and lost my job"}]}'
+```
+
+8. Check the logs if anything fails:
+
+```bash
+agentcore logs runtime --name planner --since 15m --level error
+agentcore logs runtime --name conversation --since 15m --level error
 ```
