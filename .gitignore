@@ -109,3 +109,6 @@ amplify_outputs*.json
 # Presentation decks
 *slides.html
 *slides.ppt
+
+# Decks
+decks/
