@@ -630,7 +630,7 @@ def collect_spines(urls, opener=None):
     for url in urls:
         try:
             path, steps = fetch_spine(url, opener)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:  # ValueError covers json.JSONDecodeError
             failures.append(f"{url}: {type(exc).__name__}: {exc}")
             continue
         if path in found:
@@ -694,7 +694,7 @@ def cmd_map(args):
     if args.spine_file:
         try:
             steps = load_spine_file(args.spine_file)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:  # ValueError covers json.JSONDecodeError
             print(f"{args.spine_file}: {type(exc).__name__}: {exc}", file=sys.stderr)
             return 1
         found, failures = {args.base_path: steps}, []

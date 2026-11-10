@@ -359,34 +359,64 @@ def walk(model, rng, pins=None):
     pins = pins or {}
     answers = {}
     for q in sorted(model["questions"], key=lambda q: q.get("order", 0)):
-        if not ev(model, q.get("ask_if", True), answers):
-            if q["id"] in pins:
-                return None
-            continue
-        opts = visible(model, q, answers)
-        if q["id"] in pins:
-            opts = [o for o in opts if o in pins[q["id"]]]
-            if not opts:
-                return None
+        opts = _options_for(model, q, answers, pins)
+        if opts is None:
+            return None
         if not opts:
             continue
         if q.get("type") == "multi_select":
-            # An exclusive option cannot sit alongside a real selection.
-            # Without this, "none of these" appears with genuine needs in
-            # about a fifth of answers — people who do not exist.
-            ex = {o["id"] for o in q["options"] if o.get("exclusive")}
-            gate = [o for o in opts if o in ex]
-            rest = [o for o in opts if o not in ex]
-            if gate and (not rest or rng.random() < 1.0 / len(opts)):
-                answers[q["id"]] = [gate[0]]
-            else:
-                pool = rest or opts
-                answers[q["id"]] = rng.sample(
-                    pool, rng.randint(1, min(MAX_MULTI_SELECT, len(pool)))
-                )
+            answers[q["id"]] = _pick_multi(q, opts, rng)
         else:
             answers[q["id"]] = rng.choice(opts)
     return answers
+
+
+def _options_for(model, q, answers, pins):
+    """The options a walk can choose from for one question.
+
+    Args:
+        model: The elicitation model.
+        q: The question.
+        answers: Answers given so far.
+        pins: Question id mapped to allowed option ids (may be empty).
+
+    Returns:
+        The options to choose from; an empty list if the question is skipped
+        (not asked, or no option shown); or None if the walk has left the
+        pinned scope (a pinned question not asked, or none of its pinned
+        options shown).
+    """
+    pinned = pins.get(q["id"])
+    if not ev(model, q.get("ask_if", True), answers):
+        return None if pinned is not None else []
+    opts = visible(model, q, answers)
+    if pinned is None:
+        return opts
+    return [o for o in opts if o in pinned] or None
+
+
+def _pick_multi(q, opts, rng):
+    """Answer a multi-select question at random from the options shown.
+
+    An exclusive option cannot sit alongside a real selection. Without this
+    rule, "none of these" appears with genuine needs in about a fifth of
+    answers — people who do not exist.
+
+    Args:
+        q: The question.
+        opts: The options shown, from `_options_for`.
+        rng: Seeded random source.
+
+    Returns:
+        The selected option ids.
+    """
+    ex = {o["id"] for o in q["options"] if o.get("exclusive")}
+    gate = [o for o in opts if o in ex]
+    rest = [o for o in opts if o not in ex]
+    if gate and (not rest or rng.random() < 1.0 / len(opts)):
+        return [gate[0]]
+    pool = rest or opts
+    return rng.sample(pool, rng.randint(1, min(MAX_MULTI_SELECT, len(pool))))
 
 
 def signature(model, answers):
@@ -780,7 +810,6 @@ def validate(model, paths, profiles, main_goal="required"):
     Returns:
         Error strings, empty if the model is sound.
     """
-    errs = []
     questions = {q["id"]: q for q in model.get("questions", [])}
     facts = {f["id"]: f for f in model.get("facts", [])}
     known = set(questions) | set(facts)
@@ -790,82 +819,110 @@ def validate(model, paths, profiles, main_goal="required"):
     # first one's and every fact reading it resolves to None. An empty option
     # list surfaces only as a confusing complaint about some other question
     # comparing against an option that no longer exists.
-    if main_goal == "required":
-        goal_q = questions.get("q_main_goal")
-        if not goal_q:
-            errs.append("q_main_goal: missing — the first question must have this id")
-        else:
-            if goal_q.get("order", 0) != min(
-                q.get("order", 0) for q in model.get("questions", [])
-            ):
-                errs.append("q_main_goal: must have the lowest order of all questions")
-            ask = goal_q.get("ask_if", True)
-            if ask is not True:
-                errs.append(
-                    "q_main_goal: must be always asked (ask_if must be true or absent)"
-                )
-    elif main_goal == "none" and "q_main_goal" in questions:
-        errs.append(
+    errs = _check_main_goal(model, questions, main_goal)
+    errs += _check_structure(model, questions, facts)
+    if errs:
+        return errs
+
+    for qid, q in questions.items():
+        errs += _check_sources(qid, q, paths)
+        errs += _check_question_refs(qid, q, questions, known)
+    for fid, f in facts.items():
+        errs += _check_sources(f"fact {fid}", f, paths)
+        _check_condition_refs(
+            f"fact {fid}.value", f.get("value", False), questions, known, errs
+        )
+    errs += _check_option_filters(model, questions, known)
+    errs += _check_constraints(model, questions, known, paths)
+    if errs:
+        return errs  # dynamic results are noise until references resolve
+
+    errs += _check_reachability(questions, profiles)
+    errs += _check_facts_vary(model, facts, profiles)
+    errs += _check_numeric(model, questions, profiles)
+    return errs
+
+
+def _check_main_goal(model, questions, main_goal):
+    """Check `q_main_goal` against the --main-goal mode (see `validate`)."""
+    if main_goal == "none":
+        if "q_main_goal" not in questions:
+            return []
+        return [
             "q_main_goal: not allowed — route on the person's circumstances, "
             "not on which service or help they want"
-        )
+        ]
+    if main_goal != "required":
+        return []
+    goal_q = questions.get("q_main_goal")
+    if not goal_q:
+        return ["q_main_goal: missing — the first question must have this id"]
+    errs = []
+    lowest = min(q.get("order", 0) for q in model.get("questions", []))
+    if goal_q.get("order", 0) != lowest:
+        errs.append("q_main_goal: must have the lowest order of all questions")
+    if goal_q.get("ask_if", True) is not True:
+        errs.append("q_main_goal: must be always asked (ask_if must be true or absent)")
+    return errs
 
-    if len(questions) != len(model.get("questions", [])):
-        seen = set()
-        for q in model.get("questions", []):
-            if q["id"] in seen:
-                errs.append(f"{q['id']}: duplicate question id")
-            seen.add(q["id"])
+
+def _check_structure(model, questions, facts):
+    """Duplicate or missing ids and options, and malformed constraints."""
+    errs = []
+    seen = set()
+    for q in model.get("questions", []):
+        if q["id"] in seen:
+            errs.append(f"{q['id']}: duplicate question id")
+        seen.add(q["id"])
     for qid, q in questions.items():
         if not q.get("options"):
             errs.append(f"{qid}: has no options")
         elif len({o["id"] for o in q["options"]}) != len(q["options"]):
             errs.append(f"{qid}: duplicate option ids")
-    if any(fid in questions for fid in facts):
-        errs += [
-            f"fact {fid}: id collides with a question id"
-            for fid in facts
-            if fid in questions
-        ]
-    for i, c in enumerate(model.get("numeric_constraints", [])):
-        if not isinstance(c, dict):
-            errs.append(
-                f"numeric_constraints[{i}]: expected an object, got {type(c).__name__!r}"
-            )
-    if errs:
-        return errs
+    errs += [
+        f"fact {fid}: id collides with a question id"
+        for fid in facts
+        if fid in questions
+    ]
+    errs += [
+        f"numeric_constraints[{i}]: expected an object, got {type(c).__name__!r}"
+        for i, c in enumerate(model.get("numeric_constraints", []))
+        if not isinstance(c, dict)
+    ]
+    return errs
 
-    for qid, q in questions.items():
-        for src in as_list(q.get("source")):
-            if src not in paths:
-                errs.append(f"{qid}: source '{src}' is not in the corpus")
-        found = []
-        refs(q.get("ask_if", True), found)
-        for ref, literal in found:
-            if not isinstance(ref, str):
-                continue
-            if ref not in known:
-                continue
-            if ref in questions:
-                if questions[ref].get("order", 0) >= q.get("order", 0):
-                    errs.append(f"{qid}.ask_if reads {ref}, asked no earlier")
-                opts = {o["id"] for o in questions[ref]["options"]}
-                if (
-                    isinstance(literal, str)
-                    and literal not in opts
-                    and literal not in known
-                ):
-                    errs.append(
-                        f"{qid}.ask_if compares {ref} to '{literal}', "
-                        f"which is not one of its options"
-                    )
-    for fid, f in facts.items():
-        for src in as_list(f.get("source")):
-            if src not in paths:
-                errs.append(f"fact {fid}: source '{src}' is not in the corpus")
-        _check_condition_refs(
-            f"fact {fid}.value", f.get("value", False), questions, known, errs
-        )
+
+def _check_sources(label, item, paths):
+    """Sources an item cites that are not in the corpus."""
+    return [
+        f"{label}: source '{src}' is not in the corpus"
+        for src in as_list(item.get("source"))
+        if src not in paths
+    ]
+
+
+def _check_question_refs(qid, q, questions, known):
+    """A question's ask_if must read earlier questions and compare real options."""
+    found = []
+    refs(q.get("ask_if", True), found)
+    errs = []
+    for ref, literal in found:
+        if not isinstance(ref, str) or ref not in questions:
+            continue
+        if questions[ref].get("order", 0) >= q.get("order", 0):
+            errs.append(f"{qid}.ask_if reads {ref}, asked no earlier")
+        opts = {o["id"] for o in questions[ref]["options"]}
+        if isinstance(literal, str) and literal not in opts and literal not in known:
+            errs.append(
+                f"{qid}.ask_if compares {ref} to '{literal}', "
+                f"which is not one of its options"
+            )
+    return errs
+
+
+def _check_option_filters(model, questions, known):
+    """Each option filter must name a real question and option."""
+    errs = []
     for i, filt in enumerate(model.get("option_filters", [])):
         q = questions.get(filt.get("question_id"))
         if not q:
@@ -882,20 +939,18 @@ def validate(model, paths, profiles, main_goal="required"):
             known,
             errs,
         )
-    constraint_ids = {
-        c["id"] for c in model.get("numeric_constraints", []) if c.get("id")
-    }
-    constraint_by_id = {
-        c["id"]: c for c in model.get("numeric_constraints", []) if c.get("id")
-    }
-    for i, c in enumerate(model.get("numeric_constraints", [])):
+    return errs
+
+
+def _check_constraints(model, questions, known, paths):
+    """Numeric constraints need a reason, real sources and sound overrides."""
+    constraints = model.get("numeric_constraints", [])
+    by_id = {c["id"]: c for c in constraints if c.get("id")}
+    errs = []
+    for i, c in enumerate(constraints):
         if not c.get("reason"):
             errs.append(f"numeric_constraints[{i}]: needs a reason")
-        for src in as_list(c.get("source")):
-            if src not in paths:
-                errs.append(
-                    f"numeric_constraints[{i}]: source '{src}' is not in the corpus"
-                )
+        errs += _check_sources(f"numeric_constraints[{i}]", c, paths)
         _check_condition_refs(
             f"numeric_constraints[{i}].applies_if",
             c.get("applies_if", True),
@@ -904,32 +959,37 @@ def validate(model, paths, profiles, main_goal="required"):
             errs,
         )
         for target in c.get("overrides", []) or []:
-            if target not in constraint_ids:
-                errs.append(
-                    f"numeric_constraints[{i}] ({c.get('id', '?')}): overrides "
-                    f"'{target}', which is not the id of any numeric_constraint"
-                )
-                continue
-            tgt = constraint_by_id[target]
-            # overrides means full replacement, not addition. A constraint
-            # sharing the target's exact attribute and applies_if isn't a
-            # narrower exception — it's the same population, so overriding
-            # discards whatever bound the target had instead of adding to
-            # it. This is how a "no lower bound stated" filler constraint
-            # silently erases a real corpus-stated maximum for the same
-            # people it was meant to protect.
-            if c.get("attribute") == tgt.get("attribute") and json.dumps(
-                c.get("applies_if"), sort_keys=True
-            ) == json.dumps(tgt.get("applies_if"), sort_keys=True):
-                errs.append(
-                    f"numeric_constraints[{i}] ({c.get('id', '?')}): overrides "
-                    f"'{target}', which has the identical applies_if — this "
-                    f"discards {target}'s bound rather than narrowing it; "
-                    f"merge the two constraints instead"
-                )
-    if errs:
-        return errs  # dynamic results are noise until references resolve
+            errs += _check_override(i, c, target, by_id)
+    return errs
 
+
+def _check_override(i, c, target, by_id):
+    """One `overrides` entry must name a constraint for a narrower population."""
+    label = f"numeric_constraints[{i}] ({c.get('id', '?')}): overrides '{target}'"
+    if target not in by_id:
+        return [f"{label}, which is not the id of any numeric_constraint"]
+    tgt = by_id[target]
+    # overrides means full replacement, not addition. A constraint sharing
+    # the target's exact attribute and applies_if isn't a narrower exception
+    # — it's the same population, so overriding discards whatever bound the
+    # target had instead of adding to it. This is how a "no lower bound
+    # stated" filler constraint silently erases a real corpus-stated maximum
+    # for the same people it was meant to protect.
+    same_attribute = c.get("attribute") == tgt.get("attribute")
+    same_population = json.dumps(c.get("applies_if"), sort_keys=True) == json.dumps(
+        tgt.get("applies_if"), sort_keys=True
+    )
+    if same_attribute and same_population:
+        return [
+            f"{label}, which has the identical applies_if — this "
+            f"discards {target}'s bound rather than narrowing it; "
+            f"merge the two constraints instead"
+        ]
+    return []
+
+
+def _check_reachability(questions, profiles):
+    """Every question must be asked, and every option shown, by some profile."""
     asked = {q for p in profiles for q in p}
     shown = {
         (q, o)
@@ -937,22 +997,37 @@ def validate(model, paths, profiles, main_goal="required"):
         for q, v in p.items()
         for o in (v if isinstance(v, list) else [v])
     }
+    errs = []
     for qid, q in questions.items():
         if qid not in asked:
             errs.append(f"{qid} is never asked: check its ask_if")
             continue
-        for o in q["options"]:
-            if (qid, o["id"]) not in shown:
-                errs.append(f"{qid}.{o['id']} is never shown: check its option_filter")
+        errs += [
+            f"{qid}.{o['id']} is never shown: check its option_filter"
+            for o in q["options"]
+            if (qid, o["id"]) not in shown
+        ]
+    return errs
+
+
+def _check_facts_vary(model, facts, profiles):
+    """A fact with the same value for every profile branches nothing."""
+    errs = []
     for fid in facts:
         values = {str(resolve(model, fid, p)) for p in profiles}
         if len(values) < 2:
             errs.append(f"fact {fid} is always {values.pop()}: it branches nothing")
+    return errs
+
+
+def _check_numeric(model, questions, profiles):
+    """Every profile must admit a value for each numeric attribute, with a floor."""
     first_qid = min(
         (q["id"] for q in model.get("questions", [])),
         key=lambda qid: questions[qid].get("order", 0),
         default=None,
     )
+    errs = []
     for attr in model.get("numeric_attributes", []):
         spans = [(p, solve(model, p, attr["id"])) for p in profiles]
         bad = sum(1 for _, s in spans if s["empty"])
@@ -1395,7 +1470,7 @@ def cmd_profiles(args):
     if args.pins:
         try:
             pins = load_pins(model, args.pins)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:  # ValueError covers json.JSONDecodeError
             print(f"{args.pins}: {exc}", file=sys.stderr)
             return 1
         profiles = generate(model, seed=args.seed, pins=pins)
