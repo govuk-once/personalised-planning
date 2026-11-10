@@ -42,24 +42,7 @@ The project uses the AgentCore CLI v1 project format (`"version": 2` in `agentco
 | `agentcore/agentcore.json`   | `agentcore/.llm-context/agentcore.ts`   | `AgentCoreProjectSpec`  |
 | `agentcore/aws-targets.json` | `agentcore/.llm-context/aws-targets.ts` | `AwsDeploymentTarget[]` |
 
-When modifying JSON config files: read the corresponding `.llm-context/*.ts` file, check constraint comments (`@regex`, `@min`, `@max`), use exact enum string literals, use CloudFormation-safe names.
-
-### AgentCore CLI (v1)
-
-Deploy by running `agentcore build` and then `agentcore deploy`. Both use the `default` target unless you pass `--target`.
-
-| Command                                                  | Description                                                                 |
-| -------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `agentcore dev --agent <runtime>`                        | Run a runtime locally (`--port` to change port, `--mode browser` for the Agent Inspector UI) |
-| `agentcore build`                                        | Validate the project and synthesize the CDK app into `agentcore/cdk/cdk.out` |
-| `agentcore deploy`                                       | Synthesize and deploy to AWS. Container images are built in AWS by CodeBuild |
-| `agentcore status`                                       | Show deployed resources and their ARNs                                      |
-| `agentcore invoke --runtime <runtime> --payload '<json>'` | Invoke a deployed runtime (add `--local` for the `agentcore dev` server)   |
-| `agentcore logs runtime --name <runtime>`                | Search or tail (`--tail`) runtime logs; `agentcore traces` for traces       |
-| `agentcore runtime <get\|list\|version\|endpoint\|shell\|exec>` | Inspect deployed runtimes, versions and endpoints                  |
-| `agentcore add <resource>`                               | Add a runtime, memory, credentials, gateway, evaluator, policy, harness, … |
-| `agentcore remove <resource> --name <name>`              | Remove a resource from `agentcore.json`                                     |
-| `agentcore update`                                       | Check for and install CLI updates                                           |
+When modifying JSON config files: read the corresponding `.llm-context/*.ts` file, check constraint comments (`@regex`, `@min`, `@max`), use exact enum string literals, use CloudFormation-safe names.                                          |
 
 ## Development Commands
 
