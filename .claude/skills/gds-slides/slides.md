@@ -1,6 +1,6 @@
 # Slide types and the outline
 
-An outline is a Markdown file: the deck title, then one `##` heading per slide. A tag in square brackets after the `##` sets the slide type; a heading without a tag is a text slide. `examples/using-gds-slides.md` uses every type at the default sizes and doubles as a short guide to the plugin. `examples/layouts.md` uses tables, a split slide and a diagram at lighter sizes. Run `examples/diagrams/make.py` before building either. `scripts/outline.py` reads the format, and stops with the slide number and what is missing when a slide doesn't parse.
+An outline is a Markdown file: the deck title, then one `##` heading per slide. A tag in square brackets after the `##` sets the slide type; a heading without a tag is a text slide. `examples/using-gds-slides.md` uses every type at the default sizes and doubles as a short guide to the plugin; `examples/using-gds-slides.html` is that deck built, to open in a browser. `examples/layouts.md` uses tables, a split slide and a diagram at lighter sizes. Run `examples/diagrams/make.py` before building either. `scripts/outline.py` reads the format, and stops with the slide number and what is missing when a slide doesn't parse.
 
 ## The deck
 

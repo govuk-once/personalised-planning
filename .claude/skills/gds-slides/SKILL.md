@@ -32,6 +32,7 @@ Read [writing.md](writing.md) before drafting, [slides.md](slides.md) before wri
 - Without python-pptx, the build warns and makes the HTML deck only. Tell the user there is no PowerPoint file and why.
 - Without `deckcraft-cli` (on the `PATH`, in `~/.local/bin`, or named by `DECKCRAFT_CLI`), there are no previews. Check the layout in the HTML deck, which uses the same positions and sizes.
 - The template prints OFFICIAL on every slide. If the material is above OFFICIAL, say so and stop.
+- `examples/using-gds-slides.html` is the built example, kept so people can see the output before installing. After changing `examples/using-gds-slides.md`, its diagrams, `scripts/build.py` or the template, rebuild it in the same change: `python3 <skill>/scripts/build.py <skill>/examples/using-gds-slides.md --out <skill>/examples --format html`.
 
 ## Known limits
 

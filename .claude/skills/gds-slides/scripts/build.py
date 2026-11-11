@@ -495,10 +495,11 @@ def build_html(slides, outline, path, base):
         for k, v in MEDIA.items()
     }
     marking = outline.get("marking", "OFFICIAL")
-    lockup = f'<img class="lockup" src="{uri["lockup"]}" alt="Government Digital Service, Department for Digital, Culture, Media and Sport">'
+    # The lockup and tag are CSS backgrounds, defined once, so each slide doesn't carry its own copy.
+    lockup = '<span class="lockup" role="img" aria-label="Government Digital Service, Department for Digital, Culture, Media and Sport"></span>'
     out = []
     for n, (kind, head, body, notes, s) in enumerate(slides, 1):
-        foot = f'<img class="tag" src="{uri["tag"]}" alt="GDS"><span class="num">{n}</span>'
+        foot = f'<span class="tag" role="img" aria-label="GDS"></span><span class="num">{n}</span>'
         if kind in ("title", "closing"):
             strong = {0} | ({2} if kind == "closing" else set())
             lines = "".join(
@@ -546,6 +547,7 @@ def build_html(slides, outline, path, base):
             )
     sizes = deck_sizes(outline)
     html = HTML.replace("{{title}}", esc(outline["title"])).replace("{{photo}}", uri["photo"])
+    html = html.replace("{{tag}}", uri["tag"]).replace("{{lockup}}", uri["lockup"])
     html = html.replace(
         "{{sizes}}", f"--h: {sizes['heading']}; --b: {sizes['body']}; --s: {sizes['section']};"
     )
@@ -567,12 +569,14 @@ HTML = """<!doctype html>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #1d1d1d; font-family: var(--font); }
   .deck { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 16px; }
-  .slide { position: relative; width: min(100%, 1280px); aspect-ratio: 16 / 9; background: var(--paper);
+  .slide { -webkit-print-color-adjust: exact; print-color-adjust: exact; position: relative; width: min(100%, 1280px); aspect-ratio: 16 / 9; background: var(--paper);
            color: var(--ink); overflow: hidden; container-type: inline-size; --pt: calc(100cqw / 720); }
   .marking { position: absolute; top: calc(6 * var(--pt)); left: 0; right: 0; text-align: center;
              font-size: calc(7 * var(--pt)); letter-spacing: .04em; color: var(--muted); z-index: 1; }
-  .tag { position: absolute; left: 2%; top: 90.7%; width: 9%; z-index: 1; }
-  .lockup { position: absolute; left: 5%; top: 9%; width: 43%; }
+  .tag { position: absolute; left: 2%; top: 90.7%; width: 9%; aspect-ratio: 2048 / 701; z-index: 1;
+         background: url("{{tag}}") center / contain no-repeat; }
+  .lockup { position: absolute; left: 5%; top: 9%; width: 43%; aspect-ratio: 2048 / 616;
+            background: url("{{lockup}}") center / contain no-repeat; }
   .num { position: absolute; right: 3%; bottom: 3%; font-size: calc(9 * var(--pt)); color: var(--muted); z-index: 1; }
   .text { position: absolute; left: 6%; top: 9%; width: 89%; height: 80%; z-index: 1;
           display: flex; flex-direction: column; justify-content: center; }
