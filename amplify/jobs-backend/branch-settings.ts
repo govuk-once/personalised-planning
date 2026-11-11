@@ -12,7 +12,7 @@ export type Branch = {
 };
 
 // Set by Amplify's build; a local synth or a sandbox has no branch to configure.
-function amplifyBranch(): Branch | null {
+export function amplifyBranch(): Branch | null {
   const appId = process.env.AWS_APP_ID;
   const name = process.env.AWS_BRANCH;
 

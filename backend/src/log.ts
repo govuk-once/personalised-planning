@@ -1,3 +1,5 @@
+import { currentTraceId } from "./trace.ts";
+
 export type Level = "INFO" | "WARNING" | "ERROR";
 
 export type Sink = (line: string) => void;
@@ -16,12 +18,14 @@ export const stdout: Sink = line => {
 export function logger(sink: Sink, agentName: string, sessionId: string): Log {
   return (level, message, fields = {}) => {
     const timestamp = new Date().toISOString();
+    const traceId = currentTraceId();
 
     const entry = {
       timestamp,
       level,
       agent_name: agentName,
       session_id: sessionId,
+      trace_id: traceId,
       message,
       ...fields,
     };

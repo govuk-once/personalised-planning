@@ -18,7 +18,7 @@ const API_TABLE_ACTIONS = [
   "dynamodb:Query",
 ];
 
-function endpointName(variable: string): string {
+export function endpointName(variable: string): string {
   return process.env[variable] ?? "DEFAULT";
 }
 

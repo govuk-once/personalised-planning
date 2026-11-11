@@ -2,11 +2,14 @@ import { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { LambdaClient } from "@aws-sdk/client-lambda";
 
+import { logDynamoDb } from "./dynamodb-log.ts";
+import { withSessionBaggage } from "./session-baggage.ts";
+
 // Endpoints come from AWS_ENDPOINT_URL_DYNAMODB and _LAMBDA, read by the SDK itself.
 
 // socketTimeout covers a response that stalls after its headers.
 export function dynamoDb(region: string, maxAttempts = 2): DynamoDBClient {
-  return new DynamoDBClient({
+  const client = new DynamoDBClient({
     region,
     maxAttempts,
     requestHandler: {
@@ -16,6 +19,8 @@ export function dynamoDb(region: string, maxAttempts = 2): DynamoDBClient {
       throwOnRequestTimeout: true,
     },
   });
+
+  return logDynamoDb(client);
 }
 
 // Five tries ride out the brief throttling a burst of result parts can cause.
@@ -38,9 +43,11 @@ export function lambda(region: string): LambdaClient {
 
 // One attempt only as an agent call is slow
 export function agentCore(region: string): BedrockAgentCoreClient {
-  return new BedrockAgentCoreClient({
+  const client = new BedrockAgentCoreClient({
     region,
     maxAttempts: 1,
     requestHandler: { connectionTimeout: 10_000 },
   });
+
+  return withSessionBaggage(client);
 }

@@ -43,6 +43,9 @@ export function getSessionId(): string {
   return created;
 }
 
+/** The conversation's id if it has one, without starting one. */
+export const currentSessionId = () => storage.read<string | null>(SESSION_ID, null);
+
 export const useConversation = () => storage.useStored(CONVERSATION, emptyConversation);
 export const usePlan = () => storage.useStored<Plan | null>(PLAN, null);
 

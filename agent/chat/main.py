@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from shared.log_utils import StructuredLogger
 from shared.secrets_manager import load_secrets_into_env
+from shared.trace_names import name_the_gateway
 
 INSTANCE_ID = str(uuid.uuid4())
 
@@ -18,6 +19,8 @@ load_dotenv()  # must come before secrets_manager call
 load_secrets_into_env("planner-agent", region="eu-west-2")
 
 from chat_logic import run_chat  # noqa: E402
+
+name_the_gateway()
 
 app = BedrockAgentCoreApp()
 

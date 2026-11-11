@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 
 import { useChatPolling } from "@/hooks/use-chat-polling";
 import { useChatStart } from "@/hooks/use-chat-start";
+import { useShownError } from "@/hooks/use-shown-error";
 import { withUserMessage } from "@/lib/conversation";
 import { freshJob } from "@/lib/job-id";
+import { track } from "@/lib/monitoring";
 import {
   clearSession,
+  getSessionId,
   saveChatJob,
   saveConversation,
   useChatJob,
@@ -26,7 +29,7 @@ export function useIntake() {
   const conversation = useConversation();
   const chatJob = useChatJob();
   const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useShownError("chat");
 
   const feedback = {
     setDraft,
@@ -58,14 +61,23 @@ export function useIntake() {
     setDraft("");
     saveConversation(withUser);
     saveChatJob(job);
+    getSessionId();
+
+    track("message_sent", {
+      job_id: job.jobId,
+      chars: trimmed.length,
+    });
+
     begin(job, withUser);
   }
 
   function startPlan() {
+    track("plan_requested");
     router.push("/plan");
   }
 
   function startAgain() {
+    track("start_again");
     clearSession();
     setError(null);
   }
