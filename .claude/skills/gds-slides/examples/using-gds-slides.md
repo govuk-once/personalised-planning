@@ -4,10 +4,10 @@ Role: Lead Product Manager
 Organisation: Government Digital Service
 Notes: How the gds-slides plugin works and how to use it. Also the example outline for every slide type at the default sizes. Run examples/diagrams/make.py before building it.
 
-## Decks drift when every copy is edited by hand
-A fix made in one copy never reaches the others. Here, Claude builds every version of a deck from one outline, so there is only one place to change.
+## Claude turns your notes into a deck with GDS branding
+Making slides in the GDS template is easy, and going from a set of notes to a finished deck is much faster than building it by hand.
 
-Notes: The problem the plugin solves. The PowerPoint file and the HTML deck are both built from the outline, never edited separately.
+Notes: The point of the plugin. The rest of the deck shows how it works, and doubles as an example of every slide type.
 
 ## Describe the deck, and Claude builds it in the GDS template
 Give Claude your notes and the point you want to make. It agrees the headings with you, then builds a PowerPoint file and an HTML deck.
