@@ -109,6 +109,8 @@ amplify_outputs*.json
 # Presentation decks
 *slides.html
 *slides.ppt
+# ...except the gds-slides skill's built example, kept so people can see the output
+!.claude/skills/gds-slides/examples/*.html
 
 # Decks
 decks/

@@ -1,6 +1,9 @@
 """Build a GDS deck from an outline: PowerPoint with python-pptx, HTML directly.
 
-    /usr/bin/python3 build.py OUTLINE.json [--out DIR] [--format pptx,html]
+    /usr/bin/python3 build.py OUTLINE.md [--out DIR] [--format pptx,html]
+
+OUTLINE is a Markdown outline (see slides.md and scripts/outline.py). A JSON outline in the
+same shape as outline.parse() returns also works.
 
 Writes DIR/<name>.pptx and DIR/<name>.html. With DeckCraft's deckcraft-cli installed, also
 DIR/render/: one preview PNG per PowerPoint slide plus contact.png. DIR defaults to decks/<name>/ in the current directory. Prints a warning for
@@ -24,7 +27,7 @@ SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(SKILL, "template.pptx")
 
 # 0-based index of the sample slide each type copies, in template.pptx
-SAMPLES = {"title": 1, "text": 2, "section": 4, "photo-section": 5, "closing": 11}
+SAMPLES = {"title": 1, "text": 2, "quote": 2, "section": 4, "photo-section": 5, "closing": 11}
 # Slide types built from parts rather than from one sample slide. Diagrams need macOS Quick Look for PowerPoint.
 COMPOSED = ("table", "split", "diagram")
 # Template media used by the HTML deck
@@ -34,9 +37,9 @@ MEDIA = {
     "photo": "ppt/media/image6.jpg",
 }
 # Characters. Over these, the text does not fit the template's type sizes.
-LIMITS = {"heading": 65, "body": 170, "bullet": 55, "bullets": 6, "section": 45}
-# Points, on a 720pt-wide slide. Template asks for 40 and 32; 28 is the most body text fits.
-SIZE = {"heading": 40, "body": 28, "dense": 24, "title": 32}
+LIMITS = {"heading": 65, "body": 170, "bullet": 55, "bullets": 6, "section": 45, "quote": 140}
+# Points, on a 720pt-wide slide. The template asks for 40 and 32; these leave more room around the text.
+SIZE = {"heading": 36, "body": 24, "title": 32}
 
 
 def find_cli():
@@ -68,10 +71,14 @@ def expand(outline):
     return slides
 
 
-def check(slides):
+def check(slides, sizes):
     warn = []
-    for n, (kind, head, body, *_) in enumerate(slides, 1):
+    # Composed types have one line for the heading: the frame's width at about 0.5em a character.
+    one_line = int(FRAME["heading"][2] / (sizes["heading"] * 0.5))
+    for n, (kind, head, body, _, s) in enumerate(slides, 1):
         if kind in COMPOSED:
+            if len(head or "") > one_line:
+                warn.append(f"slide {n}: {kind} heading {len(head)} chars, one line is {one_line} at this size")
             continue
         if kind not in SAMPLES:
             sys.exit(
@@ -82,6 +89,9 @@ def check(slides):
                 warn.append(
                     f"slide {n}: section heading {len(head)} chars, limit {LIMITS['section']}"
                 )
+        elif kind == "quote":
+            if len(s.get("quote", "")) > LIMITS["quote"]:
+                warn.append(f"slide {n}: quote {len(s['quote'])} chars, limit {LIMITS['quote']}")
         elif kind == "text":
             if len(head or "") > LIMITS["heading"]:
                 warn.append(f"slide {n}: heading {len(head)} chars, limit {LIMITS['heading']}")
@@ -100,7 +110,7 @@ def check(slides):
 # Slide points (720 x 405) for the composed types in PowerPoint.
 FRAME = {"heading": [43, 26, 634, 64], "top": 100, "bottom": 355, "left": 43, "width": 634}
 FONT = "Helvetica Neue"
-INK, NAVY, RULE = "0B0C0C", "04084A", "CBCBCB"
+INK, NAVY, RULE, MUTED = "0B0C0C", "04084A", "CBCBCB", "434343"
 NO_STYLE = "{2D5ABB26-0587-4C30-8999-92F81FD0307C}"  # PowerPoint's "No Style, No Grid" table style
 
 
@@ -264,6 +274,7 @@ def cell_borders(cell, bottom, width):
 def build_pptx(slides, path, sizes, base):
     from pptx import Presentation
     from pptx.oxml.ns import qn
+    from pptx.dml.color import RGBColor
     from pptx.util import Pt
 
     prs = Presentation(TEMPLATE)
@@ -341,7 +352,8 @@ def build_pptx(slides, path, sizes, base):
         copy_slide(prs, src[SAMPLES.get(kind, SAMPLES["text"])])
     drop_slides(prs, samples)
 
-    for slide, (kind, head, body, notes, s) in zip(prs.slides, slides, strict=True):
+    assert len(prs.slides) == len(slides)
+    for slide, (kind, head, body, notes, s) in zip(prs.slides, slides):
         texts = [sh for sh in slide.shapes if sh.has_text_frame]
         if kind == "title":
             # The first text box is the template's "add a classification" prompt; the master already marks OFFICIAL.
@@ -360,6 +372,26 @@ def build_pptx(slides, path, sizes, base):
             rpr = box._element.find(".//" + qn("a:rPr"))
             size = sizes["section"] if sizes["section"] != 72 else None
             paragraphs(box.text_frame, [{"text": head, "size": size, "rpr": rpr}])
+        elif kind == "quote":
+            # Callout: the quote large and navy, set off by a navy rule, with an optional attribution.
+            q = sizes["heading"] * 0.8
+            attr = s.get("attribution")
+            paras = [{"text": s["quote"], "size": q, "bold": True, "color": NAVY, "after": 12 if attr else 0}]
+            if attr:
+                paras.append({"text": attr, "size": sizes["body"] * 0.72, "color": MUTED})
+            left, width = FRAME["left"] + 24, FRAME["width"] - 24
+            box.left, box.width = Pt(left), Pt(width)
+            frame = box.text_frame
+            frame.margin_left = frame.margin_right = 0
+            paragraphs(frame, paras)
+            # The text box is centred vertically, so the rule is sized to an estimate of the text's height.
+            lines = -(-len(s["quote"]) // int(width / (q * 0.52)))
+            h = lines * q * 1.2 + (12 + sizes["body"] * 0.72 * 1.3 if attr else 0)
+            mid = (box.top + box.height / 2) / 12700
+            bar = slide.shapes.add_shape(1, Pt(FRAME["left"]), Pt(mid - h / 2), Pt(6), Pt(h))
+            bar.fill.solid()
+            bar.fill.fore_color.rgb = RGBColor.from_string(NAVY)
+            bar.line.fill.background()
         elif kind == "text":
             size = sizes["body"] * 0.86 if len(body) > 5 else sizes["body"]
             paragraphs(
@@ -463,10 +495,11 @@ def build_html(slides, outline, path, base):
         for k, v in MEDIA.items()
     }
     marking = outline.get("marking", "OFFICIAL")
-    lockup = f'<img class="lockup" src="{uri["lockup"]}" alt="Government Digital Service, Department for Science, Innovation and Technology">'
+    # The lockup and tag are CSS backgrounds, defined once, so each slide doesn't carry its own copy.
+    lockup = '<span class="lockup" role="img" aria-label="Government Digital Service, Department for Digital, Culture, Media and Sport"></span>'
     out = []
     for n, (kind, head, body, notes, s) in enumerate(slides, 1):
-        foot = f'<img class="tag" src="{uri["tag"]}" alt="GDS"><span class="num">{n}</span>'
+        foot = f'<span class="tag" role="img" aria-label="GDS"></span><span class="num">{n}</span>'
         if kind in ("title", "closing"):
             strong = {0} | ({2} if kind == "closing" else set())
             lines = "".join(
@@ -476,6 +509,10 @@ def build_html(slides, outline, path, base):
             inner, cls, foot = f'{lockup}<div class="text">{lines}</div>', "title", ""
         elif kind in ("section", "photo-section"):
             inner, cls = f'<div class="text"><h1>{esc(head)}</h1></div>', kind
+        elif kind == "quote":
+            attr = f"<footer>{esc(s['attribution'])}</footer>" if s.get("attribution") else ""
+            inner = f'<div class="text"><blockquote><p>{esc(s["quote"])}</p>{attr}</blockquote></div>'
+            cls = ""
         elif kind == "table":
             inner, cls = (
                 f'<div class="text top"><h2>{esc(head)}</h2>{table(s["table"])}</div>',
@@ -510,6 +547,7 @@ def build_html(slides, outline, path, base):
             )
     sizes = deck_sizes(outline)
     html = HTML.replace("{{title}}", esc(outline["title"])).replace("{{photo}}", uri["photo"])
+    html = html.replace("{{tag}}", uri["tag"]).replace("{{lockup}}", uri["lockup"])
     html = html.replace(
         "{{sizes}}", f"--h: {sizes['heading']}; --b: {sizes['body']}; --s: {sizes['section']};"
     )
@@ -531,12 +569,14 @@ HTML = """<!doctype html>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #1d1d1d; font-family: var(--font); }
   .deck { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 16px; }
-  .slide { position: relative; width: min(100%, 1280px); aspect-ratio: 16 / 9; background: var(--paper);
+  .slide { -webkit-print-color-adjust: exact; print-color-adjust: exact; position: relative; width: min(100%, 1280px); aspect-ratio: 16 / 9; background: var(--paper);
            color: var(--ink); overflow: hidden; container-type: inline-size; --pt: calc(100cqw / 720); }
   .marking { position: absolute; top: calc(6 * var(--pt)); left: 0; right: 0; text-align: center;
              font-size: calc(7 * var(--pt)); letter-spacing: .04em; color: var(--muted); z-index: 1; }
-  .tag { position: absolute; left: 2%; top: 90.7%; width: 9%; z-index: 1; }
-  .lockup { position: absolute; left: 5%; top: 9%; width: 43%; }
+  .tag { position: absolute; left: 2%; top: 90.7%; width: 9%; aspect-ratio: 2048 / 701; z-index: 1;
+         background: url("{{tag}}") center / contain no-repeat; }
+  .lockup { position: absolute; left: 5%; top: 9%; width: 43%; aspect-ratio: 2048 / 616;
+            background: url("{{lockup}}") center / contain no-repeat; }
   .num { position: absolute; right: 3%; bottom: 3%; font-size: calc(9 * var(--pt)); color: var(--muted); z-index: 1; }
   .text { position: absolute; left: 6%; top: 9%; width: 89%; height: 80%; z-index: 1;
           display: flex; flex-direction: column; justify-content: center; }
@@ -547,6 +587,9 @@ HTML = """<!doctype html>
   .text li { padding-left: calc(var(--b) * .8 * var(--pt)); position: relative; margin-bottom: calc(var(--b) * .3 * var(--pt)); }
   .text li::before { content: "\\2022"; position: absolute; left: 0; }
   .dense li { font-size: calc(var(--b) * .86 * var(--pt)); margin-bottom: calc(2 * var(--pt)); }
+  blockquote { border-left: calc(6 * var(--pt)) solid var(--navy); padding-left: calc(18 * var(--pt)); }
+  blockquote p { font-size: calc(var(--h) * .8 * var(--pt)) !important; font-weight: 700; color: var(--navy); line-height: 1.2 !important; }
+  blockquote footer { font-size: calc(var(--b) * .72 * var(--pt)); color: var(--muted); margin-top: calc(12 * var(--pt)); }
   /* Composed types: table, split (text beside a diagram) and diagram. */
   .wide .text.top { top: 11%; height: 76%; justify-content: flex-start; }
   .text p.lead { margin-bottom: calc(var(--b) * .8 * var(--pt)); }
@@ -624,13 +667,21 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--format", default="pptx,html")
     a = ap.parse_args()
-    with open(a.outline) as f:
-        outline = json.load(f)
+    if a.outline.endswith(".json"):
+        with open(a.outline) as f:
+            outline = json.load(f)
+    else:
+        from outline import OutlineError, parse
+
+        try:
+            outline = parse(a.outline)
+        except OutlineError as e:
+            sys.exit(f"{a.outline}: {e}")
     name = outline["name"]
     out = os.path.abspath(a.out or os.path.join(os.getcwd(), "decks", name))
     os.makedirs(out, exist_ok=True)
     slides = expand(outline)
-    for w in check(slides):
+    for w in check(slides, deck_sizes(outline)):
         print("WARNING", w)
     formats = a.format.split(",")
     try:
