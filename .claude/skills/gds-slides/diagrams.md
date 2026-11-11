@@ -4,7 +4,7 @@ Draw a diagram when the point of a slide is a model, a flow or a relationship, a
 
 ## How
 
-Write a short Python script in the deck folder, `diagrams/make.py`, that imports `scripts/diagram.py` and writes one SVG per diagram into `diagrams/`. Point the slide's `diagram` field at the SVG and give it `alt` text. `examples/diagrams/make.py` is a worked example, used by `examples/layouts.json`.
+Write a short Python script in the deck folder, `diagrams/make.py`, that imports `scripts/diagram.py` and writes one SVG per diagram into `diagrams/`. Point the slide's `diagram` field at the SVG and give it `alt` text. `examples/diagrams/make.py` is a worked example, used by `examples/layouts.md` and `examples/using-gds-slides.md`.
 
 ```bash
 python3 <folder>/diagrams/make.py
