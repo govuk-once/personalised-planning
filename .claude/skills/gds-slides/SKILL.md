@@ -5,7 +5,7 @@ description: GDS slide decks in the GDS 2025 template, as PowerPoint, HTML or bo
 
 # GDS slides
 
-Builds a deck from a JSON **outline** using the GDS 2025 template in this folder. One outline produces a PowerPoint file (built with python-pptx) and a self-contained HTML deck. The outline is the master copy. To change a deck, edit the outline and rebuild.
+Builds a deck from a Markdown **outline** using the GDS 2025 template in this folder. One outline produces a PowerPoint file (built with python-pptx) and a self-contained HTML deck. The outline is the master copy. To change a deck, edit the outline and rebuild.
 
 Read [writing.md](writing.md) before drafting, [slides.md](slides.md) before writing the outline, and [diagrams.md](diagrams.md) before drawing a diagram.
 
@@ -15,11 +15,11 @@ Read [writing.md](writing.md) before drafting, [slides.md](slides.md) before wri
 
 1. **Brief.** Establish the audience, the purpose, and the one thing the room should leave with. Draw the content from the user's material and the project's documents. Note any source that is marked draft. Done when you can state the one thing in a sentence.
 2. **Headings.** Draft the deck as a list of slide types and headings only, and show it to the user. Done when the user has approved the list, or has already given you the structure. Changing the story costs nothing at this stage and a rebuild later.
-3. **Outline.** Write the full outline as `<name>.json` in the output folder, following the examples in `examples/`. The output folder is `decks/<name>/` in the working directory, unless the user or the project's CLAUDE.md names another. Put detail and sources in `notes`.
+3. **Outline.** Write the full outline as `<name>.md` in the output folder, in the format [slides.md](slides.md) describes, following the examples in `examples/`. The user can read and edit it, so show it to them when they ask to see the deck's content. The output folder is `decks/<name>/` in the working directory, unless the user or the project's CLAUDE.md names another. Put detail and sources in `notes`.
 4. **Build.**
 
    ```bash
-   python3 <skill>/scripts/build.py <folder>/<name>.json --out <folder>
+   python3 <skill>/scripts/build.py <folder>/<name>.md --out <folder>
    ```
 
    Add `--format html` or `--format pptx` to build one format only. Done when the script has printed a path for each format and no warnings. A warning means cut words in the outline and rebuild.
@@ -32,9 +32,10 @@ Read [writing.md](writing.md) before drafting, [slides.md](slides.md) before wri
 - Without python-pptx, the build warns and makes the HTML deck only. Tell the user there is no PowerPoint file and why.
 - Without `deckcraft-cli` (on the `PATH`, in `~/.local/bin`, or named by `DECKCRAFT_CLI`), there are no previews. Check the layout in the HTML deck, which uses the same positions and sizes.
 - The template prints OFFICIAL on every slide. If the material is above OFFICIAL, say so and stop.
+- `examples/using-gds-slides.html` is the built example, kept so people can see the output before installing. After changing `examples/using-gds-slides.md`, its diagrams, `scripts/build.py` or the template, rebuild it in the same change: `python3 <skill>/scripts/build.py <skill>/examples/using-gds-slides.md --out <skill>/examples --format html`.
 
 ## Known limits
 
-- PowerPoint can wrap text slightly differently from the HTML deck and the previews. Open an important deck in PowerPoint before sending it. A deck built with python-pptx 1.0.2 opened correctly in PowerPoint for the web on 4 November 2026. After upgrading python-pptx, build `examples/layouts.json` and open it there before relying on the new version.
+- PowerPoint can wrap text slightly differently from the HTML deck and the previews. Open an important deck in PowerPoint before sending it. A deck built with python-pptx 1.0.2 opened correctly in PowerPoint for the web on 4 November 2026. After upgrading python-pptx, build `examples/layouts.md` and open it there before relying on the new version.
 - Diagrams reach PowerPoint as pictures, converted with macOS Quick Look. On other systems, build HTML only.
 - The HTML deck copies the template's colours, type sizes, positions and images. It isn't generated from the template file, so a template update reaches it only through `build.py`'s CSS and `MEDIA` map.
