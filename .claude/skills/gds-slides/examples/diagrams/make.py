@@ -8,19 +8,39 @@ sys.path.insert(0, os.path.join(HERE, "..", "..", "scripts"))
 from diagram import NAVY, area, box, line, strong, svg, text, write  # noqa: E402
 
 
-def build():
-    """One outline, two formats: for the right half of a split slide."""
-    g = strong(120, 10, 160, 56, "Outline", "one Markdown file")
-    g += line(200, 66, 200, 120) + text(208, 98, "build.py", 12, 400, anchor="start")
-    g += area(20, 130, 360, 160, "Built every time, never edited")
-    g += box(45, 185, 140, 60, "PowerPoint", "for sharing") + box(
-        215, 185, 140, 60, "HTML", "for presenting"
+def renewal():
+    """A made-up service's three steps, for the right half of a split slide."""
+    g = box(110, 10, 180, 60, "Apply", "online, about 5 minutes")
+    g += line(200, 70, 200, 108)
+    g += area(20, 100, 360, 120, "Done by the service")
+    g += strong(110, 135, 180, 60, "Check", "against records")
+    g += line(200, 220, 200, 238) + box(110, 240, 180, 50, "Permit", "sent the same day")
+    return svg(400, 300, g, "Apply online, the service checks against its records, and the permit is sent the same day")
+
+
+def routes():
+    """The made-up service's old and new routes to a permit, full width. Dashed for the old route."""
+    g = text(10, 40, "Before", 14, 700, anchor="start") + text(10, 155, "Now", 14, 700, anchor="start")
+    for i, (label, sub) in enumerate([("Paper form", "filled in by hand"), ("Post", "up to a week"), ("Manual check", "two weeks")]):
+        x = 90 + i * 170
+        g += box(x, 5, 140, 60, label, sub, dash="5 4")
+        if i < 2:
+            g += line(x + 140, 35, x + 168, 35, dash="5 4")
+    g += line(570, 35, 598, 78, dash="5 4")
+    g += box(90, 120, 140, 60, "Online form", "about 5 minutes")
+    g += line(230, 150, 258, 150) + box(260, 120, 310, 60, "Automatic check", "against the service's records")
+    g += line(570, 150, 598, 108)
+    g += strong(600, 60, 160, 64, "Permit", "same result")
+    return svg(
+        780,
+        190,
+        g,
+        "Before: paper form, post and a manual check. Now: an online form and an automatic check. Both end with the same permit",
     )
-    return svg(400, 300, g, "One outline is built into a PowerPoint file and an HTML deck")
 
 
 def workflow():
-    """The five steps, full width."""
+    """The five steps of making a deck, full width, large type."""
     steps = [
         ("Brief", "the one thing"),
         ("Headings", "agreed first"),
@@ -30,17 +50,18 @@ def workflow():
     ]
     g = ""
     for i, (label, sub) in enumerate(steps):
-        x = 10 + i * 156
-        g += (strong if label == "Outline" else box)(x, 20, 124, 60, label, sub)
+        x = 10 + i * 166
+        if label == "Outline":
+            g += box(x, 20, 136, 76, label, sub, NAVY, "#fff", NAVY, size=18)
+        else:
+            g += box(x, 20, 136, 76, label, sub, size=18)
         if i < len(steps) - 1:
-            g += line(x + 124, 50, x + 156, 50)
-    g += line(696, 80, 696, 120, head=False, dash="5 4") + line(
-        696, 120, 384, 120, head=False, dash="5 4"
-    )
-    g += line(384, 120, 384, 84, dash="5 4") + text(540, 140, "Fix the outline and rebuild", 12)
+            g += line(x + 136, 58, x + 164, 58)
+    g += line(742, 96, 742, 140, head=False, dash="5 4") + line(742, 140, 410, 140, head=False, dash="5 4")
+    g += line(410, 140, 410, 100, dash="5 4") + text(576, 160, "Fix the outline and rebuild", 14)
     return svg(
-        780,
-        150,
+        820,
+        175,
         g,
         "Brief, headings, outline, build and look, with a loop from look back to the outline",
     )
@@ -65,6 +86,7 @@ def formats():
     )
 
 
-write(os.path.join(HERE, "build.svg"), build())
+write(os.path.join(HERE, "renewal.svg"), renewal())
 write(os.path.join(HERE, "workflow.svg"), workflow())
+write(os.path.join(HERE, "routes.svg"), routes())
 write(os.path.join(HERE, "formats.svg"), formats())

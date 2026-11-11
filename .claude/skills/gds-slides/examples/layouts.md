@@ -1,42 +1,41 @@
-# Making GDS slides with Claude
-Presenter: Maxwell Riess
-Role: Lead Product Manager
+# Renew a permit: quarterly update
+Presenter: Alex Example
+Role: Product Manager
 Organisation: Government Digital Service
 Sizes: heading 26, body 16, section 48
-Notes: Example of the table, split and diagram slide types, at the lighter type sizes. Run examples/diagrams/make.py before building.
+Notes: A made-up service, used to show the table, split and diagram slide types at lighter type sizes. Run examples/diagrams/make.py before building. After upgrading python-pptx, build this deck and open it in PowerPoint for the web.
 
-## Decks drift when every copy is edited by hand
-The outline is the master copy. Change it and rebuild, and the PowerPoint file and the HTML deck stay the same.
+## Most people now renew online
+Paper renewals fell this quarter, and online renewals now take minutes rather than weeks.
 
 Notes: A plain text slide with a body sentence.
 
-## [split] One outline builds both formats
+## [split] Renewal now takes three steps
 ### How it works
-Write the deck as a Markdown outline. The build script turns it into a PowerPoint file and an HTML deck.
+People apply online. The service checks the application against its own records, so nobody has to send documents.
 
-### Why this way
-- One place to change the story
-- Both formats always agree
-- Speaker notes travel with the slides
+### What changed
+- No paper form
+- No documents to post
+- The permit arrives the same day
 
-![An outline is built into a PowerPoint file for sharing and an HTML deck for presenting.](diagrams/build.svg)
+![Apply online, the service checks against its records, and the permit is sent the same day.](diagrams/renewal.svg)
 
 Notes: A split slide: labelled text on the left, a diagram on the right.
 
-## [diagram] Five steps from brief to deck
-Agree the headings before writing the outline. Fixing the story then costs nothing.
+## [diagram] Two routes to the same permit
+The paper route still works. Most people now take the shorter one.
 
-![Brief, headings, outline, build and look, with a loop from look back to the outline.](diagrams/workflow.svg)
+![Before: paper form, post and a manual check. Now: an online form and an automatic check. Both end with the same permit.](diagrams/routes.svg)
 
-Notes: A full-width diagram slide with a lead sentence.
+Notes: A full-width diagram slide with a lead sentence, at the lighter sizes. Dashed lines show the old route.
 
-## [table] Pick the slide type for the point you are making
-| Slide type | Use it for |
+## [table] What changed this quarter
+| Measure | This quarter |
 |---|---|
-| text | One point, with a sentence or a short list |
-| table | A comparison, or a split of responsibilities |
-| split | How something works beside why it works that way |
-| diagram | A model, a flow or a relationship |
-| section | A signpost between parts of the argument |
+| Applied online | Most applications, up from under half |
+| Time to a decision | Minutes, down from three weeks |
+| Calls to the helpline | Down, mostly about payment |
+| Paper forms | Still accepted, on request |
 
-Notes: A table slide. The first column is bold.
+Notes: A table slide. The first column is bold. The figures are made up.

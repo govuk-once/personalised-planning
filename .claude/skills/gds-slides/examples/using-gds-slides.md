@@ -4,6 +4,11 @@ Role: Lead Product Manager
 Organisation: Government Digital Service
 Notes: How the gds-slides plugin works and how to use it. Also the example outline for every slide type at the default sizes. Run examples/diagrams/make.py before building it.
 
+## Decks drift when every copy is edited by hand
+A fix made in one copy never reaches the others. Here, Claude builds every version of a deck from one outline, so there is only one place to change.
+
+Notes: The problem the plugin solves. The PowerPoint file and the HTML deck are both built from the outline, never edited separately.
+
 ## Describe the deck, and Claude builds it in the GDS template
 Give Claude your notes and the point you want to make. It agrees the headings with you, then builds a PowerPoint file and an HTML deck.
 
@@ -24,12 +29,12 @@ Notes: Install with /plugin marketplace add govuk-once/gds-claude-plugins, then 
 
 Notes: Say who the deck is for if you can, and point Claude at the documents it should draw on.
 
-## Claude agrees the story before it builds anything
-- Who the deck is for, and what they take away
-- The headings, for you to approve
-- Then this outline, which you can read and edit
+## [diagram] Five steps from brief to deck
+Claude agrees the headings with you before it writes the outline, so changing the story costs nothing.
 
-Notes: Changing the story at the headings stage costs nothing. The outline is a Markdown file: a heading per slide, with detail in the speaker notes.
+![Brief, headings, outline, build and look, with a loop from look back to the outline.](diagrams/workflow.svg)
+
+Notes: Brief: who the deck is for and the one thing they should take away. Headings: for you to approve. Outline: a Markdown file you can read and edit, a heading per slide, with detail in the speaker notes. Build: both formats at once. Look: Claude checks every slide and fixes the outline until they all pass.
 
 ## [table] Pick the slide for the point
 | Ask for | You get |
@@ -43,9 +48,9 @@ Notes: Changing the story at the headings stage costs nothing. The outline is a 
 Notes: A table slide. The next three slides are examples of a callout, text over an image and a diagram. Ask in plain words, for example: make slide 4 a table comparing the two options.
 
 ## [quote]
-> The outline is the master copy. Change it, and both versions of the deck change with it.
+> Make a document instead of a slide deck if you are trying to say too much.
 
-Source: How gds-slides keeps decks in step
+Source: The GDS slide template
 
 Notes: A quote slide, for a callout or something a user said. Keep it to one or two lines.
 
