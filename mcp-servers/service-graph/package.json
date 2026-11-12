@@ -10,7 +10,7 @@
     "package": "npm run build:lambda && zip -r function.zip dist/"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.5.0",
+    "@anthropic-ai/sdk": "^1.7.0",
     "@aws/run-mcp-servers-with-aws-lambda": "^0.5.22",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "zod": "^4.6.7"
