@@ -276,6 +276,7 @@ def build_pptx(slides, path, sizes, base):
     from pptx.dml.color import RGBColor
     from pptx.oxml.ns import qn
     from pptx.dml.color import RGBColor
+    from pptx.oxml.ns import qn
     from pptx.util import Pt
 
     prs = Presentation(TEMPLATE)
