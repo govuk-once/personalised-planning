@@ -65,7 +65,7 @@ def parse(path):
     who = {k: fields.pop(k) for k in ("name", "role", "org") if k in fields}
     if "role" not in who and "," in who.get("name", ""):
         parts = [p.strip() for p in who["name"].split(",")]
-        who.update(zip(("name", "role", "org"), parts))
+        who.update({k: parts[i] for i, k in enumerate(("name", "role", "org")) if i < len(parts)})
     if "name" not in who or "role" not in who:
         raise OutlineError("Under the title, give 'Presenter:' and 'Role:' lines.")
     outline = {
@@ -105,7 +105,7 @@ def deck(lines):
 
 
 def join(lines):
-    return " ".join(t for t in (l.strip() for l in lines) if t)
+    return " ".join(t for t in (line.strip() for line in lines) if t)
 
 
 def slide(n, heading, lines):

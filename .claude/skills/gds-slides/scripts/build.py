@@ -273,8 +273,8 @@ def cell_borders(cell, bottom, width):
 
 def build_pptx(slides, path, sizes, base):
     from pptx import Presentation
-    from pptx.oxml.ns import qn
     from pptx.dml.color import RGBColor
+    from pptx.oxml.ns import qn
     from pptx.util import Pt
 
     prs = Presentation(TEMPLATE)
@@ -353,7 +353,8 @@ def build_pptx(slides, path, sizes, base):
     drop_slides(prs, samples)
 
     assert len(prs.slides) == len(slides)
-    for slide, (kind, head, body, notes, s) in zip(prs.slides, slides):
+    for i, slide in enumerate(prs.slides):
+        kind, head, body, notes, s = slides[i]
         texts = [sh for sh in slide.shapes if sh.has_text_frame]
         if kind == "title":
             # The first text box is the template's "add a classification" prompt; the master already marks OFFICIAL.
