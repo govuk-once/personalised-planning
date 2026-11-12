@@ -11,7 +11,7 @@ dependencies = [
     # Pin strands + mcp to the versions agent/uv.lock resolves, so the imported
     # agent code behaves identically here (newer mcp renamed streamablehttp_client).
     "strands-agents==1.64.0",
-    "mcp==1.29.0",
+    "mcp==2.3.0",
     "python-dotenv>=1.2.2",
     "pydantic>=2.13.4",
 ]
