@@ -25,8 +25,9 @@ function daemonSocket(): Socket {
   return socket;
 }
 
-// If a subsegment can't be sent, drop it
-function ignoreFailure(): void {}
+function ignoreFailure(): void {
+  // If a subsegment can't be sent, drop it
+}
 
 export function sendSubsegment(subsegment: Subsegment): void {
   const daemon = process.env.AWS_XRAY_DAEMON_ADDRESS;

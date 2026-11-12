@@ -14,7 +14,6 @@ import time
 import boto3
 
 HERE = pathlib.Path(__file__).parent
-REGION = "eu-west-2"
 BUILT_IN = ["Builtin.Faithfulness", "Builtin.ToolSelectionAccuracy"]
 DONE = {"COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "STOPPED"}
 
@@ -91,9 +90,9 @@ def evaluator_ids(control) -> dict[str, str]:
     return {evaluator["evaluatorName"]: evaluator["evaluatorId"] for evaluator in found}
 
 
-def setup(model: str) -> None:
+def setup(model: str, region: str) -> None:
     """Create or update the judges."""
-    control = boto3.client("bedrock-agentcore-control", region_name=REGION)
+    control = boto3.client("bedrock-agentcore-control", region_name=region)
     existing = evaluator_ids(control)
     for name, (level, *rest) in JUDGES.items():
         judge = config(*rest, model)
@@ -106,14 +105,14 @@ def setup(model: str) -> None:
         print(f"{name}: ready")
 
 
-def evaluate(plans: str) -> int:
+def evaluate(plans: str, region: str) -> int:
     """Score the sessions of a plans file, and print each judge's average."""
     doc = json.loads(pathlib.Path(plans).read_text())
     generations = [gen for gens in doc["plans"].values() for gen in gens]
     sessions = sorted({gen["session_id"] for gen in generations})
     runtime = doc["config"]["agent_runtime_arn"].split("/")[-1]
-    control = boto3.client("bedrock-agentcore-control", region_name=REGION)
-    agentcore = boto3.client("bedrock-agentcore", region_name=REGION)
+    control = boto3.client("bedrock-agentcore-control", region_name=region)
+    agentcore = boto3.client("bedrock-agentcore", region_name=region)
     service = control.get_agent_runtime(agentRuntimeId=runtime)["agentRuntimeName"]
 
     ids = evaluator_ids(control)
@@ -152,12 +151,13 @@ def main() -> int:
     parser.add_argument("command", choices=["setup", "evaluate"])
     parser.add_argument("plans", nargs="?", help="from metrics.harness generate")
     parser.add_argument("--judge-model", default=os.environ.get("EVAL_ANTHROPIC_MODEL"))
+    parser.add_argument("--region", default="eu-west-2")
     args = parser.parse_args()
     if args.command == "evaluate":
-        return evaluate(args.plans)
+        return evaluate(args.plans, args.region)
     if not args.judge_model:
         sys.exit("error: EVAL_ANTHROPIC_MODEL is not set (or pass --judge-model)")
-    setup(args.judge_model)
+    setup(args.judge_model, args.region)
     return 0
 
 

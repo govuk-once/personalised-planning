@@ -6,8 +6,7 @@ const SERVICE_GRAPH_LOGS = "/aws/lambda/govuk-service-graph-mcp";
 const CLAUDE_CALL_LOGS = "bedrock-model-invocation-logs";
 const TEAM_MONITOR = "personalised-planning-browser-monitoring";
 
-const NAME_CHARACTERS =
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
+const UNSAFE_CHARACTER = /[^A-Za-z0-9_-]/gu;
 const LONGEST_TRACE_GROUP = 32;
 
 export type Monitor = {
@@ -27,12 +26,7 @@ export type Site = {
 };
 
 function nameSafe(text: string): string {
-  const characters = [...text];
-  const safe = characters.map(character =>
-    NAME_CHARACTERS.includes(character) ? character : "-"
-  );
-
-  return safe.join("");
+  return text.replaceAll(UNSAFE_CHARACTER, "-");
 }
 
 function runtimeLogs(arn: string, endpointVariable: string): string {

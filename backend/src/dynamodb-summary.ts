@@ -3,7 +3,7 @@ import { PARTITION_KEY, SORT_KEY } from "./table.ts";
 
 export type Summary = { wrote: string } | { read: string };
 
-const KEYS = [PARTITION_KEY, SORT_KEY];
+const KEYS = new Set([PARTITION_KEY, SORT_KEY]);
 
 // Chatbot reply, just its length
 const REPLY = "text";
@@ -32,7 +32,7 @@ function valueText(name: string, value: Value): string {
 
 function itemText(item: Attributes): string {
   const entries = Object.entries(item);
-  const fields = entries.filter(([name]) => !KEYS.includes(name));
+  const fields = entries.filter(([name]) => !KEYS.has(name));
 
   const pairs = fields.map(([name, value]) => {
     const text = valueText(name, value);

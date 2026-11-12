@@ -7,7 +7,7 @@ import { track } from "@/lib/monitoring";
 type Page = "chat" | "plan";
 
 export function useShownError(page: Page) {
-  const [error, setShownError] = useState<string | null>(null);
+  const [shownError, setShownError] = useState<string | null>(null);
 
   const setError = useCallback(
     (message: string | null) => {
@@ -23,5 +23,5 @@ export function useShownError(page: Page) {
     [page]
   );
 
-  return [error, setError] as const;
+  return [shownError, setError] as const;
 }
