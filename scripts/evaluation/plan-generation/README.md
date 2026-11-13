@@ -733,6 +733,30 @@ The file must be a JSON array of step objects. Each step needs at least
 `--base-path` is the identifier used throughout the pipeline to name this
 guide (e.g. in truth records and scoring output).
 
+Two optional step fields change how plans are scored:
+
+| Field | Effect |
+|---|---|
+| `"optional": true` | The guide's own "only if you choose to" steps. Where such a step applies to a person, the answer key marks it `optional` instead of `required`, and scoring ignores it (see [Scoring](#scoring)). |
+| `"match_terms": [...]` | Words or phrases that identify a task for this step when its links are shared with other steps, e.g. `["tell your employer", "due date"]` for "Tell your employer you're expecting". See [How it works](#how-it-works-2) in Part 3. |
+
+```json
+{"step": 2, "title": "Tell your employer you're expecting",
+ "links": ["/maternity-pay-leave", "/paternity-pay-leave", "/working-when-pregnant-your-rights"],
+ "optional": false,
+ "match_terms": ["tell your employer", "notify your employer", "due date"]}
+```
+
+Spines fetched from GOV.UK have neither field, so they score exactly as before.
+`match_terms` matter only when several steps link the same page: a guide whose
+steps each have their own links does not need them. `data/examples_baby/` does
+not include the having-a-baby spine; the terms used for it are recorded in the
+mapping's `revisions`.
+
+The mapping carries its own copy of the spine (`spine`), so editing the spine
+file changes nothing until you either re-run `map` or copy the new fields into
+the mapping's `spine`, then re-run `build`.
+
 ## The mapping
 
 ```json
@@ -801,6 +825,17 @@ not care where it came from.
 }
 ```
 
+Each step gets one verdict, in this order of precedence:
+
+| Verdict | When |
+|---|---|
+| `blocked` | A block applies: the person is not permitted to take this step |
+| `not_required` | A rule drops it: the step does not apply to this person |
+| `optional` | It applies, but the spine marks it `"optional": true` |
+| `required` | It applies |
+
+An optional step that does not apply to someone is still `not_required`.
+
 ## Scoring
 
 ```json
@@ -816,6 +851,11 @@ not care where it came from.
 
 `presented_a_blocked_step` is deliberately outside the F1 average: it is a
 different class of failure and should not be traded off against coverage.
+
+**Optional steps are neutral.** Leaving one out is not a miss, and showing one
+is neither a hit nor an extra, so it counts towards neither recall nor
+precision. Each profile's score lists the optional steps its plan showed in
+`optional_present`, so you can still see how often the app includes them.
 
 Plans are matched to answer keys by `profile_id`. A total mismatch is reported
 as a mismatch and exits non-zero, rather than silently producing a mean F1 of
@@ -858,9 +898,24 @@ deadlines from its training cutoff. Each call uses a fresh session.
 
 **It maps tasks to step numbers by URL.** Each task the agent returns carries a
 `gov_service_url`. The spine embedded in `truth.json` carries the GOV.UK
-paths for each step. A URL that belongs to a spine step counts that step as
-covered. No model call sits in this path — the mapping is exact and
-deterministic.
+paths for each step. No model call sits in this path: the mapping is
+deterministic. For each task:
+
+1. **A URL linked from one step** counts that step as covered.
+2. **A sub-page counts as its parent page.** `/maternity-pay-leave/pay` matches
+   a step that links `/maternity-pay-leave`.
+3. **A URL linked from several steps** is decided by the task's title. It
+   credits every one of those steps whose `match_terms` appear in the title,
+   as whole words or phrases, ignoring case. A task can do more than one stage:
+   "Check and claim Statutory Maternity Pay" credits both the "check" and the
+   "give notice" steps.
+4. **If no term matches,** it credits the earliest of those steps, as matching
+   on URL alone does.
+
+Some guides need step 3 more than others. In the having-a-baby step by step,
+`/maternity-pay-leave` is linked from six steps (check what you can get, tell
+your employer, give notice, start leave, after the birth, claim money), so
+without `match_terms` every citation of it would count as the first.
 
 **It scores as it runs.** After mapping each plan it calls the same scoring
 function `truth.py score` uses and accumulates the per-profile results.
@@ -872,7 +927,9 @@ processed, with no second pass needed.
 **URL matching keeps the scoring path model-free.** Comparing the API's prose
 step descriptions to spine step titles would need a model, introducing a
 non-deterministic judgement between the app and its score. URL matching is
-exact, repeatable, and cheap.
+exact, repeatable, and cheap. Where a URL alone cannot say which step a task
+does, a short list of terms reviewed alongside the guide decides, so the
+judgement is written down and applied the same way every time.
 
 **Scoring uses the same function as `truth.py score`.** `run_app.py` imports
 `score` from `truth.py` directly, so the inline metrics and the standalone
@@ -910,18 +967,36 @@ python run_app.py data/driving_profiles.json data/truth.json > data/app_plans.js
 
 # Test a single profile
 python run_app.py data/driving_profiles.json data/truth.json --profile P011 --verbose
+
+# Re-match and re-score saved responses, without calling the agent
+python run_app.py data/driving_profiles.json data/truth.json \
+    --from-raw data/raw_part1.json data/raw_part2.json > data/app_plans.json
 ```
 
-`truth.json` is required — it carries the per-guide URL-to-step index used
-to map the agent's cited URLs onto step numbers.
+`truth.json` is required — it carries the per-guide spine used to map the
+agent's cited URLs onto step numbers.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required unless `--from-raw`) | Hosted planner runtime |
 | `--profile` | — | Run one profile id only, for testing |
-| `--raw` | — | Save full agent responses here |
+| `--raw` | — | Save full agent responses, and how each task was matched, here |
+| `--from-raw` | — | Use responses saved with `--raw` (one or more files) instead of calling the agent |
 | `--verbose` | off | Print per-task URL trace to stderr |
 | `--results-out` | `results.json` | Where to write scoring results |
+
+**Save responses with `--raw`.** Each agent call takes minutes. With the
+responses saved, a change to matching, to `match_terms` or to the answer key
+can be re-scored with `--from-raw` in seconds, at no cost. In the saved file,
+each task's trace records the steps it matched (`steps`, a list) and how they
+were decided (`how`: `url`, `terms`, `fallback` or `unmatched`).
+
+**A long run can be split.** `run_app.py` writes its outputs only when it
+finishes, and each call can take a few minutes, so a long run may outlast your
+credentials. Split the profiles file into parts, run each part with its own
+`--raw`, `--results-out` and output files, and score the merged plans with
+`truth.py score`. Running parts in parallel is faster but can slow every call
+past the 5-minute timeout; one part at a time is more reliable.
 
 ## The plans it produces
 
@@ -961,7 +1036,13 @@ against coverage.
 
 The hosted agent must be deployed and your credentials must be allowed to
 invoke it. A failed invocation is reported on stderr and the profile is skipped
-rather than retried. Each call waits up to 5 minutes for a plan.
+rather than retried. Each call waits up to 5 minutes for a plan. Do not
+interrupt a run: plans, `--raw` and `--results-out` are all written at the end.
+
+Matching is per step, not per item within a step. `match_terms` look at the
+task title only, so a title with no stage word ("Arrange Statutory Paternity
+Pay") falls back to the earliest step linking its URL. A task that cites a page
+outside the guide is never credited, even if it does what a step describes.
 
 URLs cited by the app that are not in any guide's spine are reported on
 stderr. They may be legitimate GOV.UK pages outside the step-by-step, or
