@@ -35,7 +35,17 @@ export async function runJob(
   let shaped: Shaped;
 
   try {
+    const askedMs = run.deps.nowMs();
+
     shaped = await ask(run, request, timeoutMs);
+
+    const repliedMs = run.deps.nowMs();
+
+    run.log("INFO", "Agent replied", {
+      job_id: run.jobId,
+      kind: run.kind,
+      ms: repliedMs - askedMs,
+    });
   } catch (error) {
     if (error instanceof AgentFailure) {
       return failJob(run, error.message, error.detail);

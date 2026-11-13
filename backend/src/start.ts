@@ -5,6 +5,7 @@ import type { StartJob } from "./events.ts";
 import { NEVER_STARTED, newJob, TOO_LARGE_TO_SEND } from "./jobs.ts";
 import { byteLength, MAX_WORKER_EVENT_BYTES } from "./limits.ts";
 import { logger } from "./log.ts";
+import { requestSummary } from "./request-summary.ts";
 import { refused } from "./start-replies.ts";
 import { startWorker } from "./start-worker.ts";
 
@@ -65,10 +66,13 @@ export async function start(event: StartJob, deps: ApiDeps): Promise<Reply> {
   const reply = await startWorker(payload, deps, log);
 
   if (reply.ok) {
+    const request = requestSummary(event.request);
+
     log("INFO", "Job started", {
       job_id: jobId,
       kind: event.kind,
       request_bytes: payloadBytes,
+      request,
     });
   }
 

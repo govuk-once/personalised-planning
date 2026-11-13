@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import { usePlanPolling } from "@/hooks/use-plan-polling";
 import { usePlanStart } from "@/hooks/use-plan-start";
+import { useShownError } from "@/hooks/use-shown-error";
 import { SITE_UPDATED } from "@/lib/action-failure";
 import { situationOf } from "@/lib/conversation";
 import { onLoad } from "@/lib/plan-page";
@@ -24,7 +25,7 @@ export function usePlanGeneration() {
   const plan = usePlan();
   const planJob = usePlanJob();
   const conversation = useConversation();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useShownError("plan");
   const { starting, generate } = usePlanStart(setError);
   const requested = useRef(false);
 

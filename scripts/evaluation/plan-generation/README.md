@@ -143,14 +143,14 @@ missing the rare situations you built the thing to find. Claude writes the part
 code can't: a name, a life, a reason they're stuck.
 
 **A reviewer needs something to judge against.** A profile is enough to
-*generate* a plan and not enough to *check* one. Asking someone "is this plan
+_generate_ a plan and not enough to _check_ one. Asking someone "is this plan
 right?" gets an opinion; giving them the specific claims the plan must satisfy
 gets a finding.
 
 ## What you get, and why it can be trusted
 
-*The figures below are illustrative — one representative run against the 92
-driving pages, not a fixed guarantee. Regenerating the model, editing it by hand, or pointing the pipeline at different content will move every count, so treat them as an order-of-magnitude sketch rather than numbers to reconcile against the committed data files.*
+_The figures below are illustrative — one representative run against the 92
+driving pages, not a fixed guarantee. Regenerating the model, editing it by hand, or pointing the pipeline at different content will move every count, so treat them as an order-of-magnitude sketch rather than numbers to reconcile against the committed data files._
 
 Run against the 92 driving pages, one run produced a questionnaire of roughly **twenty questions**, a handful of **derived facts** (things worked out from the answers, like "this person doesn't need a theory test"), a few **rules** hiding answers that don't apply in a given nation, and a set of **age constraints**.
 
@@ -209,17 +209,17 @@ This writes the model plus `data/driving_model.md`, a readable summary of every
 question, fact and numeric constraint with its source. Review and amend
 `data/driving_model.json` by hand.
 
-| `model` flag | Default | Purpose |
-|---|---|---|
-| `-o`, `--out` | `data/model.json` | Where to write the generated questionnaire |
-| `--summary` | `--out` with `.md` | Where to write the readable summary |
-| `--repairs` | 3 | Validation rounds before giving up |
-| `--seed` | 0 | Random seed for the sampling validation uses |
-| `--region` | `eu-west-2` | AWS region |
-| `--main-goal` | `required` | `required`: the first, always-asked question must be `q_main_goal` (which service or help the person wants). `none`: no such question; people are routed on their circumstances alone |
-| `--rationale` | off | Ask for a one-sentence rationale on every question |
-| `--shuffle-seed` | — | Present the corpus pages in a seeded random order (default: subgraph order) |
-| `--max-page-chars` | no cap | Per-page cap on the parsed page text |
+| `model` flag       | Default            | Purpose                                                                                                                                                                               |
+| ------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-o`, `--out`      | `data/model.json`  | Where to write the generated questionnaire                                                                                                                                            |
+| `--summary`        | `--out` with `.md` | Where to write the readable summary                                                                                                                                                   |
+| `--repairs`        | 3                  | Validation rounds before giving up                                                                                                                                                    |
+| `--seed`           | 0                  | Random seed for the sampling validation uses                                                                                                                                          |
+| `--region`         | `eu-west-2`        | AWS region                                                                                                                                                                            |
+| `--main-goal`      | `required`         | `required`: the first, always-asked question must be `q_main_goal` (which service or help the person wants). `none`: no such question; people are routed on their circumstances alone |
+| `--rationale`      | off                | Ask for a one-sentence rationale on every question                                                                                                                                    |
+| `--shuffle-seed`   | —                  | Present the corpus pages in a seeded random order (default: subgraph order)                                                                                                           |
+| `--max-page-chars` | no cap             | Per-page cap on the parsed page text                                                                                                                                                  |
 
 `--main-goal required` suits a corpus covering services a person chooses
 between, such as driving (learn to drive, renew a licence, tell DVLA about a
@@ -239,15 +239,15 @@ python plans.py profiles data/driving_subgraph.json \
     --personas
 ```
 
-| `profiles` flag | Default | Purpose |
-|---|---|---|
-| `--model` | *required* | The reviewed / amended questionnaire to sample |
-| `--profiles` | — | Write synthetic profiles here |
-| `--review` | — | Write review packets here |
-| `--personas` | off | Have Claude write a name and life for each profile |
-| `--pins` | — | Sample only inside a scope (see "Pinning the scope" below) |
-| `--seed` | 0 | Random seed, for reproducible profile sets |
-| `--region` | `eu-west-2` | AWS region |
+| `profiles` flag | Default     | Purpose                                                    |
+| --------------- | ----------- | ---------------------------------------------------------- |
+| `--model`       | _required_  | The reviewed / amended questionnaire to sample             |
+| `--profiles`    | —           | Write synthetic profiles here                              |
+| `--review`      | —           | Write review packets here                                  |
+| `--personas`    | off         | Have Claude write a name and life for each profile         |
+| `--pins`        | —           | Sample only inside a scope (see "Pinning the scope" below) |
+| `--seed`        | 0           | Random seed, for reproducible profile sets                 |
+| `--region`      | `eu-west-2` | AWS region                                                 |
 
 The `profiles` stage **refuses to run if the amended model no longer
 validates**, printing the specific issues so you can fix them before sampling —
@@ -307,14 +307,24 @@ silently swallowed by the stricter rule it was written to escape.
 {
   "id": "P024",
   "situation": "I want to learn to drive or ride, from getting my provisional licence to passing my test.",
-  "answers":  { "q1_vehicle": "car", "q9_theory_support": ["audio_english"] },
+  "answers": { "q1_vehicle": "car", "q9_theory_support": ["audio_english"] },
   "readable": { "What do you want to learn to drive or ride?": "Car (category B)" },
-  "numeric":  { "age": { "value": 43, "range": [42, 85],
-                         "floor_because": "42 [derived] Passed a car test before February 2001..." } },
-  "facts":    { "theory_exempt": false, "vehicle_group": "car_like" },
-  "questions_asked": 11, "questions_skipped": 8,
-  "persona":  { "name": "...", "circumstances": "...",
-                "what_they_want": "...", "likely_friction": "..." }
+  "numeric": {
+    "age": {
+      "value": 43,
+      "range": [42, 85],
+      "floor_because": "42 [derived] Passed a car test before February 2001..."
+    }
+  },
+  "facts": { "theory_exempt": false, "vehicle_group": "car_like" },
+  "questions_asked": 11,
+  "questions_skipped": 8,
+  "persona": {
+    "name": "...",
+    "circumstances": "...",
+    "what_they_want": "...",
+    "likely_friction": "..."
+  }
 }
 ```
 
@@ -379,6 +389,7 @@ still samples the whole model, so options outside the scope are not reported as
 unreachable.
 
 **Benefits.**
+
 - The whole sampling budget goes into the scope, rather than only the share of
   a full run that happens to land there. Coverage of the scope is complete:
   if different `--seed` values give the same number of profiles, nothing was
@@ -391,6 +402,7 @@ unreachable.
 - The model is not changed and is still validated in full.
 
 **Disadvantages.**
+
 - Journeys outside the scope are not tested at all.
 - Weights describe people inside the scope, not the whole population.
   `weights.py` drops targets for answers no profile gives (with a warning) and
@@ -408,15 +420,15 @@ unreachable.
 argument; by convention files sit under `data/`, one directory per kind, named
 after the life event and scope (e.g. `baby_common_path`):
 
-| Decision | Stored in |
-|---|---|
-| Questionnaire | the model JSON; its `meta` records how it was generated or merged |
-| Scope | the pins file (e.g. `data/pins/baby_common_path.json`), copied into `meta.pins` and `meta.pins_file` of the profiles and review files, together with `--seed` |
-| Situations | the situations file given to `situations.py` |
-| Weight targets and their sources | the weights file (e.g. `data/weights/driving_weights_v2.json`), whose `meta` and `_source` notes cite each target |
-| Weights per profile | the weighted profiles file written by `weights.py` (e.g. `data/profiles/baby_common_path_w.json`) |
-| Spine mapping | `mapping.json`, reviewed by hand |
-| Answer key | `truth.json`, built from the pinned profiles |
+| Decision                         | Stored in                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Questionnaire                    | the model JSON; its `meta` records how it was generated or merged                                                                                             |
+| Scope                            | the pins file (e.g. `data/pins/baby_common_path.json`), copied into `meta.pins` and `meta.pins_file` of the profiles and review files, together with `--seed` |
+| Situations                       | the situations file given to `situations.py`                                                                                                                  |
+| Weight targets and their sources | the weights file (e.g. `data/weights/driving_weights_v2.json`), whose `meta` and `_source` notes cite each target                                             |
+| Weights per profile              | the weighted profiles file written by `weights.py` (e.g. `data/profiles/baby_common_path_w.json`)                                                             |
+| Spine mapping                    | `mapping.json`, reviewed by hand                                                                                                                              |
+| Answer key                       | `truth.json`, built from the pinned profiles                                                                                                                  |
 
 ## Adding a situation to each profile (`situations.py`)
 
@@ -433,9 +445,13 @@ python situations.py data/driving_profiles.json data/situations.json
 sentence for each of its option ids:
 
 ```json
-{ "question": "q_main_goal",
-  "situations": { "learn_to_drive": "I want to learn to drive or ride, ...",
-                  "change_name_gender": "I need to change the name or gender on my driving licence." } }
+{
+  "question": "q_main_goal",
+  "situations": {
+    "learn_to_drive": "I want to learn to drive or ride, ...",
+    "change_name_gender": "I need to change the name or gender on my driving licence."
+  }
+}
 ```
 
 The script looks up each profile's answer to that question and writes the
@@ -460,9 +476,17 @@ gives the share of people who give each answer, among those asked that question
 (the numbers need not sum to 1, and `_source` keys are notes):
 
 ```json
-{ "targets": { "q_vehicle_type": { "_source": "DVSA test volumes",
-                                   "car": 0.85, "motorcycle": 0.08, "moped": 0.06,
-                                   "upgrade_auto_to_manual": 0.01 } } }
+{
+  "targets": {
+    "q_vehicle_type": {
+      "_source": "DVSA test volumes",
+      "car": 0.85,
+      "motorcycle": 0.08,
+      "moped": 0.06,
+      "upgrade_auto_to_manual": 0.01
+    }
+  }
+}
 ```
 
 The script rescales the profiles' weights, one targeted question at a time and
@@ -536,7 +560,7 @@ a different person.
 ### Write fact descriptions for reviewers
 
 A fact's `description` becomes the reviewer-facing claim, so the prompt asks
-for what a fact means for the *person* rather than how it is computed. "This
+for what a fact means for the _person_ rather than how it is computed. "This
 person does not need a theory test" is checkable; "collapses twelve options
 into four groups" is not. Worth spot-checking on a new life event, because a
 developer-facing description makes its assertion useless without making it look
@@ -620,10 +644,10 @@ tracked and reported separately from the F1 score rather than averaged into it.
 
 ## What you get, and why it can be trusted
 
-*As in Part 1, the figures here are illustrative — one run against the driving
+_As in Part 1, the figures here are illustrative — one run against the driving
 corpus, not a fixed guarantee. The exact counts move with the model, the
 mapping and the profile set, so read them as a sketch rather than numbers to
-reconcile against the committed data files.*
+reconcile against the committed data files._
 
 Against the driving corpus, the mapping produces answer keys for the subset of
 profiles the "Learn to drive a car" guide covers, marking each of the guide's
@@ -642,7 +666,7 @@ and a `question`, a fact-form rule missing its boolean `drop_when`, a
 question-form rule missing its `answers`, a step number out of range, two rules
 on one step, an unknown question or answer in a blocker or in the scope, a
 blocker pointing at a missing step, and the common slip of giving a question's
-*text* where its *id* was meant. `build` re-runs that same structural check —
+_text_ where its _id_ was meant. `build` re-runs that same structural check —
 because a mapping can be hand-edited after `map` wrote it — and then adds two
 checks that need the profile set: a rule or block keyed on a question no
 in-scope profile ever reaches, and a block that fires for all or none of the
@@ -753,10 +777,10 @@ guide (e.g. in truth records and scoring output).
 }]}
 ```
 
-**A rule comes in one of two forms.** A *fact-form* rule (`fact` + `drop_when`)
+**A rule comes in one of two forms.** A _fact-form_ rule (`fact` + `drop_when`)
 drops its step when a derived fact resolves to the given boolean — the right
 choice when a step's relevance combines several answers, which is exactly what a
-fact exists to capture. A *question-form* rule (`question` + `answers`, with an
+fact exists to capture. A _question-form_ rule (`question` + `answers`, with an
 optional `exclude`) drops its step based on a single raw answer, for the cases
 where one question settles it and no fact is needed; `exclude` inverts the match,
 so the example above keeps step 6 only for car learners. Exactly one form per
@@ -767,7 +791,7 @@ any of them drops it, so it stays only for people who meet every condition, and
 its `why` names each rule that fired. A step in the having-a-baby guide, for
 example, needs the person to be the birth parent or partner, to be still
 expecting, and to have an employer: three rules. Rules only combine this way.
-A step that applies when *either* of two different questions is satisfied
+A step that applies when _either_ of two different questions is satisfied
 needs a fact in the model that captures it.
 
 **`drop_when` is the field to check hardest.** Fact polarity has no convention:
@@ -795,8 +819,12 @@ not care where it came from.
   "profile_id": "P024",
   "step_by_step": "/learn-to-drive-a-car",
   "verdicts": [
-    {"step": 4, "title": "Prepare for your theory test",
-     "verdict": "not_required", "why": "theory_ahead=false"}
+    {
+      "step": 4,
+      "title": "Prepare for your theory test",
+      "verdict": "not_required",
+      "why": "theory_ahead=false"
+    }
   ]
 }
 ```
@@ -804,14 +832,16 @@ not care where it came from.
 ## Scoring
 
 ```json
-{"summary": {
-  "profiles": 83,
-  "plans_without_ground_truth": 0,
-  "mean_f1": 0.984,
-  "perfect": 77,
-  "presented_a_blocked_step": 0,
-  "missed_a_required_step": 6
-}}
+{
+  "summary": {
+    "profiles": 83,
+    "plans_without_ground_truth": 0,
+    "mean_f1": 0.984,
+    "perfect": 77,
+    "presented_a_blocked_step": 0,
+    "missed_a_required_step": 6
+  }
+}
 ```
 
 `presented_a_blocked_step` is deliberately outside the F1 average: it is a
@@ -915,13 +945,13 @@ python run_app.py data/driving_profiles.json data/truth.json --profile P011 --ve
 `truth.json` is required — it carries the per-guide URL-to-step index used
 to map the agent's cited URLs onto step numbers.
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime |
-| `--profile` | — | Run one profile id only, for testing |
-| `--raw` | — | Save full agent responses here |
-| `--verbose` | off | Print per-task URL trace to stderr |
-| `--results-out` | `results.json` | Where to write scoring results |
+| Flag                  | Default                         | Purpose                              |
+| --------------------- | ------------------------------- | ------------------------------------ |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime               |
+| `--profile`           | —                               | Run one profile id only, for testing |
+| `--raw`               | —                               | Save full agent responses here       |
+| `--verbose`           | off                             | Print per-task URL trace to stderr   |
+| `--results-out`       | `results.json`                  | Where to write scoring results       |
 
 ## The plans it produces
 
@@ -929,9 +959,11 @@ Emitted to stdout; pipe to a file and pass to `truth.py score` for the full
 per-profile breakdown:
 
 ```json
-{"plans": [
-  {"profile_id": "P024", "step_by_step": "/learn-to-drive-a-car", "steps": [2, 4, 5, 6]}
-]}
+{
+  "plans": [
+    { "profile_id": "P024", "step_by_step": "/learn-to-drive-a-car", "steps": [2, 4, 5, 6] }
+  ]
+}
 ```
 
 ```bash
@@ -1016,6 +1048,7 @@ check it before sharing. `results.json` never records the ARN: the key is droppe
 and the ARN is replaced with `<runtime-arn>` if an error message quotes it.
 
 Two knobs control cost and statistical quality:
+
 - `G` — plan generations per profile (consistency needs G≥2 to be meaningful).
 - `N` — judge repeats per metric per profile.
 
@@ -1085,7 +1118,7 @@ unscored in `coverage.weight_scored`, so it shows the share of weight actually
 covered.
 
 Two env vars keep the models separate, with no fallback between them:
-`ANTHROPIC_MODEL` is the model the *hosted app* uses to generate plans (set in
+`ANTHROPIC_MODEL` is the model the _hosted app_ uses to generate plans (set in
 `agentcore.json`; the harness never reads it), and `EVAL_ANTHROPIC_MODEL` is the judge model. The
 harness exits if `EVAL_ANTHROPIC_MODEL` (or `--judge-model`) is not set.
 
@@ -1130,26 +1163,26 @@ credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell.
 
 `generate` flags:
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--profile` | — | Generate for these profile ids only (one or more; put it after the positional arguments) |
-| `-G` | 3 | Plan generations per profile |
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
-| `--max-attempts` | 3 | Tries per plan generation, including the first |
-| `--min-weight` | 0.005 | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
-| `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
+| Flag                  | Default                         | Purpose                                                                                                                                           |
+| --------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--profile`           | —                               | Generate for these profile ids only (one or more; put it after the positional arguments)                                                          |
+| `-G`                  | 3                               | Plan generations per profile                                                                                                                      |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans                                                                                                     |
+| `--max-attempts`      | 3                               | Tries per plan generation, including the first                                                                                                    |
+| `--min-weight`        | 0.005                           | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
+| `-o`, `--plans-out`   | `plans.json`                    | Where to write the plans file                                                                                                                     |
 
 `score` flags:
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--profile` | — | Score these profile ids only (one or more; put it after `plans`) |
-| `-N` | 1 | Judge repeats per metric per profile |
-| `--metrics` | all | Space-separated subset: `consistency relevance` |
-| `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
-| `--judge-region` | `eu-west-1` | AWS region for judge model |
-| `--weights` | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
-| `--results-out` | `results.json` | Where to write metric results |
+| Flag             | Default                                          | Purpose                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--profile`      | —                                                | Score these profile ids only (one or more; put it after `plans`)                                                                                                                                                                                                                                                                                                                    |
+| `-N`             | 1                                                | Judge repeats per metric per profile                                                                                                                                                                                                                                                                                                                                                |
+| `--metrics`      | all                                              | Space-separated subset: `consistency relevance`                                                                                                                                                                                                                                                                                                                                     |
+| `--judge-model`  | `$EVAL_ANTHROPIC_MODEL` (required)               | Bedrock model for LLM judging                                                                                                                                                                                                                                                                                                                                                       |
+| `--judge-region` | `eu-west-1`                                      | AWS region for judge model                                                                                                                                                                                                                                                                                                                                                          |
+| `--weights`      | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
+| `--results-out`  | `results.json`                                   | Where to write metric results                                                                                                                                                                                                                                                                                                                                                       |
 
 ## Viewing results
 
@@ -1236,3 +1269,18 @@ and rerun `score`.
 Faithfulness (checking a plan against the knowledge-graph results the planner
 saw) is not implemented: the hosted agent returns only the plan, not its
 tool-call results.
+
+---
+
+# Part 5 — Scoring on AWS with AgentCore Evaluations (`metrics/agentcore.py`)
+
+Optional, and run on demand. AgentCore scores a plans file's sessions from the planner's traces.
+
+```bash
+# Once, and after editing a judge's prompt
+python -m metrics.agentcore setup --judge-model eu.anthropic.claude-sonnet-5-5
+# Plans, as in Part 4; then wait 5 minutes for the traces
+python -m metrics.harness generate data/examples_ltd/driving_profiles_v5_w2.json --profile P032 P071 -G 2 -o data/plans.json
+# Each judge's average
+python -m metrics.agentcore evaluate data/plans.json
+```

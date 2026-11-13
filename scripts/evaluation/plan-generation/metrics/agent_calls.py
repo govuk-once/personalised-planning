@@ -50,12 +50,17 @@ def is_transient(exc: RuntimeError) -> bool:
 
 
 def generate_one(
-    client, runtime_arn: str, situation: str, context: dict, max_attempts: int
+    client,
+    runtime_arn: str,
+    situation: str,
+    context: dict,
+    max_attempts: int,
+    session_id: str | None = None,
 ) -> tuple[dict | None, str | None]:
     """Get one plan from the hosted agent, retrying transient failures.
 
     Waits 5s, 10s, 20s... (capped at 60s) between attempts. Retrying is safe: the
-    planner has no side effects and every call uses a fresh session.
+    planner has no side effects and keeps nothing between calls in a session.
 
     Args:
         client: Client from ``run_app.make_agent_client``.
@@ -63,25 +68,29 @@ def generate_one(
         situation: The profile's situation sentence from ``profile_situation``.
         context: The user_context dict from ``profile_context``.
         max_attempts: Total tries, including the first.
+        session_id: AgentCore session to run in, recorded so AgentCore
+            Evaluations can find the run (``metrics.agentcore``).
 
     Returns:
         ``(generation, None)`` on success, or ``(None, last_error)``. A
         generation holds the ``plan`` with the ``situation`` and ``context``
-        the planner was given.
+        the planner was given, and the ``session_id``.
     """
     from run_app import call_api
 
     error = "no attempts made"
     for attempt in range(1, max_attempts + 1):
         try:
-            plan = call_api(client, runtime_arn, situation, context).get("plan")
+            reply = call_api(client, runtime_arn, situation, context, session_id)
+            plan = reply.get("plan")
         except RuntimeError as exc:
             error = str(exc)
             if not is_transient(exc):
                 return None, error
         else:
             if plan:
-                return {"plan": plan, "situation": situation, "context": context}, None
+                generation = {"plan": plan, "situation": situation, "context": context}
+                return {**generation, "session_id": session_id}, None
             error = "no plan in response"
 
         if attempt < max_attempts:
