@@ -364,7 +364,14 @@ def rule_drops(rule, answers, model, resolve):
 
 
 def verdicts(model, steps, answers, mapping, resolve):
-    """Mark each step required, not_required or blocked for one person.
+    """Mark each step required, optional, not_required or blocked for one person.
+
+    A step the spine marks `"optional": true` (the guide's own "only if you
+    choose to" steps) that still applies to this person is `optional`, not
+    `required`: a plan neither has to include it nor is penalised for doing
+    so. Blocks and rules take precedence, so an optional step that does not
+    apply to someone is still `not_required`. Spines fetched from GOV.UK carry
+    no `optional` field, so their verdicts are unchanged.
 
     Args:
         model: The elicitation model.
@@ -413,6 +420,16 @@ def verdicts(model, steps, answers, mapping, resolve):
                     "title": step["title"],
                     "verdict": "not_required",
                     "why": why,
+                }
+            )
+        elif step.get("optional"):
+            out.append(
+                {
+                    "step": n,
+                    "title": step["title"],
+                    "verdict": "optional",
+                    "why": "optional in the guide"
+                    + (f": {step['intro']}" if step.get("intro") else ""),
                 }
             )
         else:
@@ -549,12 +566,18 @@ def score(plan, truth):
         plan: A plan record with `profile_id` and a `steps` list.
         truth: The matching ground-truth record.
 
+    Optional steps are neutral: leaving one out is not a miss, and showing one
+    is neither a hit nor an extra, so it is left out of precision as well as
+    recall. Those shown are listed in `optional_present`.
+
     Returns:
         What was missed, added, or presented despite being blocked, plus F1.
     """
     want = {v["step"] for v in truth["verdicts"] if v["verdict"] == "required"}
     stop = {v["step"] for v in truth["verdicts"] if v["verdict"] == "blocked"}
-    got = set(plan.get("steps") or [])
+    optional = {v["step"] for v in truth["verdicts"] if v["verdict"] == "optional"}
+    shown = set(plan.get("steps") or [])
+    got = shown - optional
     hit = len(want & got)
 
     if not want and not got:
@@ -571,6 +594,7 @@ def score(plan, truth):
         "missing": sorted(want - got),
         "extra": sorted(got - want - stop),
         "blocked_but_present": sorted(stop & got),
+        "optional_present": sorted(optional & shown),
         "precision": round(p, 3),
         "recall": round(r, 3),
         "f1": round(2 * p * r / (p + r), 3) if p + r else 0.0,
