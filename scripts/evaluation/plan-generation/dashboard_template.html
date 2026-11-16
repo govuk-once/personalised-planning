@@ -176,6 +176,42 @@
     padding: 6px 9px; border-radius: 6px; display: none;
   }
   details.notes p { color: var(--ink-2); font-size: 14px; max-width: 900px; }
+
+  /* Views */
+  .viewbar { margin-top: 16px; }
+  .tabs button:disabled { color: var(--muted); cursor: not-allowed; }
+  .tile-group { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .scores tbody tr { cursor: pointer; }
+  .scores tbody tr:hover { background: var(--wash); }
+  .scores tbody tr.sel { background: var(--wash); box-shadow: inset 3px 0 0 var(--series); }
+  .steps-cell { max-width: 360px; color: var(--ink-2); font-size: 13px; }
+  .counts { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+  .counts .big { font-size: 26px; }
+  .warn-val { color: var(--critical); }
+
+  /* Plan quality */
+  .bar { position: relative; height: 12px; background: var(--grid); border-radius: 6px; min-width: 120px; }
+  .bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--good); border-radius: 6px; }
+  table.grid th.step { text-align: center; min-width: 44px; font-variant-numeric: tabular-nums; }
+  table.grid td.c { text-align: center; white-space: nowrap; padding: 4px 6px; }
+  .q { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin: 0 1px; vertical-align: -1px; }
+  .q-covered { background: var(--good); }
+  .q-missing { background: var(--critical); }
+  .q-extra { background: var(--warning); }
+  .q-optional { background: var(--series); }
+  .q-optional-out { background: transparent; border: 1.5px solid var(--series); }
+  .q-blocked { background: var(--critical); outline: 2px solid var(--ink); }
+  .q-na { background: var(--grid); }
+  .how { font-size: 12px; color: var(--muted); margin-left: 6px; }
+  .steplist { list-style: none; padding: 0; margin: 4px 0 0; font-size: 14px; }
+  .steplist li { margin: 6px 0; }
+  .steplist .tasks { margin: 2px 0 0 20px; font-size: 13px; color: var(--ink-2); }
+
+  /* Judge against answer key */
+  table.cross td.c { text-align: center; }
+  table.cross button { min-width: 64px; font-variant-numeric: tabular-nums; }
+  table.cross button.sel { background: var(--series); color: #fff; border-color: var(--series); }
+  table.cross td.flag { background: var(--notice-bg); }
 </style>
 </head>
 <body>
@@ -183,11 +219,69 @@
   <header>
     <div class="titlebar">
       <h1>Plan evaluation results</h1>
-      <label class="ctl">Results file <select id="file"></select></label>
+      <label class="ctl">Evaluation <select id="file"></select></label>
     </div>
     <p id="meta" class="meta"></p>
+    <p id="qmeta" class="meta"></p>
     <div id="warnings"></div>
+    <div class="viewbar"><div class="tabs" role="tablist" id="views"></div></div>
   </header>
+
+  <div id="view-overview">
+    <section>
+      <h2>Headline scores</h2>
+      <p class="hint">All scores run from 0 to 1, higher is better. <b>What's in the plans</b> comes from the LLM judge: are the tasks right for this person, and do repeat plans agree? <b>What's missing</b> comes from the answer key: which of the guide's steps should this person see, and did the plan cover them? Read the two together: a plan can contain only relevant tasks and still leave out steps the person needs.</p>
+      <div id="oTiles"></div>
+    </section>
+    <section>
+      <h2>Scores by profile</h2>
+      <p class="hint">The dot is the score and the shaded bar is its spread across plans or pairs of plans (hover for detail). Click a column heading to sort, or a row to open that profile below.</p>
+      <div class="table-wrap"><table id="oTable" class="scores"></table></div>
+    </section>
+    <section id="crossSection">
+      <h2>Judge against the answer key</h2>
+      <p class="hint" id="crossHint"></p>
+      <div class="table-wrap"><table id="cross" class="cross"></table></div>
+      <div id="crossList" style="margin-top:16px"></div>
+    </section>
+    <section id="oDetailSection">
+      <h2>Profile</h2>
+      <div class="filters"><label class="ctl">Profile <select id="oProfile"></select></label></div>
+      <div id="oDetail"></div>
+    </section>
+  </div>
+
+  <div id="view-quality">
+    <section>
+      <h2>Headline scores</h2>
+      <p class="hint" id="qHint"></p>
+      <div id="qTiles"></div>
+    </section>
+    <section>
+      <h2>Coverage by step</h2>
+      <p class="hint">For each step of the guide: how many plans it was required for, how many of those covered it, and how often it was shown to someone it does not apply to. Optional steps are neither required nor penalised.</p>
+      <div class="table-wrap"><table id="qSteps"></table></div>
+    </section>
+    <section>
+      <h2>Profiles by step</h2>
+      <p class="hint">One row per profile, one square per plan in each step's cell. Hover a cell for detail; click a row to open that profile below.</p>
+      <div class="legend" id="qLegend"></div>
+      <div class="table-wrap"><table id="qGrid" class="grid scores"></table></div>
+    </section>
+    <section id="qDetailSection">
+      <h2>Profile</h2>
+      <div class="filters"><label class="ctl">Profile <select id="qProfile"></select></label></div>
+      <div id="qDetail"></div>
+    </section>
+    <section>
+      <details class="notes" open>
+        <summary>Reading plan quality</summary>
+        <div id="qNotes"></div>
+      </details>
+    </section>
+  </div>
+
+  <div id="view-auto">
 
   <section>
     <h2>Headline scores</h2>
@@ -198,7 +292,7 @@
   <section>
     <h2>Scores by profile</h2>
     <p class="hint">The dot is the score and the shaded bar is its spread (hover to see what the spread covers). Hover a profile ID for its answers. Click a column heading to sort, or a row to open that profile below.</p>
-    <div class="table-wrap"><table id="scores"></table></div>
+    <div class="table-wrap"><table id="scores" class="scores"></table></div>
   </section>
 
   <section class="two" id="relevanceSection">
@@ -232,6 +326,7 @@
       <div id="notes"></div>
     </details>
   </section>
+  </div>
 </main>
 <div id="tip" role="tooltip"></div>
 
@@ -262,7 +357,7 @@ const METRIC_INFO = {
   },
 };
 
-const state = { run: null, sort: { key: "id", dir: 1 }, tab: null, profile: "", showRelevant: false };
+const state = { run: null, sort: { key: "id", dir: 1 }, tab: null, profile: "", showRelevant: false, view: null, cell: null };
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
@@ -320,6 +415,13 @@ const weightOf = (id) => state.run.profiles[id]?.weight;
 function renderHeader() {
   const res = state.run.result, c = res.config || {}, cov = res.coverage || {};
   const when = res.generated_at ? new Date(res.generated_at).toLocaleString() : "–";
+  renderQualityMeta();
+  if (!res.config) {
+    $("#meta").innerHTML = "No relevance or consistency results for these plans.";
+    $("#warnings").innerHTML = Object.keys(state.run.profiles).length ? ""
+      : `<div class="notice">The profiles file for this run was not found, so situations and weights are not shown.</div>`;
+    return;
+  }
   const parts = [
     `Scored <b>${esc(when)}</b>`,
     `judge <b>${esc(c.judge_model || "–")}</b>`,
@@ -329,7 +431,7 @@ function renderHeader() {
   ];
   if (cov.weight_scored != null) parts.push(`<b>${pct(cov.weight_scored)}</b> of profile weight covered`);
   parts.push(`plans <b>${esc(base(c.plans_file))}</b>`, `profiles <b>${esc(base(c.weights_file || c.profiles_file))}</b>`);
-  $("#meta").innerHTML = parts.join(" · ");
+  $("#meta").innerHTML = `Relevance and consistency: ${parts.join(" · ")}`;
 
   const warn = [];
   if (cov.skipped_profiles?.length) warn.push(`Skipped profiles: ${cov.skipped_profiles.map(esc).join(", ")}`);
@@ -354,8 +456,12 @@ function countUnjudged(res) {
 
 /* ---------- Tiles ---------- */
 
-function renderTiles(metrics, ids) {
-  $("#tiles").innerHTML = metrics.map((m) => {
+function renderTiles(metrics, ids, sel = "#tiles") {
+  $(sel).innerHTML = tilesHtml(metrics, ids);
+}
+
+function tilesHtml(metrics, ids) {
+  return metrics.map((m) => {
     const scored = ids.filter((id) => m.score(id) != null);
     const vals = scored.map((id) => m.score(id));
     const low = scored.reduce((a, id) => (a == null || m.score(id) < m.score(a) ? id : a), null);
@@ -385,7 +491,7 @@ function dotRange(score, range, tip) {
   return `${s}</svg>`;
 }
 
-function renderTable(metrics, ids) {
+function renderTable(metrics, ids, sel = "#scores", extraCols = []) {
   const hasWeights = ids.some((id) => weightOf(id) != null);
   const sortVal = (id) => {
     if (state.sort.key === "id") return id;
@@ -404,6 +510,7 @@ function renderTable(metrics, ids) {
   if (hasWeights) html += `<th data-sort="weight" class="num">Weight${arrow("weight")}</th>`;
   if (showSituation) html += `<th>Situation</th>`;
   for (const m of metrics) html += `<th data-sort="${m.key}">${esc(m.label)}${arrow(m.key)}</th>`;
+  for (const c of extraCols) html += `<th>${esc(c.label)}</th>`;
   html += `</tr></thead><tbody>`;
   for (const id of sorted) {
     const prof = state.run.profiles[id] || {};
@@ -417,9 +524,10 @@ function renderTable(metrics, ids) {
       const tip = `${id} · ${m.label} ${fmt(s)}` + (r ? ` · ${m.range}: ${fmt(r.min)} to ${fmt(r.max)}` : "") + m.extra(id);
       html += `<td><div class="mcell">${dotRange(s, r, tip)}<span class="val">${fmt(s)}</span></div></td>`;
     }
+    for (const c of extraCols) html += `<td class="steps-cell">${c.html(id)}</td>`;
     html += `</tr>`;
   }
-  $("#scores").innerHTML = `${html}</tbody>`;
+  $(sel).innerHTML = `${html}</tbody>`;
 }
 
 /* ---------- Relevance verdicts ---------- */
@@ -631,23 +739,343 @@ function renderNotes() {
     .map((k) => `<p><b>${k[0].toUpperCase() + k.slice(1)}.</b> ${esc(res[k].note)}</p>`).join("");
 }
 
+/* ---------- Plan quality ---------- */
+
+const VIEWS = [
+  { key: "overview", label: "Overview", needs: ["quality", "harness"] },
+  { key: "quality", label: "Plan quality", needs: ["quality"] },
+  { key: "auto", label: "Relevance and consistency", needs: ["harness"] },
+];
+const COVER = {
+  covered: "required, covered", missing: "required, missing", extra: "shown, but does not apply",
+  optional: "optional, shown", "optional-out": "optional, not shown", blocked: "shown, but blocked", na: "does not apply",
+};
+let QCACHE = null;
+
+function qData() {
+  if (QCACHE) return QCACHE;
+  const q = state.run.quality;
+  if (!q) return (QCACHE = { rows: [], byProfile: new Map(), steps: [] });
+  const journey = Object.keys(q.steps || {})[0];
+  const rows = (q.scoring?.per_profile || []).filter((r) => !journey || r.step_by_step === journey);
+  const byProfile = new Map();
+  for (const r of rows) {
+    if (!byProfile.has(r.profile_id)) byProfile.set(r.profile_id, []);
+    byProfile.get(r.profile_id).push(r);
+  }
+  for (const list of byProfile.values()) list.sort((a, b) => (a.plan ?? 1) - (b.plan ?? 1));
+  const steps = (q.steps?.[journey] || []).map((s) => s);
+  return (QCACHE = { q, journey, rows, byProfile, steps, title: Object.fromEntries(steps.map((s) => [s.step, s.title])) });
+}
+
+function allIds() {
+  const ids = new Set(profileIds(state.run.result));
+  for (const id of qData().byProfile.keys()) ids.add(id);
+  return [...ids].sort();
+}
+
+const meanOf = (vals) => (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
+const stepName = (n) => `${n}. ${qData().title[n] || ""}`;
+
+function cellState(d) {
+  if (d.verdict === "required") return d.covered ? "covered" : "missing";
+  if (d.verdict === "optional") return d.covered ? "optional" : "optional-out";
+  if (d.verdict === "blocked") return d.covered ? "blocked" : "na";
+  return d.covered ? "extra" : "na";
+}
+
+function qualityMetrics() {
+  const { q, byProfile } = qData();
+  if (!q) return [];
+  const w = q.scoring?.weighted_aggregate || {};
+  const make = (key, field, label, def) => {
+    const plans = (id) => (byProfile.get(id) || []).map((r) => r[field]);
+    return {
+      key, label, def, range: "lowest to highest plan",
+      weighted: w[`mean_${field}`],
+      score: (id) => meanOf(plans(id)),
+      rangeOf: (id) => (plans(id).length > 1 ? { min: Math.min(...plans(id)), max: Math.max(...plans(id)) } : null),
+      extra: (id) => (plans(id).length > 1 ? `; plans ${plans(id).map(fmt).join(", ")}` : ""),
+    };
+  };
+  return [
+    make("q_f1", "f1", "Plan quality (F1)", "Balance of recall and precision against the answer key's required steps."),
+    make("q_recall", "recall", "Recall", "Share of the steps this person needs that the plan covers."),
+    make("q_precision", "precision", "Precision", "Share of the steps the plan covers that this person needs."),
+  ];
+}
+
+function withMeans(metrics, ids) {
+  // Plan-quality means are taken over profiles here, as the harness's are,
+  // so a profile with more plans does not count for more.
+  return metrics.map((m) => (m.mean != null ? m : { ...m, mean: meanOf(ids.map(m.score).filter((v) => v != null)) }));
+}
+
+function qualityCounts() {
+  const { rows } = qData();
+  const n = rows.length;
+  const perfect = rows.filter((r) => r.f1 >= 1 && !r.blocked_but_present.length).length;
+  const missed = rows.filter((r) => r.missing.length).length;
+  const blocked = rows.filter((r) => r.blocked_but_present.length).length;
+  const optional = rows.filter((r) => (r.optional_present || []).length).length;
+  const v = (x, cls = "") => `<div><div class="big ${cls}">${x}</div>`;
+  return `<div class="card"><div class="tile-label">Plans (${n})</div><div class="counts tile-vals">
+      ${v(blocked, blocked ? "warn-val" : "")}<div class="sub">show a blocked step</div></div>
+      ${v(missed)}<div class="sub">miss a required step</div></div>
+      ${v(perfect)}<div class="sub">are perfect</div></div>
+      ${v(optional)}<div class="sub">show an optional step</div></div></div>
+    <div class="tile-def">A blocked step is one the person is not permitted to take; it is counted apart from F1 because it is a different kind of failure.</div></div>`;
+}
+
+function renderQualityMeta() {
+  const q = state.run.quality;
+  if (!q) { $("#qmeta").innerHTML = state.run.result.config ? "No plan-quality results for these plans." : ""; return; }
+  const c = q.config || {}, a = q.scoring?.aggregate || {};
+  const when = q.generated_at ? new Date(q.generated_at).toLocaleString() : "–";
+  $("#qmeta").innerHTML = `Plan quality: scored <b>${esc(when)}</b> · guide <b>${esc(qData().journey || "–")}</b> · `
+    + `<b>${esc(a.plans_scored ?? qData().rows.length)}</b> plans for <b>${esc(a.profiles_scored ?? qData().byProfile.size)}</b> profiles · `
+    + `answer key <b>${esc(base(c.truth_file))}</b> (${esc((c.truth_sha256 || "").slice(0, 8))}) · plans <b>${esc(base(c.plans_file))}</b>`;
+}
+
+function missedEveryPlan(id) {
+  const rows = qData().byProfile.get(id) || [];
+  if (!rows.length) return "–";
+  const sets = rows.map((r) => new Set(r.missing));
+  const always = [...sets[0]].filter((s) => sets.every((x) => x.has(s)));
+  const sometimes = [...new Set(rows.flatMap((r) => r.missing))].filter((s) => !always.includes(s));
+  const name = (s) => `<span data-tip="${esc(stepName(s))}">${esc(s)}</span>`;
+  return (always.length ? always.map(name).join(", ") : "none")
+    + (sometimes.length ? ` <span class="rep">· some plans: ${sometimes.map(name).join(", ")}</span>` : "");
+}
+
+function renderQuality(ids) {
+  const metrics = withMeans(qualityMetrics(), ids);
+  $("#qHint").textContent = "All scores run from 0 to 1, higher is better. Each profile's score is the mean of its plans; the tiles give every profile equal weight (mean) or weight them by how often their situation occurs (weighted mean).";
+  $("#qTiles").innerHTML = `<div class="tiles">${tilesHtml(metrics, ids)}${qualityCounts()}</div>`;
+  renderSteps();
+  renderGrid(ids);
+  $("#qProfile").innerHTML = `<option value="">Choose a profile</option>` + ids.map((id) => `<option ${id === state.profile ? "selected" : ""}>${esc(id)}</option>`).join("");
+  $("#qDetail").innerHTML = state.profile ? profileQualityCard(state.profile) : `<p class="empty">Choose a profile, or click a row above.</p>`;
+  $("#qNotes").innerHTML = QUALITY_NOTES;
+}
+
+function renderSteps() {
+  const { rows, steps } = qData();
+  const tally = new Map(steps.map((s) => [s.step, { required: 0, covered: 0, extra: 0, optional: 0, blocked: 0 }]));
+  for (const r of rows) {
+    for (const d of r.step_detail || []) {
+      const t = tally.get(d.step);
+      if (!t) continue;
+      const st = cellState(d);
+      if (st === "covered" || st === "missing") t.required += 1;
+      if (st === "covered") t.covered += 1;
+      if (st === "extra") t.extra += 1;
+      if (st === "optional") t.optional += 1;
+      if (st === "blocked") t.blocked += 1;
+    }
+  }
+  $("#qSteps").innerHTML = `<thead><tr><th>Step</th><th class="num">Required</th><th class="num">Covered</th><th>Coverage</th>`
+    + `<th class="num">Shown, does not apply</th><th class="num">Optional, shown</th><th class="num">Shown, blocked</th></tr></thead><tbody>`
+    + steps.map((s) => {
+      const t = tally.get(s.step), share = t.required ? t.covered / t.required : null;
+      return `<tr><td>${esc(stepName(s.step))}${s.optional ? ` <span class="badge">optional</span>` : ""}</td>
+        <td class="num">${t.required}</td><td class="num">${t.covered}</td>
+        <td>${share == null ? `<span class="rep">–</span>` : `<div class="mcell"><div class="bar" data-tip="${esc(`${t.covered} of ${t.required} plans`)}"><span style="width:${share * 100}%"></span></div><span class="val">${pct(share)}</span></div>`}</td>
+        <td class="num">${t.extra}</td><td class="num">${t.optional}</td><td class="num ${t.blocked ? "warn-val" : ""}">${t.blocked}</td></tr>`;
+    }).join("") + `</tbody>`;
+}
+
+function renderGrid(ids) {
+  const { byProfile, steps } = qData();
+  $("#qLegend").innerHTML = Object.entries(COVER).map(([k, label]) => `<span><i class="q q-${k}"></i>${esc(label)}</span>`).join("");
+  let html = `<thead><tr><th>Profile</th>` + steps.map((s) => `<th class="step" data-tip="${esc(stepName(s.step))}">${s.step}</th>`).join("")
+    + `<th class="num">F1</th></tr></thead><tbody>`;
+  for (const id of ids) {
+    const rows = byProfile.get(id) || [];
+    if (!rows.length) continue;
+    html += `<tr data-profile="${esc(id)}" class="${state.profile === id ? "sel" : ""}"><td>${esc(id)}</td>`;
+    for (const s of steps) {
+      const marks = rows.map((r) => {
+        const d = (r.step_detail || []).find((x) => x.step === s.step) || { verdict: null, covered: false };
+        return { plan: r.plan ?? 1, st: cellState(d) };
+      });
+      const tip = `${id} · ${stepName(s.step)} · ` + marks.map((m) => `plan ${m.plan}: ${COVER[m.st]}`).join("; ");
+      html += `<td class="c" data-tip="${esc(tip)}">${marks.map((m) => `<i class="q q-${m.st}"></i>`).join("")}</td>`;
+    }
+    html += `<td class="num">${fmt(meanOf(rows.map((r) => r.f1)))}</td></tr>`;
+  }
+  $("#qGrid").innerHTML = `${html}</tbody>`;
+}
+
+function profileQualityCard(id) {
+  const prof = state.run.profiles[id] || {};
+  const rows = qData().byProfile.get(id) || [];
+  const rel = relevanceIndex();
+  const answers = Object.entries(prof.readable || {}).map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("");
+  const judged = (r, t) => {
+    const j = rel.get(taskKey(id, r.plan ?? 1, t.title, t.url));
+    return j ? ` ${chip(j.majority)}` : "";
+  };
+  const cols = rows.map((r) => {
+    const items = (r.step_detail || []).filter((d) => cellState(d) !== "na" && cellState(d) !== "optional-out").map((d) => {
+      const st = cellState(d);
+      const tasks = d.tasks.map((t) => `<div>${esc(t.title || t.url)}<span class="how">${esc(t.how)}</span>${judged(r, t)}</div>`).join("");
+      return `<li><i class="q q-${st}"></i> ${esc(stepName(d.step))} <span class="rep">${esc(COVER[st])}</span>${tasks ? `<div class="tasks">${tasks}</div>` : ""}</li>`;
+    }).join("");
+    const outside = (r.unmatched_tasks || []).map((t) => `<li>${esc(t.title || t.url)}${judged(r, t)}</li>`).join("");
+    return `<div class="card"><h3>Plan ${r.plan ?? 1}</h3>
+      <div class="scores-inline"><span>F1 <b>${fmt(r.f1)}</b></span><span>recall <b>${fmt(r.recall)}</b></span><span>precision <b>${fmt(r.precision)}</b></span></div>
+      <h4>Steps that apply, or that the plan showed</h4><ul class="steplist">${items}</ul>
+      ${outside ? `<h4>Tasks outside the guide</h4><ul class="steplist">${outside}</ul>` : ""}</div>`;
+  }).join("");
+  return `<div class="card">
+    <div class="card-head"><h3>${esc(id)}</h3>
+      <span class="sub">${prof.weight != null ? `weight ${pct(prof.weight)}` : ""}</span>
+      <button class="clearProfile">Close</button></div>
+    ${prof.situation ? `<p class="situation">“${esc(prof.situation)}”</p>` : ""}
+    ${answers ? `<dl class="answers">${answers}</dl>` : ""}
+    ${rows.length ? `<h4>Each plan against the answer key${rel.size ? ", with the judge's majority verdict on each task" : ""}</h4><div class="plans">${cols}</div>` : `<p class="empty">No plan-quality results for this profile.</p>`}
+  </div>`;
+}
+
+const QUALITY_NOTES = `
+  <p><b>What the answer key measures.</b> Each step of the GOV.UK step by step is required, optional, not needed or blocked for each profile, by rules reviewed by hand. A plan covers a step when one of its tasks links a page the step links. Precision and recall count required steps only; optional steps are neutral.</p>
+  <p><b>Some misses are the matcher's, not the planner's.</b> When several steps link the same page, the task's title decides between them using the step's match terms. A title with no stage word ("Arrange …") counts for the earliest step only, and a task citing a page outside the guide never counts, even if it does what a step describes.</p>
+  <p><b>Some misses are the answer key's.</b> It decides whole steps, so it can be stricter than the guide: a step can be required for someone who needs only part of it.</p>
+  <p><b>What it cannot see.</b> Timing and conditions within a step (a grant whose deadline has passed, for example) are not checked; the relevance judge does see them. The overview's "Judge against the answer key" shows where the two disagree.</p>`;
+
+/* ---------- Overview ---------- */
+
+const taskKey = (id, plan, title, url) => `${id}|${plan}|${title || ""}|${url || ""}`;
+
+function relevanceIndex() {
+  const rel = state.run.result.relevance;
+  const out = new Map();
+  for (const [id, p] of Object.entries(rel?.per_profile || {})) {
+    for (const t of p.tasks || []) {
+      const k = taskKey(id, t.plan, t.title, t.url);
+      if (!out.has(k)) out.set(k, { id, plan: t.plan, title: t.title, url: t.url, service: t.gov_service_name, judgements: [] });
+      out.get(k).judgements.push(t);
+    }
+  }
+  for (const g of out.values()) {
+    const counts = {};
+    for (const j of g.judgements) if (j.verdict !== "unjudged") counts[j.verdict] = (counts[j.verdict] || 0) + 1;
+    const n = Object.values(counts).reduce((a, b) => a + b, 0);
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    g.majority = !n ? "unjudged" : top[1] * 2 > n ? top[0] : "split";
+  }
+  return out;
+}
+
+const CROSS_COLS = [
+  { key: "applies", label: "Covers a step that applies" },
+  { key: "not_applies", label: "Covers only steps that do not apply" },
+  { key: "outside", label: "Outside the guide" },
+];
+const CROSS_ROWS = ["relevant", "contradicted", "irrelevant", "split", "unjudged"];
+const CROSS_FLAGS = {
+  "relevant|outside": "The judge finds it relevant, but the guide has no step for it: a difference in scope between the planner and the guide.",
+  "relevant|not_applies": "The judge finds it relevant, but the answer key says the step does not apply to this person.",
+  "contradicted|applies": "The answer key counts it towards a step this person needs, but the judge says a fact about them rules the task out (often a deadline or condition within the step).",
+  "irrelevant|applies": "The answer key counts it towards a step this person needs, but the judge finds it irrelevant.",
+};
+
+function crossTasks() {
+  const { byProfile } = qData();
+  const stepsOf = new Map();
+  for (const [id, rows] of byProfile) {
+    for (const r of rows) {
+      for (const d of r.step_detail || []) {
+        for (const t of d.tasks) {
+          const k = taskKey(id, r.plan ?? 1, t.title, t.url);
+          if (!stepsOf.has(k)) stepsOf.set(k, []);
+          stepsOf.get(k).push(d);
+        }
+      }
+    }
+  }
+  return [...relevanceIndex().values()].map((g) => {
+    const steps = stepsOf.get(taskKey(g.id, g.plan, g.title, g.url)) || [];
+    const applies = steps.some((d) => d.verdict === "required" || d.verdict === "optional");
+    return { ...g, steps, col: !steps.length ? "outside" : applies ? "applies" : "not_applies" };
+  });
+}
+
+function renderOverview(ids) {
+  const metrics = withMeans(metricsFor(state.run.result), ids);
+  const qmetrics = withMeans(qualityMetrics(), ids);
+  $("#oTiles").innerHTML = `<div class="tile-group">What's in the plans (relevance and consistency)</div><div class="tiles">${tilesHtml(metrics, ids)}</div>`
+    + `<div class="tile-group">What's missing (plan quality against the answer key)</div><div class="tiles">${tilesHtml(qmetrics, ids)}${qualityCounts()}</div>`;
+  renderTable([metrics[0], ...qmetrics, ...metrics.slice(1)].filter(Boolean), ids, "#oTable",
+    [{ label: "Steps missed in every plan", html: missedEveryPlan }]);
+  renderCross(ids);
+  $("#oProfile").innerHTML = `<option value="">Choose a profile</option>` + ids.map((id) => `<option ${id === state.profile ? "selected" : ""}>${esc(id)}</option>`).join("");
+  $("#oDetail").innerHTML = state.profile ? profileQualityCard(state.profile) : `<p class="empty">Choose a profile, or click a row above.</p>`;
+}
+
+function renderCross(ids) {
+  const tasks = crossTasks().filter((t) => ids.includes(t.id));
+  const count = (r, c) => tasks.filter((t) => t.majority === r && t.col === c).length;
+  const rows = CROSS_ROWS.filter((r) => CROSS_COLS.some((c) => count(r, c.key)));
+  $("#crossHint").innerHTML = `Each of the ${tasks.length} tasks in these plans, by the judge's majority verdict across repeats (a tie is "split") and by how the answer key counts it. `
+    + `Highlighted cells are where the two disagree, or where the guide and the planner differ in scope. Click a count to list its tasks.`;
+  $("#cross").innerHTML = `<thead><tr><th>Judge</th>${CROSS_COLS.map((c) => `<th class="num">${esc(c.label)}</th>`).join("")}</tr></thead><tbody>`
+    + rows.map((r) => `<tr><td>${chip(r)}</td>` + CROSS_COLS.map((c) => {
+      const k = `${r}|${c.key}`, n = count(r, c.key);
+      return `<td class="c ${CROSS_FLAGS[k] ? "flag" : ""}"${CROSS_FLAGS[k] ? ` data-tip="${esc(CROSS_FLAGS[k])}"` : ""}>`
+        + (n ? `<button data-cell="${k}" class="${state.cell === k ? "sel" : ""}">${n}</button>` : `<span class="rep">0</span>`) + `</td>`;
+    }).join("") + `</tr>`).join("") + `</tbody>`;
+  if (!state.cell) { $("#crossList").innerHTML = ""; return; }
+  const [r, c] = state.cell.split("|");
+  const shown = tasks.filter((t) => t.majority === r && t.col === c)
+    .sort((a, b) => a.id.localeCompare(b.id) || a.plan - b.plan);
+  const items = shown.map((t) => {
+    const steps = t.steps.length ? t.steps.map((d) => `${esc(stepName(d.step))} <span class="rep">(${esc(d.verdict)})</span>`).join("; ") : "no step";
+    const why = t.judgements.map((j) => `<li><span class="rep">repeat ${j.repeat} · ${esc(j.verdict)}</span>${esc(j.rationale)}</li>`).join("");
+    return `<article class="ex"><div class="ex-head">${chip(t.majority)}<span>${pidLink(t.id)} · plan ${t.plan}</span></div>
+      <div class="ex-title">${esc(t.title)}</div>
+      <div class="sub">${t.url ? `<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.service || t.url)}</a>` : "no URL"} · answer key: ${steps}</div>
+      <ul>${why}</ul></article>`;
+  });
+  $("#crossList").innerHTML = (CROSS_FLAGS[state.cell] ? `<p class="hint">${esc(CROSS_FLAGS[state.cell])}</p>` : "")
+    + list(items, "No tasks.", `${shown.length} task(s): judge ${esc(r)}, ${esc(CROSS_COLS.find((x) => x.key === c).label.toLowerCase())}`);
+}
+
 /* ---------- Wiring ---------- */
+
+function availableViews() {
+  return VIEWS.filter((v) => v.needs.every((k) => (k === "quality" ? !!state.run.quality : !!state.run.result.config)));
+}
 
 function render() {
   const res = state.run.result;
-  const metrics = metricsFor(res);
-  const ids = profileIds(res);
-  if (state.profile && !ids.includes(state.profile)) state.profile = "";
+  const views = availableViews();
+  if (!views.some((v) => v.key === state.view)) state.view = views[0]?.key;
+  $("#views").innerHTML = VIEWS.map((v) => `<button role="tab" data-view="${v.key}" aria-selected="${v.key === state.view}"`
+    + `${views.includes(v) ? "" : " disabled"}>${v.label}</button>`).join("");
+  for (const v of VIEWS) $(`#view-${v.key}`).hidden = v.key !== state.view;
   renderHeader();
-  renderTiles(metrics, ids);
-  renderTable(metrics, ids);
-  renderVerdicts(ids);
-  renderEvidence(metrics, ids);
-  renderNotes();
+  const ids = state.view === "auto" ? profileIds(res) : allIds();
+  if (state.profile && !ids.includes(state.profile)) state.profile = "";
+  if (state.view === "auto") {
+    const metrics = metricsFor(res);
+    renderTiles(metrics, ids);
+    renderTable(metrics, ids);
+    renderVerdicts(ids);
+    renderEvidence(metrics, ids);
+    renderNotes();
+  } else if (state.view === "quality") {
+    renderQuality(ids);
+  } else {
+    renderOverview(ids);
+  }
 }
 
 function selectRun(file) {
   state.run = RUNS.find((r) => r.file === file) || RUNS[0];
+  QCACHE = null;
+  state.cell = null;
   $("#file").value = state.run.file;
   history.replaceState(null, "", `#${encodeURIComponent(state.run.file)}`);
   render();
@@ -656,15 +1084,19 @@ function selectRun(file) {
 function selectProfile(id, scroll) {
   state.profile = id;
   render();
-  if (scroll) $("#evidence").scrollIntoView({ behavior: "smooth" });
+  const target = { auto: "#evidence", quality: "#qDetailSection", overview: "#oDetailSection" }[state.view];
+  if (scroll && target) $(target).scrollIntoView({ behavior: "smooth" });
 }
 
 $("#file").innerHTML = RUNS.map((r) => {
-  const when = r.result.generated_at ? new Date(r.result.generated_at).toLocaleString() : "";
-  return `<option value="${esc(r.file)}">${esc(r.file)}${when ? ` (${esc(when)})` : ""}</option>`;
+  const when = r.generated_at ? new Date(r.generated_at).toLocaleString() : "";
+  const name = r.quality_file && r.result.config ? `${r.file} + ${r.quality_file}` : r.file;
+  return `<option value="${esc(r.file)}">${esc(name)}${when ? ` (${esc(when)})` : ""}</option>`;
 }).join("");
 $("#file").addEventListener("change", (e) => selectRun(e.target.value));
 $("#profile").addEventListener("change", (e) => selectProfile(e.target.value, false));
+$("#oProfile").addEventListener("change", (e) => selectProfile(e.target.value, false));
+$("#qProfile").addEventListener("change", (e) => selectProfile(e.target.value, false));
 $("#showRelevant").addEventListener("change", (e) => { state.showRelevant = e.target.checked; render(); });
 
 document.addEventListener("click", (e) => {
@@ -677,7 +1109,11 @@ document.addEventListener("click", (e) => {
   }
   const tab = e.target.closest("[data-tab]");
   if (tab) { state.tab = tab.dataset.tab; render(); return; }
-  if (e.target.closest("#clearProfile")) { selectProfile("", false); return; }
+  const view = e.target.closest("[data-view]");
+  if (view && !view.disabled) { state.view = view.dataset.view; render(); return; }
+  const cell = e.target.closest("[data-cell]");
+  if (cell) { state.cell = state.cell === cell.dataset.cell ? null : cell.dataset.cell; render(); return; }
+  if (e.target.closest(".clearProfile, #clearProfile")) { selectProfile("", false); return; }
   if (e.target.closest("a[href]")) return;
   const row = e.target.closest("[data-profile]");
   if (row) selectProfile(row.dataset.profile, true);
