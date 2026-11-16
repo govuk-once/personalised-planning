@@ -1309,8 +1309,10 @@ credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell.
 
 ## Viewing results
 
-`dashboard.py` turns the results files that `score` writes into one HTML page you
-open in a browser. It reads files already on disk, so it needs no AWS credentials,
+`dashboard.py` turns results files into one HTML page you open in a browser. It
+reads two kinds: the relevance and consistency results that `metrics.harness score`
+writes, and the plan-quality results that `run_app.py --from-plans --results-out`
+writes (Part 3). It reads files already on disk, so it needs no AWS credentials,
 no judge model and no install beyond Python's standard library.
 
 ```bash
@@ -1319,6 +1321,10 @@ cd scripts/evaluation/plan-generation
 # 1. Score into data/results/ (the dashboard's default folder). Without
 #    --results-out, score writes results.json to the current directory instead.
 python -m metrics.harness score data/plans.json -N 2 --results-out data/results/results_w2.json
+
+#    Optionally, score plan quality for the same plans file, into the same folder
+python run_app.py data/profiles/profiles.json data/truth.json \
+    --from-plans data/plans.json --results-out data/results/quality_w2.json > /dev/null
 
 # 2. Build the page from every results file in that folder
 python dashboard.py                    # writes data/results/dashboard.html
@@ -1332,9 +1338,34 @@ To read results kept elsewhere, or to write the page somewhere else:
 a single file. Re-run step 2 after every `score` run to add the new file.
 `dashboard_template.html` must stay next to `dashboard.py`, which fills it in.
 
-**Using the page.** A dropdown at the top switches between results files (newest
-first; the file is also in the URL, for example `dashboard.html#results_w2.json`).
-Per file it shows:
+**Evaluations.** Results files that scored the same plans (the same plans file
+name and `plans_generated_at` in their `config`) are shown together as one
+evaluation. A file with no partner is shown on its own. A dropdown at the top
+switches between evaluations (newest first; the evaluation's first file is also in
+the URL, for example `dashboard.html#results_w2.json`).
+
+**Views.** Each evaluation has up to three views; a view whose results are
+missing is greyed out.
+
+- **Overview** (needs both kinds): headline scores in two groups, "what's in the
+  plans" (relevance and consistency) and "what's missing" (plan quality against
+  the answer key), each with a mean and a weighted mean; one row per profile with
+  every score, its spread across plans, and the steps missed in every plan; and
+  **judge against the answer key**, a table of every task by the judge's majority
+  verdict across repeats (a tie is "split") and by whether it covers a step that
+  applies, only steps that do not apply, or nothing in the guide. Highlighted cells
+  are where the two disagree, such as a task the answer key counts but the judge
+  says a deadline rules out, or where the planner goes beyond the guide; click a
+  count to list its tasks with the judge's reasons. Picking a profile shows each
+  plan's steps against the answer key, the task that covered each step and how it
+  was matched, with the judge's verdict on each task.
+- **Plan quality**: F1, recall and precision (mean and weighted mean), plan counts
+  (blocked steps shown first, in red when above 0); coverage by step, with how
+  often each step is shown to someone it does not apply to; a profile by step grid
+  with one square per plan; and the same profile drill-down.
+- **Relevance and consistency**: the harness results, as below.
+
+The relevance and consistency view shows:
 
 - the run's settings and coverage, with warnings for skipped or short profiles, profiles
   below the minimum weight, and judge calls that returned nothing (left out of the
@@ -1355,7 +1386,8 @@ them from the profiles file the run recorded (`weights_file`, else `profiles_fil
 and falls back to the same file name in `data/profiles/` if the recorded path no
 longer exists. If neither is found the page still works but omits them, with a
 warning. Files in other formats in the folder (`truth.py score` output, review
-packets) are skipped with a message.
+packets, plan-quality results written before `run_app.py` recorded a `config`)
+are skipped with a message.
 
 The page embeds the full contents of the results files and works offline. Like the
 results files, it contains local file paths and the judge's text about each plan, so
