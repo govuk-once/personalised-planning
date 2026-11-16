@@ -971,17 +971,29 @@ python run_app.py data/driving_profiles.json data/truth.json --profile P011 --ve
 # Re-match and re-score saved responses, without calling the agent
 python run_app.py data/driving_profiles.json data/truth.json \
     --from-raw data/raw_part1.json data/raw_part2.json > data/app_plans.json
+
+# Score every plan in a metrics.harness plans file, without calling the agent
+python run_app.py data/driving_profiles.json data/truth.json \
+    --from-plans data/plans.json --results-out data/results_quality.json > data/app_plans.json
 ```
 
 `truth.json` is required — it carries the per-guide spine used to map the
 agent's cited URLs onto step numbers.
 
+**Scoring the harness's plans.** `python -m metrics.harness generate` (Part 4)
+writes G plans per profile, saving after each profile and retrying failed
+calls. `--from-plans` scores every one of them against the answer key, so plan
+quality and the LLM metrics are measured on the same plans. The results record
+the plans file and its `generated_at` as `metrics.harness score` does, which is
+how the two results files can be paired.
+
 | Flag | Default | Purpose |
 |---|---|---|
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required unless `--from-raw`) | Hosted planner runtime |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required unless `--from-raw` or `--from-plans`) | Hosted planner runtime |
 | `--profile` | — | Run one profile id only, for testing |
-| `--raw` | — | Save full agent responses, and how each task was matched, here |
+| `--raw` | — | Save full agent responses, and how each task was matched, here (with `--from-plans`, only how each task was matched) |
 | `--from-raw` | — | Use responses saved with `--raw` (one or more files) instead of calling the agent |
+| `--from-plans` | — | Score every plan in a `metrics.harness generate` plans file instead of calling the agent |
 | `--verbose` | off | Print per-task URL trace to stderr |
 | `--results-out` | `results.json` | Where to write scoring results |
 
@@ -1018,15 +1030,45 @@ python truth.py score data/app_plans.json data/truth.json
 `results.json` (or `--results-out`) is written on every run:
 
 ```json
-{"generated_at": "...", "scoring": {
-  "aggregate": {
-    "precision": 0.97, "recall": 0.95, "f1": 0.96,
-    "mean_f1": 0.984, "profiles_scored": 83,
-    "perfect": 77, "presented_a_blocked_step": 0, "missed_a_required_step": 6
-  },
-  "per_profile": [...]
-}}
+{"generated_at": "...",
+ "config": {
+   "source": "plans", "plans_file": "/…/data/plans.json", "plans_generated_at": "...",
+   "profiles_file": "/…", "weights_file": "/…", "truth_file": "/…", "truth_sha256": "…",
+   "G": 2, "matcher": "url; sub-page as parent; match_terms on task title for shared urls"},
+ "steps": {"/having-a-baby": [{"step": 1, "title": "Check what leave, pay and support you can get", "optional": false}]},
+ "scoring": {
+   "aggregate": {
+     "precision": 0.90, "recall": 0.57, "f1": 0.70,
+     "mean_precision": 0.93, "mean_recall": 0.60, "mean_f1": 0.71,
+     "profiles_scored": 59, "plans_scored": 59,
+     "perfect": 1, "presented_a_blocked_step": 0, "missed_a_required_step": 55},
+   "weighted_aggregate": {"mean_precision": 0.89, "mean_recall": 0.60, "mean_f1": 0.69, "weight_scored": 1.0},
+   "per_profile": [
+     {"profile_id": "P003", "plan": 1, "step_by_step": "/having-a-baby",
+      "precision": 1.0, "recall": 0.5, "f1": 0.667, "missing": [1, 10], "extra": [],
+      "optional_present": [4], "counts": {"required": 6, "covered": 3, "shown": 3},
+      "step_detail": [{"step": 8, "verdict": "required", "covered": true,
+                       "tasks": [{"title": "Register the birth", "url": "…", "how": "url"}]}],
+      "unmatched_tasks": [{"title": "Apply for Tax-Free Childcare", "url": "…"}]}]}}
 ```
+
+- **`config`** says what was scored: the plans (or raw responses), the
+  profiles and weights, and the answer key with its hash, so runs scored
+  against different answer keys are not mistaken for comparable. The agent's
+  ARN is never recorded.
+- **`steps`** copies the step titles, and which are optional, from the answer
+  key, so old results keep the titles they were scored against.
+- **`aggregate`** has two kinds of figure. `precision`, `recall` and `f1` are
+  pooled: counts summed over every plan, then divided once. `mean_*` average
+  each plan's own score, as `truth.py score` does; quote `mean_f1` when
+  comparing with it.
+- **`weighted_aggregate`** appears when the profiles carry a `weight`
+  (`weights.py`): per-plan scores averaged by profile weight, split evenly
+  across a profile's plans.
+- **`per_profile`** has one row per plan (`plan` numbers them, as the harness
+  does). `step_detail` gives each step's verdict, whether the plan covered it
+  and the tasks that did, and how they matched; `unmatched_tasks` lists tasks
+  that cite nothing in the guide.
 
 As with `truth.py score`, `presented_a_blocked_step` is kept outside the F1
 average — it is a different class of failure and should not be traded off
@@ -1234,8 +1276,10 @@ credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell.
 
 ## Viewing results
 
-`dashboard.py` turns the results files that `score` writes into one HTML page you
-open in a browser. It reads files already on disk, so it needs no AWS credentials,
+`dashboard.py` turns results files into one HTML page you open in a browser. It
+reads two kinds: the relevance and consistency results that `metrics.harness score`
+writes, and the plan-quality results that `run_app.py --from-plans --results-out`
+writes (Part 3). It reads files already on disk, so it needs no AWS credentials,
 no judge model and no install beyond Python's standard library.
 
 ```bash
@@ -1244,6 +1288,10 @@ cd scripts/evaluation/plan-generation
 # 1. Score into data/results/ (the dashboard's default folder). Without
 #    --results-out, score writes results.json to the current directory instead.
 python -m metrics.harness score data/plans.json -N 2 --results-out data/results/results_w2.json
+
+#    Optionally, score plan quality for the same plans file, into the same folder
+python run_app.py data/profiles/profiles.json data/truth.json \
+    --from-plans data/plans.json --results-out data/results/quality_w2.json > /dev/null
 
 # 2. Build the page from every results file in that folder
 python dashboard.py                    # writes data/results/dashboard.html
@@ -1257,9 +1305,34 @@ To read results kept elsewhere, or to write the page somewhere else:
 a single file. Re-run step 2 after every `score` run to add the new file.
 `dashboard_template.html` must stay next to `dashboard.py`, which fills it in.
 
-**Using the page.** A dropdown at the top switches between results files (newest
-first; the file is also in the URL, for example `dashboard.html#results_w2.json`).
-Per file it shows:
+**Evaluations.** Results files that scored the same plans (the same plans file
+name and `plans_generated_at` in their `config`) are shown together as one
+evaluation. A file with no partner is shown on its own. A dropdown at the top
+switches between evaluations (newest first; the evaluation's first file is also in
+the URL, for example `dashboard.html#results_w2.json`).
+
+**Views.** Each evaluation has up to three views; a view whose results are
+missing is greyed out.
+
+- **Overview** (needs both kinds): headline scores in two groups, "what's in the
+  plans" (relevance and consistency) and "what's missing" (plan quality against
+  the answer key), each with a mean and a weighted mean; one row per profile with
+  every score, its spread across plans, and the steps missed in every plan; and
+  **judge against the answer key**, a table of every task by the judge's majority
+  verdict across repeats (a tie is "split") and by whether it covers a step that
+  applies, only steps that do not apply, or nothing in the guide. Highlighted cells
+  are where the two disagree, such as a task the answer key counts but the judge
+  says a deadline rules out, or where the planner goes beyond the guide; click a
+  count to list its tasks with the judge's reasons. Picking a profile shows each
+  plan's steps against the answer key, the task that covered each step and how it
+  was matched, with the judge's verdict on each task.
+- **Plan quality**: F1, recall and precision (mean and weighted mean), plan counts
+  (blocked steps shown first, in red when above 0); coverage by step, with how
+  often each step is shown to someone it does not apply to; a profile by step grid
+  with one square per plan; and the same profile drill-down.
+- **Relevance and consistency**: the harness results, as below.
+
+The relevance and consistency view shows:
 
 - the run's settings and coverage, with warnings for skipped or short profiles, profiles
   below the minimum weight, and judge calls that returned nothing (left out of the
@@ -1280,7 +1353,8 @@ them from the profiles file the run recorded (`weights_file`, else `profiles_fil
 and falls back to the same file name in `data/profiles/` if the recorded path no
 longer exists. If neither is found the page still works but omits them, with a
 warning. Files in other formats in the folder (`truth.py score` output, review
-packets) are skipped with a message.
+packets, plan-quality results written before `run_app.py` recorded a `config`)
+are skipped with a message.
 
 The page embeds the full contents of the results files and works offline. Like the
 results files, it contains local file paths and the judge's text about each plan, so
