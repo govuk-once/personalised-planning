@@ -971,17 +971,29 @@ python run_app.py data/driving_profiles.json data/truth.json --profile P011 --ve
 # Re-match and re-score saved responses, without calling the agent
 python run_app.py data/driving_profiles.json data/truth.json \
     --from-raw data/raw_part1.json data/raw_part2.json > data/app_plans.json
+
+# Score every plan in a metrics.harness plans file, without calling the agent
+python run_app.py data/driving_profiles.json data/truth.json \
+    --from-plans data/plans.json --results-out data/results_quality.json > data/app_plans.json
 ```
 
 `truth.json` is required — it carries the per-guide spine used to map the
 agent's cited URLs onto step numbers.
 
+**Scoring the harness's plans.** `python -m metrics.harness generate` (Part 4)
+writes G plans per profile, saving after each profile and retrying failed
+calls. `--from-plans` scores every one of them against the answer key, so plan
+quality and the LLM metrics are measured on the same plans. The results record
+the plans file and its `generated_at` as `metrics.harness score` does, which is
+how the two results files can be paired.
+
 | Flag | Default | Purpose |
 |---|---|---|
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required unless `--from-raw`) | Hosted planner runtime |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required unless `--from-raw` or `--from-plans`) | Hosted planner runtime |
 | `--profile` | — | Run one profile id only, for testing |
-| `--raw` | — | Save full agent responses, and how each task was matched, here |
+| `--raw` | — | Save full agent responses, and how each task was matched, here (with `--from-plans`, only how each task was matched) |
 | `--from-raw` | — | Use responses saved with `--raw` (one or more files) instead of calling the agent |
+| `--from-plans` | — | Score every plan in a `metrics.harness generate` plans file instead of calling the agent |
 | `--verbose` | off | Print per-task URL trace to stderr |
 | `--results-out` | `results.json` | Where to write scoring results |
 
@@ -1018,15 +1030,45 @@ python truth.py score data/app_plans.json data/truth.json
 `results.json` (or `--results-out`) is written on every run:
 
 ```json
-{"generated_at": "...", "scoring": {
-  "aggregate": {
-    "precision": 0.97, "recall": 0.95, "f1": 0.96,
-    "mean_f1": 0.984, "profiles_scored": 83,
-    "perfect": 77, "presented_a_blocked_step": 0, "missed_a_required_step": 6
-  },
-  "per_profile": [...]
-}}
+{"generated_at": "...",
+ "config": {
+   "source": "plans", "plans_file": "/…/data/plans.json", "plans_generated_at": "...",
+   "profiles_file": "/…", "weights_file": "/…", "truth_file": "/…", "truth_sha256": "…",
+   "G": 2, "matcher": "url; sub-page as parent; match_terms on task title for shared urls"},
+ "steps": {"/having-a-baby": [{"step": 1, "title": "Check what leave, pay and support you can get", "optional": false}]},
+ "scoring": {
+   "aggregate": {
+     "precision": 0.90, "recall": 0.57, "f1": 0.70,
+     "mean_precision": 0.93, "mean_recall": 0.60, "mean_f1": 0.71,
+     "profiles_scored": 59, "plans_scored": 59,
+     "perfect": 1, "presented_a_blocked_step": 0, "missed_a_required_step": 55},
+   "weighted_aggregate": {"mean_precision": 0.89, "mean_recall": 0.60, "mean_f1": 0.69, "weight_scored": 1.0},
+   "per_profile": [
+     {"profile_id": "P003", "plan": 1, "step_by_step": "/having-a-baby",
+      "precision": 1.0, "recall": 0.5, "f1": 0.667, "missing": [1, 10], "extra": [],
+      "optional_present": [4], "counts": {"required": 6, "covered": 3, "shown": 3},
+      "step_detail": [{"step": 8, "verdict": "required", "covered": true,
+                       "tasks": [{"title": "Register the birth", "url": "…", "how": "url"}]}],
+      "unmatched_tasks": [{"title": "Apply for Tax-Free Childcare", "url": "…"}]}]}}
 ```
+
+- **`config`** says what was scored: the plans (or raw responses), the
+  profiles and weights, and the answer key with its hash, so runs scored
+  against different answer keys are not mistaken for comparable. The agent's
+  ARN is never recorded.
+- **`steps`** copies the step titles, and which are optional, from the answer
+  key, so old results keep the titles they were scored against.
+- **`aggregate`** has two kinds of figure. `precision`, `recall` and `f1` are
+  pooled: counts summed over every plan, then divided once. `mean_*` average
+  each plan's own score, as `truth.py score` does; quote `mean_f1` when
+  comparing with it.
+- **`weighted_aggregate`** appears when the profiles carry a `weight`
+  (`weights.py`): per-plan scores averaged by profile weight, split evenly
+  across a profile's plans.
+- **`per_profile`** has one row per plan (`plan` numbers them, as the harness
+  does). `step_detail` gives each step's verdict, whether the plan covered it
+  and the tasks that did, and how they matched; `unmatched_tasks` lists tasks
+  that cite nothing in the guide.
 
 As with `truth.py score`, `presented_a_blocked_step` is kept outside the F1
 average — it is a different class of failure and should not be traded off
