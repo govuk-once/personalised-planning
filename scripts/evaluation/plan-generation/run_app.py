@@ -2,6 +2,7 @@
 
     python run_app.py profiles.json truth.json > app_plans.json
     python run_app.py profiles.json truth.json --profile P011 --verbose
+    python run_app.py profiles.json truth.json --from-raw raw.json > app_plans.json
 
 The agent is invoked in AgentCore Runtime, as the backend Worker does. Pass its
 ARN with --agent-runtime-arn or set AGENT_RUNTIME_ARN, and run with AWS
@@ -12,7 +13,12 @@ step-by-step spine. The agent returns free-text steps, so each response has to
 be mapped back onto those numbers. That mapping is done by URL: the spine
 carries the GOV.UK paths for each step, and the agent cites `gov_service_url`
 per task. A cited URL that belongs to a spine step means the app covered
-that step.
+that step. A sub-page counts as its parent page. When several steps link the
+same page, the task's title decides between them, using each step's
+`match_terms` (see `match_task`).
+
+--from-raw re-matches and re-scores responses saved with --raw, so a change to
+matching or to the answer key needs no new agent calls.
 
 No LLM sits in the step-scoring path — it would put a non-deterministic
 judgement between the app and its score.
@@ -26,6 +32,7 @@ import datetime
 import json
 import os
 import pathlib
+import re
 import sys
 import uuid
 import zoneinfo
@@ -43,25 +50,70 @@ def load(path):
     return json.loads(resolved.read_text())
 
 
+def _path(url):
+    """A GOV.UK URL as a bare path; other URLs are returned without query or anchor."""
+    path = (url or "").split("?")[0].split("#")[0].rstrip("/")
+    return path.replace("https://www.gov.uk", "").replace("http://www.gov.uk", "")
+
+
 def url_index(spine):
-    """Map each GOV.UK path in the spine to its step number.
+    """Index a spine for matching tasks to steps.
 
     Args:
-        spine: Steps from the ground-truth file.
+        spine: Steps from the ground-truth file. A step may carry
+            `match_terms`: words or phrases that identify a task for that
+            step when its URL is shared with other steps.
 
     Returns:
-        Normalised path mapped to step number.
+        A dict with `paths` (normalised path mapped to every step linking it,
+        in step order) and `terms` (step number mapped to compiled patterns).
     """
-    out = {}
+    paths, terms = {}, {}
     for step in spine:
         for link in step["links"]:
-            path = (link or "").split("?")[0].split("#")[0].rstrip("/")
-            path = path.replace("https://www.gov.uk", "").replace(
-                "http://www.gov.uk", ""
-            )
-            if path.startswith("/"):
-                out.setdefault(path, step["step"])
-    return out
+            path = _path(link)
+            if path.startswith("/") and step["step"] not in paths.setdefault(path, []):
+                paths[path].append(step["step"])
+        terms[step["step"]] = [
+            re.compile(r"(?<!\w)" + re.escape(t) + r"(?!\w)", re.IGNORECASE)
+            for t in step.get("match_terms") or []
+        ]
+    return {"paths": paths, "terms": terms}
+
+
+def match_task(task, index):
+    """The spine steps one task covers, and how that was decided.
+
+    A URL linked from one step decides it. A sub-page counts as its parent
+    page. A URL linked from several steps credits each of those steps whose
+    `match_terms` appear in the task title (a task can do more than one stage,
+    such as "check and claim"); if none appear, it credits the earliest of
+    them, as matching on URL alone would.
+
+    Args:
+        task: A task from the agent's plan.
+        index: From `url_index`.
+
+    Returns:
+        A (steps, how) pair: a sorted list of step numbers (empty if the task
+        cites nothing in the spine) and one of "url", "terms", "fallback" or
+        "unmatched".
+    """
+    path = _path(task.get("gov_service_url"))
+    candidates = index["paths"].get(path)
+    if not candidates and path.count("/") > 1:
+        candidates = index["paths"].get(path.rsplit("/", 1)[0])
+    if not candidates:
+        return [], "unmatched"
+    if len(candidates) == 1:
+        return list(candidates), "url"
+    title = task.get("title") or task.get("task_title") or ""
+    hits = [
+        s for s in candidates if any(p.search(title) for p in index["terms"].get(s, []))
+    ]
+    if hits:
+        return sorted(hits), "terms"
+    return [min(candidates)], "fallback"
 
 
 def today_london():
@@ -187,11 +239,12 @@ def trace_tasks(response, index):
 
     Args:
         response: The agent's output dict from `call_api`.
-        index: Path-to-step map from `url_index`.
+        index: From `url_index`.
 
     Returns:
-        One record per task with a `gov_service_url`: task title, url, and
-        the spine step it matched (None if it matched nothing).
+        One record per task with a `gov_service_url`: task title, url, the
+        spine steps it matched (empty if none) and how they were decided
+        (see `match_task`).
     """
     trace = []
     for step in (response.get("plan") or {}).get("steps") or []:
@@ -199,12 +252,14 @@ def trace_tasks(response, index):
             raw = task.get("gov_service_url") or ""
             if not raw:
                 continue
-            path = raw.split("?")[0].split("#")[0].rstrip("/")
-            path = path.replace("https://www.gov.uk", "").replace(
-                "http://www.gov.uk", ""
-            )
+            steps, how = match_task(task, index)
             trace.append(
-                {"task": task.get("task_title"), "url": raw, "step": index.get(path)}
+                {
+                    "task": task.get("title") or task.get("task_title"),
+                    "url": raw,
+                    "steps": steps,
+                    "how": how,
+                }
             )
     return trace
 
@@ -223,19 +278,32 @@ def main(argv=None):
     ap.add_argument("--raw", help="also save full agent responses here")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--results-out", default="results.json")
+    ap.add_argument(
+        "--from-raw",
+        nargs="+",
+        metavar="RAW",
+        help="re-match and re-score agent responses saved earlier with --raw, "
+        "without calling the agent (no ARN or credentials needed)",
+    )
     args = ap.parse_args(argv)
 
-    if not args.agent_runtime_arn:
+    saved, client = None, None
+    if args.from_raw:
+        saved = {}
+        for path in args.from_raw:
+            saved.update(load(path))
+    elif not args.agent_runtime_arn:
         print(
             "error: AGENT_RUNTIME_ARN is not set (or pass --agent-runtime-arn)",
             file=sys.stderr,
         )
         return 1
-    try:
-        client = make_agent_client(args.agent_runtime_arn)
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+    else:
+        try:
+            client = make_agent_client(args.agent_runtime_arn)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
 
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     from truth import score as score_plan
@@ -251,6 +319,8 @@ def main(argv=None):
     wanted = {t["profile_id"] for t in truth["truths"]}
     if args.profile:
         wanted &= {args.profile}
+    if saved is not None:
+        wanted &= set(saved)
     todo = [p for p in profiles["profiles"] if p["id"] in wanted]
     if not todo:
         print("no matching profiles", file=sys.stderr)
@@ -266,12 +336,15 @@ def main(argv=None):
     plans, raw, failures, unmatched = [], {}, [], set()
     scores = []
     for i, (profile, situation) in enumerate(zip(todo, situations, strict=True), 1):
-        context = profile_context(profile)
-        try:
-            response = call_api(client, args.agent_runtime_arn, situation, context)
-        except RuntimeError as exc:
-            failures.append(f"{profile['id']}: {exc}")
-            continue
+        if saved is not None:
+            response = saved[profile["id"]]["response"]
+        else:
+            context = profile_context(profile)
+            try:
+                response = call_api(client, args.agent_runtime_arn, situation, context)
+            except RuntimeError as exc:
+                failures.append(f"{profile['id']}: {exc}")
+                continue
         # Run trace_tasks once per guide; a URL only counts as unmatched if
         # no guide's spine covers it.
         guide_traces = {
@@ -279,13 +352,13 @@ def main(argv=None):
             for guide_path, guide_index in guide_indexes.items()
         }
         all_matched = {
-            t["url"] for tr in guide_traces.values() for t in tr if t["step"]
+            t["url"] for tr in guide_traces.values() for t in tr if t["steps"]
         }
         all_cited = {t["url"] for tr in guide_traces.values() for t in tr}
         unmatched.update(all_cited - all_matched)
 
         for guide_path, trace in guide_traces.items():
-            steps = sorted({t["step"] for t in trace if t["step"]})
+            steps = sorted({s for t in trace for s in t["steps"]})
             plan_record = {
                 "profile_id": profile["id"],
                 "step_by_step": guide_path,
@@ -302,7 +375,11 @@ def main(argv=None):
         if args.verbose:
             for guide_path, trace in guide_traces.items():
                 for t in trace:
-                    where = f"step {t['step']}" if t["step"] else "NO MATCH"
+                    where = (
+                        f"step {','.join(map(str, t['steps']))} ({t['how']})"
+                        if t["steps"]
+                        else "NO MATCH"
+                    )
                     print(
                         f"  {profile['id']} [{guide_path}]: [{where}] {t['task']} -> {t['url']}",
                         file=sys.stderr,
@@ -342,8 +419,16 @@ def main(argv=None):
                     for v in truth_rec["verdicts"]
                     if v["verdict"] == "required"
                 }
-                got_steps = set(
-                    plans_by_key[(s["profile_id"], s["step_by_step"])]["steps"]
+                # Optional steps are neutral, as in truth.score: not counted
+                # as shown, so they cannot lower precision.
+                optional = {
+                    v["step"]
+                    for v in truth_rec["verdicts"]
+                    if v["verdict"] == "optional"
+                }
+                got_steps = (
+                    set(plans_by_key[(s["profile_id"], s["step_by_step"])]["steps"])
+                    - optional
                 )
                 agg_tp += len(want & got_steps)
                 agg_got += len(got_steps)
