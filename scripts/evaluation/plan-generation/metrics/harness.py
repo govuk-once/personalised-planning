@@ -16,7 +16,6 @@ import json
 import os
 import pathlib
 import sys
-import uuid
 import warnings
 
 from metrics.retry import FatalJudgeError
@@ -157,18 +156,11 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     ):
         print(f"[{i}/{total}] {pid}", file=sys.stderr)
         ctx = profile_context(profile)
-        # One session per profile, so AgentCore Evaluations can compare its plans.
-        session_id = f"eval-{pid}-{uuid.uuid4()}"
         gens = []
         last_error = None
         for g in range(args.G):
             gen, error = generate_one(
-                client,
-                args.agent_runtime_arn,
-                situation,
-                ctx,
-                args.max_attempts,
-                session_id,
+                client, args.agent_runtime_arn, situation, ctx, args.max_attempts
             )
             if gen:
                 gens.append(gen)

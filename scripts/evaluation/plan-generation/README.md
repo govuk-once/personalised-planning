@@ -1274,7 +1274,7 @@ tool-call results.
 
 # Part 5 — Scoring on AWS with AgentCore Evaluations (`metrics/agentcore.py`)
 
-Optional, and run on demand. AgentCore scores a plans file's sessions from the planner's traces.
+Optional, and run on demand. AgentCore scores each plan's relevance from the planner's traces.
 
 ```bash
 # Once, and after editing a judge's prompt

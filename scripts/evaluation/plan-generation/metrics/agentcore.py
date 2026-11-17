@@ -1,4 +1,4 @@
-"""Score a plans file's sessions with Amazon Bedrock AgentCore Evaluations.
+"""Score a plans file's plans with Amazon Bedrock AgentCore Evaluations.
 
 python -m metrics.agentcore setup
 python -m metrics.agentcore evaluate data/plans.json
@@ -17,13 +17,7 @@ HERE = pathlib.Path(__file__).parent
 BUILT_IN = ["Builtin.Faithfulness", "Builtin.ToolSelectionAccuracy"]
 DONE = {"COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "STOPPED"}
 
-RUNS = (
-    "It was run several times for the same person, in one session. Each turn "
-    "is one run and ends in a plan, numbered in order.\n\n"
-    "<session>\n{context}\n</session>"
-)
-
-# Each judge: its level, this harness's prompt, what AgentCore shows it, its score.
+# Level, prompt, what the judge is shown, what it scores.
 JUDGES = {
     "pp_plan_relevance": (
         "TRACE",
@@ -33,19 +27,6 @@ JUDGES = {
         "<conversation>\n{context}\n</conversation>\n\n"
         "<plan>\n{assistant_turn}\n</plan>",
         "the plan's tasks that are relevant",
-    ),
-    "pp_plan_structure_consistency": (
-        "SESSION",
-        "structure_consistency_prompt.md",
-        f"{RUNS}\n\nCompare the structure of each pair of plans.",
-        "pairs of plans with no difference",
-    ),
-    "pp_plan_fact_consistency": (
-        "SESSION",
-        "fact_consistency_prompt.md",
-        f"{RUNS}\n\nFor each government service in two or more plans, compare "
-        "what those plans say about it. If there is none, score 1.0.",
-        "those services with no contradiction",
     ),
 }
 
@@ -106,7 +87,7 @@ def setup(model: str, region: str) -> None:
 
 
 def evaluate(plans: str, region: str) -> int:
-    """Score the sessions of a plans file, and print each judge's average."""
+    """Score the plans of a plans file, and print each judge's average."""
     doc = json.loads(pathlib.Path(plans).read_text())
     generations = [gen for gens in doc["plans"].values() for gen in gens]
     sessions = sorted({gen["session_id"] for gen in generations})
@@ -116,10 +97,7 @@ def evaluate(plans: str, region: str) -> int:
     service = control.get_agent_runtime(agentRuntimeId=runtime)["agentRuntimeName"]
 
     ids = evaluator_ids(control)
-    # Comparing a person's plans needs more than one each.
-    several = len(generations) > len(sessions)
-    judges = [name for name in JUDGES if several or JUDGES[name][0] == "TRACE"]
-    evaluators = [ids[name] for name in judges] + BUILT_IN
+    evaluators = [ids[name] for name in JUDGES] + BUILT_IN
     job = agentcore.start_batch_evaluation(
         batchEvaluationName=f"pp_plans_{int(time.time())}",
         evaluators=[{"evaluatorId": evaluator} for evaluator in evaluators],

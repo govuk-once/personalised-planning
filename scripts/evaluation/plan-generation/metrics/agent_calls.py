@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+import uuid
 
 from botocore.exceptions import (
     ClientError,
@@ -50,17 +51,12 @@ def is_transient(exc: RuntimeError) -> bool:
 
 
 def generate_one(
-    client,
-    runtime_arn: str,
-    situation: str,
-    context: dict,
-    max_attempts: int,
-    session_id: str | None = None,
+    client, runtime_arn: str, situation: str, context: dict, max_attempts: int
 ) -> tuple[dict | None, str | None]:
     """Get one plan from the hosted agent, retrying transient failures.
 
     Waits 5s, 10s, 20s... (capped at 60s) between attempts. Retrying is safe: the
-    planner has no side effects and keeps nothing between calls in a session.
+    planner has no side effects and every call uses a fresh session.
 
     Args:
         client: Client from ``run_app.make_agent_client``.
@@ -68,18 +64,17 @@ def generate_one(
         situation: The profile's situation sentence from ``profile_situation``.
         context: The user_context dict from ``profile_context``.
         max_attempts: Total tries, including the first.
-        session_id: AgentCore session to run in, recorded so AgentCore
-            Evaluations can find the run (``metrics.agentcore``).
 
     Returns:
         ``(generation, None)`` on success, or ``(None, last_error)``. A
         generation holds the ``plan`` with the ``situation`` and ``context``
-        the planner was given, and the ``session_id``.
+        the planner was given, and its ``session_id``.
     """
     from run_app import call_api
 
     error = "no attempts made"
     for attempt in range(1, max_attempts + 1):
+        session_id = f"eval-{uuid.uuid4()}"
         try:
             reply = call_api(client, runtime_arn, situation, context, session_id)
             plan = reply.get("plan")
