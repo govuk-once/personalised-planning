@@ -300,6 +300,41 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     return 1 if failed or short else 0
 
 
+def _load_checkpoint(
+    path: pathlib.Path, signature: dict, resume: bool
+) -> tuple[dict, dict]:
+    """Judgements saved by an earlier `score` run, as (consistency, relevance).
+
+    The checkpoint holds every profile judged so far, so a run cut short (by
+    expiring credentials, say) can carry on with --resume. Its settings must
+    match this run's: judgements made with another N, judge or plans file are
+    refused rather than mixed. Without --resume, an old checkpoint is discarded.
+    """
+    if not path.is_file():
+        if resume:
+            print(
+                f"no partial results at {path.name}; starting from the first profile",
+                file=sys.stderr,
+            )
+        return {}, {}
+    if not resume:
+        print(
+            f"warning: discarding partial results in {path.name} "
+            "(use --resume to continue them instead)",
+            file=sys.stderr,
+        )
+        path.unlink()
+        return {}, {}
+    data = json.loads(path.read_text())
+    saved = data.get("signature") or {}
+    if diff := sorted(k for k in signature if saved.get(k) != signature[k]):
+        sys.exit(
+            f"error: --resume: {path.name} was scored with different settings "
+            f"({', '.join(f'{k}: {saved.get(k)} vs {signature[k]}' for k in diff)})"
+        )
+    return data.get("consistency") or {}, data.get("relevance") or {}
+
+
 def _cmd_score(args: argparse.Namespace) -> int:
     """Judge a saved plans file N times per metric and write results.json."""
     if args.N < 1:
