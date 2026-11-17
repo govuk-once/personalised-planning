@@ -229,7 +229,7 @@ def trace_tasks(response, index):
     """Match every task's URL against the spine, keeping task identity.
 
     Matching already happens at task granularity — `gov_service_url` lives
-    on tasks, not on the app's own step grouping, which is never read here.
+    on tasks; the app's own steps are read only to skip those marked Done.
     Keeping the trace (rather than collapsing straight to a step set) is
     what lets you see *which* task covered a step, or spot a step covered
     twice, or a task that cites nothing in the spine.
@@ -250,6 +250,8 @@ def trace_tasks(response, index):
     """
     trace = []
     for step in (response.get("plan") or {}).get("steps") or []:
+        if step.get("status") == "Done":  # the user has done it already
+            continue
         for task in step.get("tasks") or []:
             raw = task.get("gov_service_url") or ""
             if not raw:
