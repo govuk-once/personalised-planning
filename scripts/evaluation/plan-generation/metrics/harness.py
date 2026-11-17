@@ -261,6 +261,41 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     return 1 if failed or short else 0
 
 
+def _load_checkpoint(
+    path: pathlib.Path, signature: dict, resume: bool
+) -> tuple[dict, dict]:
+    """Judgements saved by an earlier `score` run, as (consistency, relevance).
+
+    The checkpoint holds every profile judged so far, so a run cut short (by
+    expiring credentials, say) can carry on with --resume. Its settings must
+    match this run's: judgements made with another N, judge or plans file are
+    refused rather than mixed. Without --resume, an old checkpoint is discarded.
+    """
+    if not path.is_file():
+        if resume:
+            print(
+                f"no partial results at {path.name}; starting from the first profile",
+                file=sys.stderr,
+            )
+        return {}, {}
+    if not resume:
+        print(
+            f"warning: discarding partial results in {path.name} "
+            "(use --resume to continue them instead)",
+            file=sys.stderr,
+        )
+        path.unlink()
+        return {}, {}
+    data = json.loads(path.read_text())
+    saved = data.get("signature") or {}
+    if diff := sorted(k for k in signature if saved.get(k) != signature[k]):
+        sys.exit(
+            f"error: --resume: {path.name} was scored with different settings "
+            f"({', '.join(f'{k}: {saved.get(k)} vs {signature[k]}' for k in diff)})"
+        )
+    return data.get("consistency") or {}, data.get("relevance") or {}
+
+
 def _cmd_score(args: argparse.Namespace) -> int:
     """Judge a saved plans file N times per metric and write results.json."""
     if args.N < 1:
@@ -383,12 +418,45 @@ def _cmd_score(args: argparse.Namespace) -> int:
 
         relevance_template = load_relevance_prompt()
 
-    consistency_scores: dict[str, list] = {}
-    relevance_scores: dict[str, list] = {}
+    # Saved after every profile, so a run cut short can be continued with --resume.
+    checkpoint = out_path.with_name(out_path.name + ".partial")
+    signature = {
+        k: config[k]
+        for k in (
+            "plans_file",
+            "plans_generated_at",
+            "N",
+            "metrics",
+            "judge_model",
+            "judge_region",
+        )
+    }
+    consistency_scores, relevance_scores = _load_checkpoint(
+        checkpoint, signature, args.resume
+    )
     # Running (judgements, unjudged) per metric, for the summary at the end.
     totals = {"consistency": [0, 0], "relevance": [0, 0]}
 
+    def done(pid):
+        return ("consistency" not in args.metrics or pid in consistency_scores) and (
+            "relevance" not in args.metrics or pid in relevance_scores
+        )
+
+    if already := sum(1 for pid in plans if done(pid)):
+        print(
+            f"resuming: {already} of {len(plans)} profile(s) already scored",
+            file=sys.stderr,
+        )
+
     for i, (pid, gens) in enumerate(plans.items(), 1):
+        if done(pid):
+            for name, counts in (
+                ("consistency", _consistency_counts(consistency_scores.get(pid) or [])),
+                ("relevance", _relevance_counts(relevance_scores.get(pid) or [])),
+            ):
+                totals[name][0] += counts[0]
+                totals[name][1] += counts[1]
+            continue
         print(f"[{i}/{len(plans)}] {pid}", file=sys.stderr)
 
         if "consistency" in args.metrics:
@@ -425,13 +493,22 @@ def _cmd_score(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
 
+        _write_json_atomic(
+            checkpoint,
+            {
+                "signature": signature,
+                "consistency": consistency_scores,
+                "relevance": relevance_scores,
+            },
+        )
+
     from metrics.aggregate import compute_results
 
     results = compute_results(
         profile_ids,
         plans,
-        consistency_scores,
-        relevance_scores,
+        {pid: v for pid, v in consistency_scores.items() if pid in plans},
+        {pid: v for pid, v in relevance_scores.items() if pid in plans},
         config,
         failures,
         weights,
@@ -443,6 +520,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
         # The ARN carries the AWS account ID, and AWS error messages can quote it.
         text = text.replace(runtime_arn, "<runtime-arn>")
     out_path.write_text(text)
+    checkpoint.unlink(missing_ok=True)
     print(f"wrote results to {args.results_out}", file=sys.stderr)
 
     units = {"consistency": "pairs and fact checks", "relevance": "tasks"}
@@ -576,6 +654,15 @@ def _parser() -> argparse.ArgumentParser:
         default="results.json",
         help="Path for the results JSON output (default: results.json)",
     )
+    score.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Continue a run that stopped part-way, from the judgements saved in "
+            "<results-out>.partial: profiles already scored are not judged again. "
+            "Needs the same plans file, N, metrics and judge"
+        ),
+    )
     score.set_defaults(func=_cmd_score)
     return ap
 
@@ -586,10 +673,12 @@ def main(argv=None):
     try:
         return args.func(args)
     except FatalJudgeError as exc:
-        # Nothing is written: results.json is only written once judging is done.
+        # results.json is only written once judging is done; the profiles judged
+        # so far are kept in <results-out>.partial for --resume.
         sys.exit(
             f"error: scoring stopped, no results written: {exc}\n"
-            "Fix the AWS credentials or Bedrock access and rerun `score`."
+            "Fix the AWS credentials or Bedrock access and rerun `score` with "
+            "--resume to continue from the last profile it finished."
         )
 
 
