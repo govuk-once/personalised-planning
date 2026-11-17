@@ -111,6 +111,45 @@ def _resume_from(out_path: pathlib.Path, args: argparse.Namespace) -> dict | Non
     return doc
 
 
+def _resume_from(out_path: pathlib.Path, args: argparse.Namespace) -> dict | None:
+    """The plans file to continue, or None to start a new one.
+
+    Continuing keeps the file's `generated_at`, so results already scored
+    against it still pair with it, and records each resume in `config`. A file
+    made with a different G or profiles file is refused rather than mixed.
+    """
+    if not out_path.is_file():
+        if args.resume:
+            print(f"{out_path.name} does not exist yet; starting it", file=sys.stderr)
+        return None
+    if not args.resume:
+        print(
+            f"warning: overwriting {out_path.name} (use --resume to continue it instead)",
+            file=sys.stderr,
+        )
+        return None
+    doc = json.loads(out_path.read_text())
+    if not isinstance(doc, dict) or doc.get("kind") != _PLANS_KIND:
+        sys.exit(f"error: --resume: {out_path} is not a plans file")
+    config = doc.get("config") or {}
+    profiles_file = str(pathlib.Path(args.profiles).resolve())
+    if config.get("G") != args.G:
+        sys.exit(
+            f"error: --resume: {out_path.name} has G={config.get('G')}, not {args.G}"
+        )
+    if config.get("profiles_file") != profiles_file:
+        sys.exit(
+            f"error: --resume: {out_path.name} was made from {config.get('profiles_file')}, "
+            f"not {profiles_file}"
+        )
+    if config.get("agent_runtime_arn") != args.agent_runtime_arn:
+        print(
+            "warning: --resume: the agent runtime differs from the one that started this file",
+            file=sys.stderr,
+        )
+    return doc
+
+
 def _cmd_generate(args: argparse.Namespace) -> int:
     """Generate G plans per profile from the hosted agent and save a plans file."""
     if args.max_attempts < 1:
@@ -259,41 +298,6 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         print("  run the same command with --resume to retry these", file=sys.stderr)
 
     return 1 if failed or short else 0
-
-
-def _load_checkpoint(
-    path: pathlib.Path, signature: dict, resume: bool
-) -> tuple[dict, dict]:
-    """Judgements saved by an earlier `score` run, as (consistency, relevance).
-
-    The checkpoint holds every profile judged so far, so a run cut short (by
-    expiring credentials, say) can carry on with --resume. Its settings must
-    match this run's: judgements made with another N, judge or plans file are
-    refused rather than mixed. Without --resume, an old checkpoint is discarded.
-    """
-    if not path.is_file():
-        if resume:
-            print(
-                f"no partial results at {path.name}; starting from the first profile",
-                file=sys.stderr,
-            )
-        return {}, {}
-    if not resume:
-        print(
-            f"warning: discarding partial results in {path.name} "
-            "(use --resume to continue them instead)",
-            file=sys.stderr,
-        )
-        path.unlink()
-        return {}, {}
-    data = json.loads(path.read_text())
-    saved = data.get("signature") or {}
-    if diff := sorted(k for k in signature if saved.get(k) != signature[k]):
-        sys.exit(
-            f"error: --resume: {path.name} was scored with different settings "
-            f"({', '.join(f'{k}: {saved.get(k)} vs {signature[k]}' for k in diff)})"
-        )
-    return data.get("consistency") or {}, data.get("relevance") or {}
 
 
 def _cmd_score(args: argparse.Namespace) -> int:
