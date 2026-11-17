@@ -1261,6 +1261,23 @@ credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell.
 | `--max-attempts` | 3 | Tries per plan generation, including the first |
 | `--min-weight` | 0.005 | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
 | `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
+| `--resume` | off | Continue `--plans-out` if it exists instead of overwriting it (see below) |
+
+**Long runs: `--resume`.** `generate` saves after every profile, so when
+credentials expire or a run is interrupted, the plans made so far are kept. Run
+the same command again with `--resume` and it carries on:
+
+- profiles that already have G plans are kept as they are;
+- a profile with fewer than G is topped up, and one that failed is tried again;
+- the file keeps its original `generated_at`, so results already scored against
+  it still pair with it on the dashboard; each resume is recorded in
+  `config.resumed_at`.
+
+The file must have been made with the same `-G` and profiles file; otherwise
+`--resume` stops with an error rather than mixing two runs. If the file does not
+exist yet, `--resume` starts it. Without `--resume`, an existing plans file is
+overwritten, with a warning. `--profile` and `--min-weight` can change between
+resumes, for example to add profiles to a file.
 
 `score` flags:
 
