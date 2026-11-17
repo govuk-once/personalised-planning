@@ -72,6 +72,45 @@ def _relevance_counts(repeats: list[list[list[dict]]]) -> tuple[int, int]:
     return len(tasks), sum(t["verdict"] == "unjudged" for t in tasks)
 
 
+def _resume_from(out_path: pathlib.Path, args: argparse.Namespace) -> dict | None:
+    """The plans file to continue, or None to start a new one.
+
+    Continuing keeps the file's `generated_at`, so results already scored
+    against it still pair with it, and records each resume in `config`. A file
+    made with a different G or profiles file is refused rather than mixed.
+    """
+    if not out_path.is_file():
+        if args.resume:
+            print(f"{out_path.name} does not exist yet; starting it", file=sys.stderr)
+        return None
+    if not args.resume:
+        print(
+            f"warning: overwriting {out_path.name} (use --resume to continue it instead)",
+            file=sys.stderr,
+        )
+        return None
+    doc = json.loads(out_path.read_text())
+    if not isinstance(doc, dict) or doc.get("kind") != _PLANS_KIND:
+        sys.exit(f"error: --resume: {out_path} is not a plans file")
+    config = doc.get("config") or {}
+    profiles_file = str(pathlib.Path(args.profiles).resolve())
+    if config.get("G") != args.G:
+        sys.exit(
+            f"error: --resume: {out_path.name} has G={config.get('G')}, not {args.G}"
+        )
+    if config.get("profiles_file") != profiles_file:
+        sys.exit(
+            f"error: --resume: {out_path.name} was made from {config.get('profiles_file')}, "
+            f"not {profiles_file}"
+        )
+    if config.get("agent_runtime_arn") != args.agent_runtime_arn:
+        print(
+            "warning: --resume: the agent runtime differs from the one that started this file",
+            file=sys.stderr,
+        )
+    return doc
+
+
 def _cmd_generate(args: argparse.Namespace) -> int:
     """Generate G plans per profile from the hosted agent and save a plans file."""
     if args.max_attempts < 1:
@@ -130,35 +169,60 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
     out_path = _output_path(args.plans_out)
     profile_ids = [p.get("id", f"profile_{i}") for i, p in enumerate(all_profiles, 1)]
-    plans: dict[str, list[dict]] = {}
-    failures: dict[str, str] = {}
-    doc = {
-        "kind": _PLANS_KIND,
-        "version": _PLANS_VERSION,
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "config": {
-            "G": args.G,
-            "agent_runtime_arn": args.agent_runtime_arn,
-            "max_attempts": args.max_attempts,
-            "min_weight": args.min_weight,
-            "profiles_file": str(pathlib.Path(args.profiles).resolve()),
-            "profile": args.profile,
-        },
-        "below_min_weight": below,
-        "profile_ids": profile_ids,
-        "plans": plans,
-        "failures": failures,
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    doc = _resume_from(out_path, args)
+    if doc is None:
+        doc = {
+            "kind": _PLANS_KIND,
+            "version": _PLANS_VERSION,
+            "generated_at": now,
+            "config": {
+                "G": args.G,
+                "agent_runtime_arn": args.agent_runtime_arn,
+                "max_attempts": args.max_attempts,
+                "min_weight": args.min_weight,
+                "profiles_file": str(pathlib.Path(args.profiles).resolve()),
+                "profile": args.profile,
+            },
+            "below_min_weight": {},
+            "profile_ids": [],
+            "plans": {},
+            "failures": {},
+        }
+    else:
+        doc["config"].setdefault("resumed_at", []).append(now)
+        doc["config"]["min_weight"] = args.min_weight
+    plans: dict[str, list[dict]] = doc["plans"]
+    failures: dict[str, str] = doc["failures"]
+    doc["below_min_weight"] = {
+        **{k: v for k, v in doc["below_min_weight"].items() if k not in profile_ids},
+        **below,
     }
+    doc["profile_ids"] += [pid for pid in profile_ids if pid not in doc["profile_ids"]]
 
-    total = len(all_profiles)
-    for i, (pid, profile, situation) in enumerate(
-        zip(profile_ids, all_profiles, situations, strict=True), 1
-    ):
+    # On resume, profiles that already have G plans are kept as they are; one
+    # with fewer is topped up, and one that failed is tried again.
+    todo = [
+        (pid, profile, situation)
+        for pid, profile, situation in zip(
+            profile_ids, all_profiles, situations, strict=True
+        )
+        if len(plans.get(pid, [])) < args.G
+    ]
+    if len(todo) < len(profile_ids):
+        print(
+            f"resuming {out_path.name}: {len(profile_ids) - len(todo)} profile(s) already "
+            f"have {args.G} plans, {len(todo)} to do",
+            file=sys.stderr,
+        )
+
+    total = len(todo)
+    for i, (pid, profile, situation) in enumerate(todo, 1):
         print(f"[{i}/{total}] {pid}", file=sys.stderr)
         ctx = profile_context(profile)
-        gens = []
+        gens = list(plans.get(pid, []))
         last_error = None
-        for g in range(args.G):
+        for g in range(len(gens), args.G):
             gen, error = generate_one(
                 client, args.agent_runtime_arn, situation, ctx, args.max_attempts
             )
@@ -170,6 +234,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
         if gens:
             plans[pid] = gens
+            failures.pop(pid, None)
         else:
             failures[pid] = last_error
             print(f"  {pid}: all generations failed, skipping", file=sys.stderr)
@@ -177,16 +242,23 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         # Save after every profile so an interrupted run keeps the work done so far.
         _write_json_atomic(out_path, doc)
 
+    if not todo:
+        _write_json_atomic(out_path, doc)
     print(f"wrote plans to {args.plans_out}", file=sys.stderr)
 
-    short = _short_profiles(plans, args.G)
-    print(f"generated plans for {len(plans)}/{total} profiles", file=sys.stderr)
-    for pid, error in failures.items():
+    wanted = set(profile_ids)
+    short = [pid for pid in _short_profiles(plans, args.G) if pid in wanted]
+    failed = {pid: e for pid, e in failures.items() if pid in wanted}
+    done = sum(1 for pid in profile_ids if pid in plans)
+    print(f"plans for {done}/{len(profile_ids)} profiles", file=sys.stderr)
+    for pid, error in failed.items():
         print(f"  skipped {pid}: {error}", file=sys.stderr)
     for pid in short:
         print(f"  short {pid}: {len(plans[pid])}/{args.G} plans", file=sys.stderr)
+    if failed or short:
+        print("  run the same command with --resume to retry these", file=sys.stderr)
 
-    return 1 if failures or short else 0
+    return 1 if failed or short else 0
 
 
 def _cmd_score(args: argparse.Namespace) -> int:
@@ -446,6 +518,15 @@ def _parser() -> argparse.ArgumentParser:
         "--plans-out",
         default="plans.json",
         help="Where to write the plans file (default: plans.json)",
+    )
+    gen.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Continue --plans-out if it exists: keep profiles that already have G "
+            "plans, top up any with fewer and retry any that failed. It must have "
+            "the same G and profiles file. Without it, an existing file is overwritten"
+        ),
     )
     gen.set_defaults(func=_cmd_generate)
 
