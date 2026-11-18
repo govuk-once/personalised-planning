@@ -1290,6 +1290,18 @@ resumes, for example to add profiles to a file.
 | `--judge-region` | `eu-west-1` | AWS region for judge model |
 | `--weights` | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
 | `--results-out` | `results.json` | Where to write metric results |
+| `--resume` | off | Continue a run that stopped part-way (see below) |
+
+**Long runs: `--resume`.** `score` writes `--results-out` only when every
+profile has been judged, but it saves each profile's judgements as it goes, to
+`<results-out>.partial`. If a run stops part-way (expired credentials, say), run
+the same command again with `--resume`: profiles already judged are not judged
+again, and the results are the same as from one uninterrupted run. The
+`.partial` file is removed once the results are written. A resume must use the
+same plans file, `-N`, `--metrics` and judge model and region; otherwise it stops
+with an error rather than mixing judgements. Without `--resume`, a leftover
+`.partial` is discarded, with a warning. A profile cut off part-way is judged
+again in full.
 
 ## Viewing results
 
