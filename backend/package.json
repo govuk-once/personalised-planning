@@ -10,8 +10,8 @@
   "scripts": {
     "typecheck": "tsc",
     "lint": "eslint src",
-    "format": "prettier --write src ../amplify/backend.ts ../amplify/local.ts ../amplify/local ../amplify/jobs-backend",
-    "format:check": "prettier --check src ../amplify/backend.ts ../amplify/local.ts ../amplify/local ../amplify/jobs-backend"
+    "format": "prettier --write src ../amplify/backend.ts ../amplify/local.ts ../amplify/local ../amplify/jobs-backend ../amplify/observability",
+    "format:check": "prettier --check src ../amplify/backend.ts ../amplify/local.ts ../amplify/local ../amplify/jobs-backend ../amplify/observability"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-agentcore": "^3.1163.0",

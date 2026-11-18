@@ -6,6 +6,7 @@ from botocore.config import Config as BotocoreConfig
 from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamable_http_client
+from shared.invocation_log import session_label
 from shared.log_utils import StructuredLogger
 from shared.retry import BedrockRetryStrategy
 from shared.utils import read_file_content
@@ -28,7 +29,7 @@ load_dotenv()
 MODEL_ID = os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5")
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
 # Override due to intermittent issues calling Bedrock in eu-west-2
-BEDROCK_REGION = "eu-west-1"
+BEDROCK_REGION = os.getenv("BEDROCK_REGION", "eu-west-1")
 
 MCP_MODE = os.getenv("MCP_MODE", "remote")
 
@@ -179,6 +180,7 @@ class PlannerAgentRunner:
             region_name=BEDROCK_REGION,
             boto_client_config=boto_config,
             max_tokens=64000,
+            additional_args=session_label(self.logger),
         )
         mcp_client = _build_mcp_client_service_graph()
 

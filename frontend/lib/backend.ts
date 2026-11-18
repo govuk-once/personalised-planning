@@ -2,6 +2,8 @@ import "server-only";
 
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 
+import { sendWithTrace } from "@/lib/trace-header";
+
 const LOCAL_CREDENTIALS = {
   accessKeyId: "local",
   secretAccessKey: "local", // pragma: allowlist secret
@@ -63,7 +65,10 @@ function lambda(endpoint: string | undefined): LambdaClient {
   return client;
 }
 
-export async function callBackend<T>(event: Record<string, unknown>): Promise<T> {
+export async function callBackend<T>(
+  event: Record<string, unknown>,
+  traceHeader: string
+): Promise<T> {
   const functionName = process.env.BACKEND_FUNCTION_NAME;
 
   if (!functionName) {
@@ -82,7 +87,7 @@ export async function callBackend<T>(event: Record<string, unknown>): Promise<T>
     Payload: payload,
   });
 
-  const response = await backend.send(command);
+  const response = await sendWithTrace(backend, command, traceHeader);
   const body = new TextDecoder().decode(response.Payload);
 
   if (response.FunctionError) {

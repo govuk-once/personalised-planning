@@ -136,7 +136,7 @@ def make_agent_client(runtime_arn, timeout=300):
     )
 
 
-def call_api(client, runtime_arn, situation, context):
+def call_api(client, runtime_arn, situation, context, session_id=None):
     """Send one profile's situation and context to the hosted planner agent.
 
     Args:
@@ -144,6 +144,7 @@ def call_api(client, runtime_arn, situation, context):
         runtime_arn: ARN of the deployed planner runtime.
         situation: Sentence from `profile_situation`.
         context: Dict built by `profile_context`.
+        session_id: AgentCore session to run in; a new one if not given.
 
     Returns:
         The agent's output dict, with ``plan``, ``agent_help`` and ``timestamp``.
@@ -155,7 +156,7 @@ def call_api(client, runtime_arn, situation, context):
     try:
         reply = client.invoke_agent_runtime(
             agentRuntimeArn=runtime_arn,
-            runtimeSessionId=str(uuid.uuid4()),
+            runtimeSessionId=session_id or str(uuid.uuid4()),
             qualifier=os.environ.get("AGENT_ENDPOINT_NAME") or "DEFAULT",
             contentType="application/json",
             accept="application/json",

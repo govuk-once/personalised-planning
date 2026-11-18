@@ -6,6 +6,7 @@ import { configureBranch } from "./branch-settings";
 import { computeRole } from "./compute-role";
 import { apiFunction, workerFunction } from "./functions";
 import { jobsTable } from "./jobs-table";
+import type { NodeFunction } from "./node-function";
 
 export type BackendOutputs = {
   backendFunction: string;
@@ -30,6 +31,8 @@ function addOutputs(scope: Construct, named: Record<string, string>): void {
 export class JobsBackend extends Construct {
   readonly outputs: BackendOutputs;
   readonly functions: lambda.Function[];
+  readonly api: NodeFunction;
+  readonly worker: NodeFunction;
 
   constructor(scope: Construct, id: string) {
     super(scope, id);
@@ -42,6 +45,8 @@ export class JobsBackend extends Construct {
     configureBranch(this, compute);
 
     this.functions = [api.fn, worker.fn];
+    this.api = api;
+    this.worker = worker;
 
     const branch = process.env.AWS_BRANCH ?? "sandbox";
 

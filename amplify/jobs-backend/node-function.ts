@@ -70,6 +70,7 @@ export function nodeFunction(
     memorySize: 512,
     role,
     logGroup,
+    tracing: lambda.Tracing.ACTIVE,
     environment: props.environment,
     bundling: {
       format: OutputFormat.ESM,
