@@ -1,0 +1,2735 @@
+{
+  "generated_at": "2026-11-18T14:50:48.025898+00:00",
+  "config": {
+    "source": "plans",
+    "profiles_file": "/Users/REveson/Projects/personalised-planning/scripts/evaluation/plan-generation/data/profiles/driving_profiles_v6_2_car_core_w.json",
+    "weights_file": "/Users/REveson/Projects/personalised-planning/scripts/evaluation/plan-generation/data/profiles/driving_profiles_v6_2_car_core_w.json",
+    "truth_file": "/Users/REveson/Projects/personalised-planning/scripts/evaluation/plan-generation/data/ground_truth/driving_truth_v6_2_car_core.json",
+    "truth_sha256": "61bf36d1113279718bbd1391fc95675fe872092a262445c24fe541e7ada9dafc",
+    "plans_file": "/Users/REveson/Projects/personalised-planning/scripts/evaluation/plan-generation/data/generated_plans/driving_plans_v6_2_car_core.json",
+    "plans_generated_at": "2026-11-17T14:17:25.862927+00:00",
+    "raw_files": null,
+    "G": 3,
+    "scored_profile": null,
+    "matcher": "url; sub-page as parent; match_terms on task title for shared urls"
+  },
+  "steps": {
+    "/learn-to-drive-a-car": [
+      {
+        "step": 1,
+        "title": "Check you're allowed to drive",
+        "optional": false
+      },
+      {
+        "step": 2,
+        "title": "Get a provisional licence",
+        "optional": false
+      },
+      {
+        "step": 3,
+        "title": "Driving lessons and practice",
+        "optional": true
+      },
+      {
+        "step": 4,
+        "title": "Prepare for your theory test",
+        "optional": true
+      },
+      {
+        "step": 5,
+        "title": "Book and manage your theory test",
+        "optional": false
+      },
+      {
+        "step": 6,
+        "title": "Book and manage your driving test",
+        "optional": false
+      },
+      {
+        "step": 7,
+        "title": "When you pass",
+        "optional": true
+      }
+    ]
+  },
+  "scoring": {
+    "aggregate": {
+      "precision": 0.4,
+      "recall": 0.778,
+      "f1": 0.528,
+      "mean_precision": 0.409,
+      "mean_recall": 0.485,
+      "mean_f1": 0.429,
+      "profiles_scored": 11,
+      "plans_scored": 33,
+      "perfect": 12,
+      "presented_a_blocked_step": 21,
+      "missed_a_required_step": 8
+    },
+    "per_profile": [
+      {
+        "profile_id": "P002",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          2,
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P002",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          2,
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P002",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          2,
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P003",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P003",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P003",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P004",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax the vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P004",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P004",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P005",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.333,
+        "recall": 1.0,
+        "f1": 0.5,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for your provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P005",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.333,
+        "recall": 1.0,
+        "f1": 0.5,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P005",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.333,
+        "recall": 1.0,
+        "f1": 0.5,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P008",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Check the residency requirement",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              },
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax the vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P008",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax the vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P008",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P011",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 3,
+          "covered": 3,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your first vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P011",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 3,
+          "covered": 3,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for a provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P011",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 3,
+          "covered": 3,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for your first provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P012",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          2,
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Check your residency position against DVLA's requirements",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Apply for a provisional driving licence",
+            "url": "https://www.gov.uk/apply-first-provisional-licence"
+          },
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P012",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          2,
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Check your residency status before applying",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P012",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          2,
+          5,
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 0,
+          "covered": 0,
+          "shown": 3
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Apply for your provisional driving licence",
+                "url": "https://www.gov.uk/apply-first-provisional-driving-licence",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P014",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 2,
+          "covered": 2,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P014",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 2,
+          "covered": 2,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P014",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 2,
+          "covered": 2,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and take the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P015",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 2,
+          "covered": 2,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax the vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P015",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 2,
+          "covered": 2,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass your theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book your practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P015",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 2,
+          "covered": 2,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the theory test",
+                "url": "https://www.gov.uk/book-theory-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book and pass the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P017",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax the vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P017",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.667,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 2
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Check the eyesight standard for driving",
+                "url": "https://www.gov.uk/driving-eyesight-rules",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      },
+      {
+        "profile_id": "P017",
+        "missing": [
+          1
+        ],
+        "extra": [],
+        "blocked_but_present": [
+          6
+        ],
+        "optional_present": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 0,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "blocked",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "blocked",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P018",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 1,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          },
+          {
+            "title": "Make a SORN if the vehicle is off the road",
+            "url": "https://www.gov.uk/make-a-sorn"
+          },
+          {
+            "title": "Check Clean Air Zone charges",
+            "url": "https://www.gov.uk/clean-air-zones"
+          }
+        ]
+      },
+      {
+        "profile_id": "P018",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 2,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book the practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": []
+      },
+      {
+        "profile_id": "P018",
+        "missing": [],
+        "extra": [],
+        "blocked_but_present": [],
+        "optional_present": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "plan": 3,
+        "step_by_step": "/learn-to-drive-a-car",
+        "counts": {
+          "required": 1,
+          "covered": 1,
+          "shown": 1
+        },
+        "step_detail": [
+          {
+            "step": 1,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 2,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 3,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 4,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 5,
+            "verdict": "not_required",
+            "covered": false,
+            "tasks": []
+          },
+          {
+            "step": 6,
+            "verdict": "required",
+            "covered": true,
+            "tasks": [
+              {
+                "title": "Book practical driving test",
+                "url": "https://www.gov.uk/book-driving-test",
+                "how": "url"
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "verdict": "optional",
+            "covered": false,
+            "tasks": []
+          }
+        ],
+        "unmatched_tasks": [
+          {
+            "title": "Tax your vehicle",
+            "url": "https://www.gov.uk/vehicle-tax"
+          }
+        ]
+      }
+    ],
+    "weighted_aggregate": {
+      "mean_precision": 0.964,
+      "mean_recall": 0.967,
+      "mean_f1": 0.964,
+      "weight_scored": 0.998
+    }
+  }
+}
