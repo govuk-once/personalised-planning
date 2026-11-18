@@ -53,8 +53,11 @@ Across the judge's 110 verdicts on these tasks (5 repeats each):
 
 By comparison, 70% of the verdicts on tasks inside the guide are `relevant`; most of the rest are Done tasks and blocked steps. So the planner rarely adds anything useful beyond the guide, and what it does add is almost always vehicle tax for someone who hasn't said they have a car.
 
+<<<<<<< HEAD
 **Why these tasks appear.** The service graph's "Learning to Drive" journey includes services for owning a car, such as vehicle tax, SORN and Clean Air Zone charges, and lists them alongside the first steps of learning. It also flags them as worth mentioning even if the person hasn't asked. The questionnaire never asks whether the person has a car, so the planner can't tell whether they apply. It includes vehicle tax in some plans and not others, which also explains much of the variation between plans for the same person.
 
+=======
+>>>>>>> ec714ef (docs: adding writeup of Learning to Drive evaluation (Nov-26))
 Seven of the rarest profiles fell below the minimum weight and have no plans yet.
 
 ### If blocked steps can count when the dependency is stated
@@ -182,6 +185,7 @@ Some profiles fall into more than one group.
 
 ## Headline scores
 
+<<<<<<< HEAD
 | Metric | Mean | Weighted | Range across 5 judge runs: mean (weighted) |
 |---|---|---|---|
 | Plan quality: precision | 0.41 | 0.96 | no judge |
@@ -199,6 +203,19 @@ Some profiles fall into more than one group.
 The judge adds little uncertainty to the means, which move by 0.03 or less. The weighted structure consistency moves most, from 0.05 to 0.22. That's because it rests largely on one profile (P014, 50% of the weight), whose 3 plans are each compared in pairs. One pair changing verdict between runs moves the weighted figure a lot.
 
 Plan quality and service stability don't use the judge, so they're the same on every run.
+=======
+| Metric | Mean | Weighted |
+|---|---|---|
+| Plan quality: precision | 0.41 | 0.96 |
+| Plan quality: recall | 0.48 | 0.97 |
+| Plan quality: F1 | 0.43 | 0.96 |
+| Perfect plans | 12 / 33 | |
+| Plans presenting a blocked step | 21 / 33 | |
+| Relevance | 0.61 | 0.55 |
+| Service stability | 0.78 | 0.77 |
+| Fact consistency | 0.77 | 0.77 |
+| Structure consistency | 0.07 | 0.08 |
+>>>>>>> ec714ef (docs: adding writeup of Learning to Drive evaluation (Nov-26))
 
 Plan quality by group:
 
