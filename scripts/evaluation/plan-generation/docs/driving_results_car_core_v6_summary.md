@@ -54,10 +54,15 @@ Across the judge's 110 verdicts on these tasks (5 repeats each):
 By comparison, 70% of the verdicts on tasks inside the guide are `relevant`; most of the rest are Done tasks and blocked steps. So the planner rarely adds anything useful beyond the guide, and what it does add is almost always vehicle tax for someone who hasn't said they have a car.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 **Why these tasks appear.** The service graph's "Learning to Drive" journey includes services for owning a car, such as vehicle tax, SORN and Clean Air Zone charges, and lists them alongside the first steps of learning. It also flags them as worth mentioning even if the person hasn't asked. The questionnaire never asks whether the person has a car, so the planner can't tell whether they apply. It includes vehicle tax in some plans and not others, which also explains much of the variation between plans for the same person.
 
 =======
 >>>>>>> ec714ef (docs: adding writeup of Learning to Drive evaluation (Nov-26))
+=======
+**Why these tasks appear.** The service graph's "Learning to Drive" journey includes services for owning a car, such as vehicle tax, SORN and Clean Air Zone charges, and lists them alongside the first steps of learning. It also flags them as worth mentioning even if the person hasn't asked. The questionnaire never asks whether the person has a car, so the planner can't tell whether they apply. It includes vehicle tax in some plans and not others, which also explains much of the variation between plans for the same person.
+
+>>>>>>> 1154ee8 (docs: updating writeup for learning to drive results)
 Seven of the rarest profiles fell below the minimum weight and have no plans yet.
 
 ### If blocked steps can count when the dependency is stated
