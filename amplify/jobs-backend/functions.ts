@@ -31,6 +31,7 @@ export function workerFunction(
   const chatEndpoint = endpointName("CHAT_AGENT_ENDPOINT_NAME");
   const timeout = Duration.seconds(WORKER_TIMEOUT_SECONDS);
   const maxEventAge = Duration.seconds(MAX_EVENT_AGE_SECONDS);
+  const quickReplies = process.env.QUICK_REPLIES || "off";
 
   const worker = nodeFunction(scope, "Worker", {
     entry: "worker-handler.ts",
@@ -42,6 +43,7 @@ export function workerFunction(
       AGENT_ENDPOINT_NAME: agentEndpoint,
       CHAT_AGENT_RUNTIME_ARN: agents.chat,
       CHAT_AGENT_ENDPOINT_NAME: chatEndpoint,
+      QUICK_REPLIES: quickReplies,
     },
     async: {
       retryAttempts: 0,

@@ -1,21 +1,34 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import styles from "@/app/page.module.css";
+import AnswerHelpers from "@/app/components/chat/AnswerHelpers";
 import Composer from "@/app/components/chat/Composer";
 import StartPlanCard from "@/app/components/chat/StartPlanCard";
 import Thread from "@/app/components/chat/Thread";
+import { useChatFocus } from "@/hooks/use-chat-focus";
 import { useIntake } from "@/hooks/use-intake";
+import type { Answer } from "@/lib/answer-tracking";
 
 export default function Home() {
   const intake = useIntake();
   const threadEnd = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const latest = useRef<HTMLDivElement>(null);
+  const turns = intake.conversation.messages.length;
 
-  useEffect(() => {
-    threadEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [intake.conversation.messages.length, intake.pending]);
+  const chat = {
+    turns,
+    pending: intake.pending,
+    helpers: intake.helpers,
+  };
+  const choiceMade = useChatFocus(chat, latest, threadEnd);
+
+  function sendChoice(text: string, answer: Answer) {
+    choiceMade();
+    intake.send(text, answer);
+  }
 
   return (
     <div className={styles.chatPage}>
@@ -25,7 +38,10 @@ export default function Home() {
             messages={intake.conversation.messages}
             pending={intake.pending}
             error={intake.error}
+            latest={latest}
           />
+
+          <AnswerHelpers key={turns} helpers={intake.helpers} onAnswer={sendChoice} />
 
           {intake.conversation.complete && <StartPlanCard onStart={intake.startPlan} />}
 
