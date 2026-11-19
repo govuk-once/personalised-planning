@@ -10,6 +10,7 @@ export type Settings = {
   jobsTable: string;
   workerFunction: string;
   localAgents: boolean;
+  quickReplies: boolean;
   chat: Agent;
   planner: Agent;
 };
@@ -55,6 +56,7 @@ export function settingsFrom(env: Env): Settings {
     jobsTable: env.JOBS_TABLE || "pp-jobs-local",
     workerFunction: env.WORKER_FUNCTION_NAME || "pp-worker",
     localAgents: localMode === "true",
+    quickReplies: env.QUICK_REPLIES === "on",
     chat,
     planner,
   };

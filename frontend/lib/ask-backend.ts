@@ -11,7 +11,10 @@ type BackendEvent = Record<string, unknown>;
 
 const POLL = "get_job";
 
-export async function askBackend(event: BackendEvent): Promise<BackendReply> {
+export async function askBackend(
+  event: BackendEvent,
+  logFields: Record<string, unknown> = {}
+): Promise<BackendReply> {
   const requestHeaders = await headers();
   const trace = requestTrace(requestHeaders);
   const startedMs = Date.now();
@@ -21,6 +24,7 @@ export async function askBackend(event: BackendEvent): Promise<BackendReply> {
     session_id: event.session_id,
     job_id: event.job_id,
     trace_id: trace.id,
+    ...logFields,
   };
 
   try {

@@ -1,5 +1,5 @@
 import type { ChatInput } from "@/lib/action-input";
-import type { StoredConversation } from "@/lib/session";
+import type { StoredChatJob, StoredConversation } from "@/lib/session";
 
 export function chatBody({ messages, collectedFacts, lifeEventIds, outstanding }: ChatInput) {
   const userContext = {
@@ -16,11 +16,12 @@ export function chatBody({ messages, collectedFacts, lifeEventIds, outstanding }
 export function chatTurnRequest(
   conversation: StoredConversation,
   sessionId: string,
-  jobId: string
+  job: StoredChatJob
 ): ChatInput {
   return {
     sessionId,
-    jobId,
+    jobId: job.jobId,
+    answeredBy: job.answeredBy,
     messages: conversation.messages,
     collectedFacts: conversation.collectedFacts,
     lifeEventIds: conversation.lifeEventIds,

@@ -1,3 +1,4 @@
+import { helpersOf } from "@/lib/answer-helpers";
 import type { StoredConversation } from "@/lib/session";
 import type { ChatTurn } from "@/lib/types";
 
@@ -49,6 +50,7 @@ export function withReply(conversation: StoredConversation, turn: ChatTurn) {
 
   const stated = turn.situation?.trim();
   const situation = stated || openerOf(conversation);
+  const helpers = helpersOf(turn);
 
   return {
     messages: [...conversation.messages, reply],
@@ -57,6 +59,7 @@ export function withReply(conversation: StoredConversation, turn: ChatTurn) {
     outstanding: turn.outstanding,
     complete: turn.complete,
     situation,
+    ...helpers,
   };
 }
 

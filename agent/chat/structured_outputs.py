@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConversationTurn(BaseModel):
@@ -43,3 +43,37 @@ class ConversationTurn(BaseModel):
         "is true; it is set after the interview turn by a separate summarisation "
         "call, not produced by the interviewer, so leave it null.",
     )
+    quick_replies: list[str] = Field(
+        default_factory=list,
+        description="Answers the person can tap instead of typing, for the one question in "
+        "`message`: 2 to 8, counting any 'Not sure', each a few words, mutually exclusive. "
+        "[] for an open question, two questions at once, any amount, age or other number "
+        "(no bands either), and when `complete` is true. "
+        "A tap comes back word for word as the person's next message.",
+    )
+    answer_format: Literal["text", "date"] = Field(
+        default="text",
+        description="'date' when `message` asks for one particular date, such as a birth, "
+        "a death or a start date: the page then offers a date picker. Otherwise 'text'.",
+    )
+
+    # Anything but a list of strings means none: a turn is never retried over its options.
+    @field_validator("quick_replies", mode="before")
+    @classmethod
+    def _labels_or_none(cls, value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+
+        for label in value:
+            if not isinstance(label, str):
+                return []
+
+        return value
+
+    @field_validator("answer_format", mode="before")
+    @classmethod
+    def _text_unless_date(cls, value: Any) -> str:
+        if value == "date":
+            return "date"
+
+        return "text"
