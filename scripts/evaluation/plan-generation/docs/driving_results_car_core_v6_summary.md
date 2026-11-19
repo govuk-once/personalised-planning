@@ -182,17 +182,23 @@ Some profiles fall into more than one group.
 
 ## Headline scores
 
-| Metric | Mean | Weighted |
-|---|---|---|
-| Plan quality: precision | 0.41 | 0.96 |
-| Plan quality: recall | 0.48 | 0.97 |
-| Plan quality: F1 | 0.43 | 0.96 |
-| Perfect plans | 12 / 33 | |
-| Plans presenting a blocked step | 21 / 33 | |
-| Relevance | 0.61 | 0.55 |
-| Service stability | 0.78 | 0.77 |
-| Fact consistency | 0.77 | 0.77 |
-| Structure consistency | 0.07 | 0.08 |
+| Metric | Mean | Weighted | Range across 5 judge runs: mean (weighted) |
+|---|---|---|---|
+| Plan quality: precision | 0.41 | 0.96 | no judge |
+| Plan quality: recall | 0.48 | 0.97 | no judge |
+| Plan quality: F1 | 0.43 | 0.96 | no judge |
+| Perfect plans | 12 / 33 | | no judge |
+| Plans presenting a blocked step | 21 / 33 | | no judge |
+| Relevance | 0.61 | 0.55 | 0.59–0.62 (0.54–0.57) |
+| Service stability | 0.78 | 0.77 | no judge |
+| Fact consistency | 0.77 | 0.77 | 0.76–0.79 (0.74–0.78) |
+| Structure consistency | 0.07 | 0.08 | 0.06–0.09 (0.05–0.22) |
+
+**About the judge-run ranges.** Each judge-scored metric is the average of 5 separate judge runs over the same plans. The range shows the lowest and highest headline figure from any single run.
+
+The judge adds little uncertainty to the means, which move by 0.03 or less. The weighted structure consistency moves most, from 0.05 to 0.22. That's because it rests largely on one profile (P014, 50% of the weight), whose 3 plans are each compared in pairs. One pair changing verdict between runs moves the weighted figure a lot.
+
+Plan quality and service stability don't use the judge, so they're the same on every run.
 
 Plan quality by group:
 
