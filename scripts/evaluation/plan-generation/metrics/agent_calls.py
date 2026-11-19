@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+import uuid
 
 from botocore.exceptions import (
     ClientError,
@@ -67,21 +68,24 @@ def generate_one(
     Returns:
         ``(generation, None)`` on success, or ``(None, last_error)``. A
         generation holds the ``plan`` with the ``situation`` and ``context``
-        the planner was given.
+        the planner was given, and its ``session_id``.
     """
     from run_app import call_api
 
     error = "no attempts made"
     for attempt in range(1, max_attempts + 1):
+        session_id = f"eval-{uuid.uuid4()}"
         try:
-            plan = call_api(client, runtime_arn, situation, context).get("plan")
+            reply = call_api(client, runtime_arn, situation, context, session_id)
+            plan = reply.get("plan")
         except RuntimeError as exc:
             error = str(exc)
             if not is_transient(exc):
                 return None, error
         else:
             if plan:
-                return {"plan": plan, "situation": situation, "context": context}, None
+                generation = {"plan": plan, "situation": situation, "context": context}
+                return {**generation, "session_id": session_id}, None
             error = "no plan in response"
 
         if attempt < max_attempts:

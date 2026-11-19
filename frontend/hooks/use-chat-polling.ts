@@ -2,6 +2,7 @@
 
 import { useJobPolling } from "@/hooks/use-job-polling";
 import { withReply } from "@/lib/conversation";
+import { track } from "@/lib/monitoring";
 import type { Outcome, PollSettings } from "@/lib/poll";
 import {
   clearChatJob,
@@ -28,6 +29,12 @@ export function useChatPolling(
 
       saveConversation(answered);
       clearChatJob();
+
+      track("reply_shown", {
+        job_id: chatJob?.jobId ?? "",
+        complete: answered.complete,
+      });
+
       return;
     }
 

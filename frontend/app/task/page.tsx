@@ -11,6 +11,7 @@ import LinkCard from "@/app/components/shared/LinkCard";
 import ListCard from "@/app/components/shared/ListCard";
 import TaskDetails from "@/app/components/plan/TaskDetails";
 import Header from "@/app/components/shared/Header";
+import { track } from "@/lib/monitoring";
 import { toggleTask, taskAt } from "@/lib/plan";
 import { savePlan, useHydrated, usePlan } from "@/lib/session";
 
@@ -45,6 +46,12 @@ function TaskDetail() {
   function markDone() {
     if (!plan) return;
     savePlan(toggleTask(plan, stepId, taskId));
+
+    track("task_marked", {
+      step: stepId,
+      task: taskId,
+      done: !task?.completed,
+    });
   }
 
   return (

@@ -5,6 +5,7 @@ import { useCallback, useTransition } from "react";
 import { startPlan } from "@/app/actions";
 import { SITE_UPDATED, startTwice } from "@/lib/action-failure";
 import { freshJob } from "@/lib/job-id";
+import { track } from "@/lib/monitoring";
 import { undoUnlessLeaving } from "@/lib/page-lifecycle";
 import { clearPlanJob, getSessionId, savePlanJob, type StoredJob } from "@/lib/session";
 
@@ -35,6 +36,7 @@ async function askForPlan(
     };
 
     savePlanJob(confirmed);
+    track("plan_started", { job_id: job.jobId });
     return;
   }
 

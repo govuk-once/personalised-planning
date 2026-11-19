@@ -1,6 +1,7 @@
 "use client";
 
 import { useJobPolling } from "@/hooks/use-job-polling";
+import { track } from "@/lib/monitoring";
 import type { Outcome, PollSettings } from "@/lib/poll";
 import { clearPlanJob, savePlan, type StoredJob } from "@/lib/session";
 import type { PlanResult } from "@/lib/types";
@@ -34,6 +35,11 @@ export function usePlanPolling(
 
     savePlan(finished);
     clearPlanJob();
+
+    track("plan_shown", {
+      job_id: planJob?.jobId ?? "",
+      steps: finished.steps.length,
+    });
   }
 
   const confirmedJob = planJob?.confirmed === false ? null : planJob;

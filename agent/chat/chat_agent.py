@@ -8,6 +8,7 @@ from botocore.config import Config as BotocoreConfig
 from dotenv import load_dotenv
 from mcp import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamable_http_client
+from shared.invocation_log import session_label
 from shared.log_utils import StructuredLogger
 from shared.retry import BedrockRetryStrategy
 from shared.utils import read_file_content, strip_nulls
@@ -31,7 +32,7 @@ MODEL_ID = os.getenv("ANTHROPIC_MODEL", "eu.anthropic.claude-sonnet-5")
 
 BEDROCK_REGION = os.getenv("AWS_REGION", "eu-west-2")
 # Override due to intermittent issues calling Bedrock in eu-west-2
-BEDROCK_REGION = "eu-west-1"
+BEDROCK_REGION = os.getenv("BEDROCK_REGION", "eu-west-1")
 
 MCP_MODE = os.getenv("MCP_MODE", "remote")
 
@@ -226,6 +227,7 @@ class ChatAgentRunner:
                 "thinking": {"type": "adaptive"},
                 "output_config": {"effort": "medium"},
             },
+            additional_args=session_label(self.logger),
         )
 
         # static_questions: single in-process tool over the fixed question set.
@@ -323,6 +325,7 @@ class ChatAgentRunner:
                 system=[{"text": SUMMARY_SYSTEM_PROMPT}],
                 messages=[{"role": "user", "content": [{"text": user_text}]}],
                 inferenceConfig={"maxTokens": 524},
+                **session_label(self.logger),
             )
             return resp["output"]["message"]["content"][0]["text"].strip()
 
