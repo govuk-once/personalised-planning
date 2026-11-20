@@ -757,6 +757,30 @@ The file must be a JSON array of step objects. Each step needs at least
 `--base-path` is the identifier used throughout the pipeline to name this
 guide (e.g. in truth records and scoring output).
 
+Two optional step fields change how plans are scored:
+
+| Field | Effect |
+|---|---|
+| `"optional": true` | The guide's own "only if you choose to" steps. Where such a step applies to a person, the answer key marks it `optional` instead of `required`, and scoring ignores it (see [Scoring](#scoring)). |
+| `"match_terms": [...]` | Words or phrases that identify a task for this step when its links are shared with other steps, e.g. `["tell your employer", "due date"]` for "Tell your employer you're expecting". See [How it works](#how-it-works-2) in Part 3. |
+
+```json
+{"step": 2, "title": "Tell your employer you're expecting",
+ "links": ["/maternity-pay-leave", "/paternity-pay-leave", "/working-when-pregnant-your-rights"],
+ "optional": false,
+ "match_terms": ["tell your employer", "notify your employer", "due date"]}
+```
+
+Spines fetched from GOV.UK have neither field, so they score exactly as before.
+`match_terms` matter only when several steps link the same page: a guide whose
+steps each have their own links does not need them. `data/examples_baby/` does
+not include the having-a-baby spine; the terms used for it are recorded in the
+mapping's `revisions`.
+
+The mapping carries its own copy of the spine (`spine`), so editing the spine
+file changes nothing until you either re-run `map` or copy the new fields into
+the mapping's `spine`, then re-run `build`.
+
 ## The mapping
 
 ```json
@@ -829,6 +853,17 @@ not care where it came from.
 }
 ```
 
+Each step gets one verdict, in this order of precedence:
+
+| Verdict | When |
+|---|---|
+| `blocked` | A block applies: the person is not permitted to take this step |
+| `not_required` | A rule drops it: the step does not apply to this person |
+| `optional` | It applies, but the spine marks it `"optional": true` |
+| `required` | It applies |
+
+An optional step that does not apply to someone is still `not_required`.
+
 ## Scoring
 
 ```json
@@ -846,6 +881,11 @@ not care where it came from.
 
 `presented_a_blocked_step` is deliberately outside the F1 average: it is a
 different class of failure and should not be traded off against coverage.
+
+**Optional steps are neutral.** Leaving one out is not a miss, and showing one
+is neither a hit nor an extra, so it counts towards neither recall nor
+precision. Each profile's score lists the optional steps its plan showed in
+`optional_present`, so you can still see how often the app includes them.
 
 Plans are matched to answer keys by `profile_id`. A total mismatch is reported
 as a mismatch and exits non-zero, rather than silently producing a mean F1 of
@@ -888,9 +928,24 @@ deadlines from its training cutoff. Each call uses a fresh session.
 
 **It maps tasks to step numbers by URL.** Each task the agent returns carries a
 `gov_service_url`. The spine embedded in `truth.json` carries the GOV.UK
-paths for each step. A URL that belongs to a spine step counts that step as
-covered. No model call sits in this path — the mapping is exact and
-deterministic.
+paths for each step. No model call sits in this path: the mapping is
+deterministic. For each task:
+
+1. **A URL linked from one step** counts that step as covered.
+2. **A sub-page counts as its parent page.** `/maternity-pay-leave/pay` matches
+   a step that links `/maternity-pay-leave`.
+3. **A URL linked from several steps** is decided by the task's title. It
+   credits every one of those steps whose `match_terms` appear in the title,
+   as whole words or phrases, ignoring case. A task can do more than one stage:
+   "Check and claim Statutory Maternity Pay" credits both the "check" and the
+   "give notice" steps.
+4. **If no term matches,** it credits the earliest of those steps, as matching
+   on URL alone does.
+
+Some guides need step 3 more than others. In the having-a-baby step by step,
+`/maternity-pay-leave` is linked from six steps (check what you can get, tell
+your employer, give notice, start leave, after the birth, claim money), so
+without `match_terms` every citation of it would count as the first.
 
 **It scores as it runs.** After mapping each plan it calls the same scoring
 function `truth.py score` uses and accumulates the per-profile results.
@@ -902,7 +957,9 @@ processed, with no second pass needed.
 **URL matching keeps the scoring path model-free.** Comparing the API's prose
 step descriptions to spine step titles would need a model, introducing a
 non-deterministic judgement between the app and its score. URL matching is
-exact, repeatable, and cheap.
+exact, repeatable, and cheap. Where a URL alone cannot say which step a task
+does, a short list of terms reviewed alongside the guide decides, so the
+judgement is written down and applied the same way every time.
 
 **Scoring uses the same function as `truth.py score`.** `run_app.py` imports
 `score` from `truth.py` directly, so the inline metrics and the standalone
@@ -940,18 +997,48 @@ python run_app.py data/driving_profiles.json data/truth.json > data/app_plans.js
 
 # Test a single profile
 python run_app.py data/driving_profiles.json data/truth.json --profile P011 --verbose
+
+# Re-match and re-score saved responses, without calling the agent
+python run_app.py data/driving_profiles.json data/truth.json \
+    --from-raw data/raw_part1.json data/raw_part2.json > data/app_plans.json
+
+# Score every plan in a metrics.harness plans file, without calling the agent
+python run_app.py data/driving_profiles.json data/truth.json \
+    --from-plans data/plans.json --results-out data/results_quality.json > data/app_plans.json
 ```
 
-`truth.json` is required — it carries the per-guide URL-to-step index used
-to map the agent's cited URLs onto step numbers.
+`truth.json` is required — it carries the per-guide spine used to map the
+agent's cited URLs onto step numbers.
 
-| Flag                  | Default                         | Purpose                              |
-| --------------------- | ------------------------------- | ------------------------------------ |
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime               |
-| `--profile`           | —                               | Run one profile id only, for testing |
-| `--raw`               | —                               | Save full agent responses here       |
-| `--verbose`           | off                             | Print per-task URL trace to stderr   |
-| `--results-out`       | `results.json`                  | Where to write scoring results       |
+**Scoring the harness's plans.** `python -m metrics.harness generate` (Part 4)
+writes G plans per profile, saving after each profile and retrying failed
+calls. `--from-plans` scores every one of them against the answer key, so plan
+quality and the LLM metrics are measured on the same plans. The results record
+the plans file and its `generated_at` as `metrics.harness score` does, which is
+how the two results files can be paired.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required unless `--from-raw` or `--from-plans`) | Hosted planner runtime |
+| `--profile` | — | Run one profile id only, for testing |
+| `--raw` | — | Save full agent responses, and how each task was matched, here (with `--from-plans`, only how each task was matched) |
+| `--from-raw` | — | Use responses saved with `--raw` (one or more files) instead of calling the agent |
+| `--from-plans` | — | Score every plan in a `metrics.harness generate` plans file instead of calling the agent |
+| `--verbose` | off | Print per-task URL trace to stderr |
+| `--results-out` | `results.json` | Where to write scoring results |
+
+**Save responses with `--raw`.** Each agent call takes minutes. With the
+responses saved, a change to matching, to `match_terms` or to the answer key
+can be re-scored with `--from-raw` in seconds, at no cost. In the saved file,
+each task's trace records the steps it matched (`steps`, a list) and how they
+were decided (`how`: `url`, `terms`, `fallback` or `unmatched`).
+
+**A long run can be split.** `run_app.py` writes its outputs only when it
+finishes, and each call can take a few minutes, so a long run may outlast your
+credentials. Split the profiles file into parts, run each part with its own
+`--raw`, `--results-out` and output files, and score the merged plans with
+`truth.py score`. Running parts in parallel is faster but can slow every call
+past the 5-minute timeout; one part at a time is more reliable.
 
 ## The plans it produces
 
@@ -975,15 +1062,45 @@ python truth.py score data/app_plans.json data/truth.json
 `results.json` (or `--results-out`) is written on every run:
 
 ```json
-{"generated_at": "...", "scoring": {
-  "aggregate": {
-    "precision": 0.97, "recall": 0.95, "f1": 0.96,
-    "mean_f1": 0.984, "profiles_scored": 83,
-    "perfect": 77, "presented_a_blocked_step": 0, "missed_a_required_step": 6
-  },
-  "per_profile": [...]
-}}
+{"generated_at": "...",
+ "config": {
+   "source": "plans", "plans_file": "/…/data/plans.json", "plans_generated_at": "...",
+   "profiles_file": "/…", "weights_file": "/…", "truth_file": "/…", "truth_sha256": "…",
+   "G": 2, "matcher": "url; sub-page as parent; match_terms on task title for shared urls"},
+ "steps": {"/having-a-baby": [{"step": 1, "title": "Check what leave, pay and support you can get", "optional": false}]},
+ "scoring": {
+   "aggregate": {
+     "precision": 0.90, "recall": 0.57, "f1": 0.70,
+     "mean_precision": 0.93, "mean_recall": 0.60, "mean_f1": 0.71,
+     "profiles_scored": 59, "plans_scored": 59,
+     "perfect": 1, "presented_a_blocked_step": 0, "missed_a_required_step": 55},
+   "weighted_aggregate": {"mean_precision": 0.89, "mean_recall": 0.60, "mean_f1": 0.69, "weight_scored": 1.0},
+   "per_profile": [
+     {"profile_id": "P003", "plan": 1, "step_by_step": "/having-a-baby",
+      "precision": 1.0, "recall": 0.5, "f1": 0.667, "missing": [1, 10], "extra": [],
+      "optional_present": [4], "counts": {"required": 6, "covered": 3, "shown": 3},
+      "step_detail": [{"step": 8, "verdict": "required", "covered": true,
+                       "tasks": [{"title": "Register the birth", "url": "…", "how": "url"}]}],
+      "unmatched_tasks": [{"title": "Apply for Tax-Free Childcare", "url": "…"}]}]}}
 ```
+
+- **`config`** says what was scored: the plans (or raw responses), the
+  profiles and weights, and the answer key with its hash, so runs scored
+  against different answer keys are not mistaken for comparable. The agent's
+  ARN is never recorded.
+- **`steps`** copies the step titles, and which are optional, from the answer
+  key, so old results keep the titles they were scored against.
+- **`aggregate`** has two kinds of figure. `precision`, `recall` and `f1` are
+  pooled: counts summed over every plan, then divided once. `mean_*` average
+  each plan's own score, as `truth.py score` does; quote `mean_f1` when
+  comparing with it.
+- **`weighted_aggregate`** appears when the profiles carry a `weight`
+  (`weights.py`): per-plan scores averaged by profile weight, split evenly
+  across a profile's plans.
+- **`per_profile`** has one row per plan (`plan` numbers them, as the harness
+  does). `step_detail` gives each step's verdict, whether the plan covered it
+  and the tasks that did, and how they matched; `unmatched_tasks` lists tasks
+  that cite nothing in the guide.
 
 As with `truth.py score`, `presented_a_blocked_step` is kept outside the F1
 average — it is a different class of failure and should not be traded off
@@ -993,7 +1110,13 @@ against coverage.
 
 The hosted agent must be deployed and your credentials must be allowed to
 invoke it. A failed invocation is reported on stderr and the profile is skipped
-rather than retried. Each call waits up to 5 minutes for a plan.
+rather than retried. Each call waits up to 5 minutes for a plan. Do not
+interrupt a run: plans, `--raw` and `--results-out` are all written at the end.
+
+Matching is per step, not per item within a step. `match_terms` look at the
+task title only, so a title with no stage word ("Arrange Statutory Paternity
+Pay") falls back to the earliest step linking its URL. A task that cites a page
+outside the guide is never credited, even if it does what a step describes.
 
 URLs cited by the app that are not in any guide's spine are reported on
 stderr. They may be legitimate GOV.UK pages outside the step-by-step, or
@@ -1163,31 +1286,62 @@ credentials with `gds-cli aws [PROFILE] -e` and copy them into your shell.
 
 `generate` flags:
 
-| Flag                  | Default                         | Purpose                                                                                                                                           |
-| --------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--profile`           | —                               | Generate for these profile ids only (one or more; put it after the positional arguments)                                                          |
-| `-G`                  | 3                               | Plan generations per profile                                                                                                                      |
-| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans                                                                                                     |
-| `--max-attempts`      | 3                               | Tries per plan generation, including the first                                                                                                    |
-| `--min-weight`        | 0.005                           | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
-| `-o`, `--plans-out`   | `plans.json`                    | Where to write the plans file                                                                                                                     |
+| Flag | Default | Purpose |
+|---|---|---|
+| `--profile` | — | Generate for these profile ids only (one or more; put it after the positional arguments) |
+| `-G` | 3 | Plan generations per profile |
+| `--agent-runtime-arn` | `$AGENT_RUNTIME_ARN` (required) | Hosted planner runtime used to generate plans |
+| `--max-attempts` | 3 | Tries per plan generation, including the first |
+| `--min-weight` | 0.005 | Skip profiles whose `weight` (from `weights.py`) is below this, which is 0.00 at 2 d.p.; profiles with no weight are never skipped; `0` keeps all |
+| `-o`, `--plans-out` | `plans.json` | Where to write the plans file |
+| `--resume` | off | Continue `--plans-out` if it exists instead of overwriting it (see below) |
+
+**Long runs: `--resume`.** `generate` saves after every profile, so when
+credentials expire or a run is interrupted, the plans made so far are kept. Run
+the same command again with `--resume` and it carries on:
+
+- profiles that already have G plans are kept as they are;
+- a profile with fewer than G is topped up, and one that failed is tried again;
+- the file keeps its original `generated_at`, so results already scored against
+  it still pair with it on the dashboard; each resume is recorded in
+  `config.resumed_at`.
+
+The file must have been made with the same `-G` and profiles file; otherwise
+`--resume` stops with an error rather than mixing two runs. If the file does not
+exist yet, `--resume` starts it. Without `--resume`, an existing plans file is
+overwritten, with a warning. `--profile` and `--min-weight` can change between
+resumes, for example to add profiles to a file.
 
 `score` flags:
 
-| Flag             | Default                                          | Purpose                                                                                                                                                                                                                                                                                                                                                                             |
-| ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--profile`      | —                                                | Score these profile ids only (one or more; put it after `plans`)                                                                                                                                                                                                                                                                                                                    |
-| `-N`             | 1                                                | Judge repeats per metric per profile                                                                                                                                                                                                                                                                                                                                                |
-| `--metrics`      | all                                              | Space-separated subset: `consistency relevance`                                                                                                                                                                                                                                                                                                                                     |
-| `--judge-model`  | `$EVAL_ANTHROPIC_MODEL` (required)               | Bedrock model for LLM judging                                                                                                                                                                                                                                                                                                                                                       |
-| `--judge-region` | `eu-west-1`                                      | AWS region for judge model                                                                                                                                                                                                                                                                                                                                                          |
-| `--weights`      | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
-| `--results-out`  | `results.json`                                   | Where to write metric results                                                                                                                                                                                                                                                                                                                                                       |
+| Flag | Default | Purpose |
+|---|---|---|
+| `--profile` | — | Score these profile ids only (one or more; put it after `plans`) |
+| `-N` | 1 | Judge repeats per metric per profile |
+| `--metrics` | all | Space-separated subset: `consistency relevance` |
+| `--judge-model` | `$EVAL_ANTHROPIC_MODEL` (required) | Bedrock model for LLM judging |
+| `--judge-region` | `eu-west-1` | AWS region for judge model |
+| `--weights` | the weights in the profiles file `generate` read | Profiles file written by `weights.py`; adds `weighted_aggregate` and `coverage.weight_scored` to the results. Without it, `score` uses the plans file's `config.profiles_file` if it has a weight for every scored profile, and otherwise scores unweighted (with a note if the file is unreadable or only partly weighted). `results.json` records the file used as `weights_file` |
+| `--results-out` | `results.json` | Where to write metric results |
+| `--resume` | off | Continue a run that stopped part-way (see below) |
+
+**Long runs: `--resume`.** `score` writes `--results-out` only when every
+profile has been judged, but it saves each profile's judgements as it goes, to
+`<results-out>.partial`. If a run stops part-way (expired credentials, say), run
+the same command again with `--resume`: profiles already judged are not judged
+again, and the results are the same as from one uninterrupted run. The
+`.partial` file is removed once the results are written. A resume must use the
+same plans file, `-N`, `--metrics` and judge model and region; otherwise it stops
+with an error rather than mixing judgements. Without `--resume`, a leftover
+`.partial` is discarded, with a warning. A profile cut off part-way is judged
+again in full.
 
 ## Viewing results
 
-`dashboard.py` turns the results files that `score` writes into one HTML page you
-open in a browser. It reads files already on disk, so it needs no AWS credentials,
+`dashboard.py` turns results files into one HTML page you open in a browser. It
+reads two kinds: the relevance and consistency results that `metrics.harness score`
+writes, and the plan-quality results that `run_app.py --from-plans --results-out`
+writes (Part 3). It reads files already on disk, so it needs no AWS credentials,
 no judge model and no install beyond Python's standard library.
 
 ```bash
@@ -1196,6 +1350,10 @@ cd scripts/evaluation/plan-generation
 # 1. Score into data/results/ (the dashboard's default folder). Without
 #    --results-out, score writes results.json to the current directory instead.
 python -m metrics.harness score data/plans.json -N 2 --results-out data/results/results_w2.json
+
+#    Optionally, score plan quality for the same plans file, into the same folder
+python run_app.py data/profiles/profiles.json data/truth.json \
+    --from-plans data/plans.json --results-out data/results/quality_w2.json > /dev/null
 
 # 2. Build the page from every results file in that folder
 python dashboard.py                    # writes data/results/dashboard.html
@@ -1209,9 +1367,34 @@ To read results kept elsewhere, or to write the page somewhere else:
 a single file. Re-run step 2 after every `score` run to add the new file.
 `dashboard_template.html` must stay next to `dashboard.py`, which fills it in.
 
-**Using the page.** A dropdown at the top switches between results files (newest
-first; the file is also in the URL, for example `dashboard.html#results_w2.json`).
-Per file it shows:
+**Evaluations.** Results files that scored the same plans (the same plans file
+name and `plans_generated_at` in their `config`) are shown together as one
+evaluation. A file with no partner is shown on its own. A dropdown at the top
+switches between evaluations (newest first; the evaluation's first file is also in
+the URL, for example `dashboard.html#results_w2.json`).
+
+**Views.** Each evaluation has up to three views; a view whose results are
+missing is greyed out.
+
+- **Overview** (needs both kinds): headline scores in two groups, "what's in the
+  plans" (relevance and consistency) and "what's missing" (plan quality against
+  the answer key), each with a mean and a weighted mean; one row per profile with
+  every score, its spread across plans, and the steps missed in every plan; and
+  **judge against the answer key**, a table of every task by the judge's majority
+  verdict across repeats (a tie is "split") and by whether it covers a step that
+  applies, only steps that do not apply, or nothing in the guide. Highlighted cells
+  are where the two disagree, such as a task the answer key counts but the judge
+  says a deadline rules out, or where the planner goes beyond the guide; click a
+  count to list its tasks with the judge's reasons. Picking a profile shows each
+  plan's steps against the answer key, the task that covered each step and how it
+  was matched, with the judge's verdict on each task.
+- **Plan quality**: F1, recall and precision (mean and weighted mean), plan counts
+  (blocked steps shown first, in red when above 0); coverage by step, with how
+  often each step is shown to someone it does not apply to; a profile by step grid
+  with one square per plan; and the same profile drill-down.
+- **Relevance and consistency**: the harness results, as below.
+
+The relevance and consistency view shows:
 
 - the run's settings and coverage, with warnings for skipped or short profiles, profiles
   below the minimum weight, and judge calls that returned nothing (left out of the
@@ -1232,7 +1415,8 @@ them from the profiles file the run recorded (`weights_file`, else `profiles_fil
 and falls back to the same file name in `data/profiles/` if the recorded path no
 longer exists. If neither is found the page still works but omits them, with a
 warning. Files in other formats in the folder (`truth.py score` output, review
-packets) are skipped with a message.
+packets, plan-quality results written before `run_app.py` recorded a `config`)
+are skipped with a message.
 
 The page embeds the full contents of the results files and works offline. Like the
 results files, it contains local file paths and the judge's text about each plan, so
