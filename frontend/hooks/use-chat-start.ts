@@ -48,7 +48,7 @@ export function useChatStart(
     }
 
     const sessionId = getSessionId();
-    const request = chatTurnRequest(withUser, sessionId, job.jobId);
+    const request = chatTurnRequest(withUser, sessionId, job);
     const started = await startTwice(() => startChatTurn(request));
 
     if (started.ok) {

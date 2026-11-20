@@ -71,6 +71,9 @@ import { z } from 'zod';
 import { buildJourney, getServiceWithContext } from './graph-engine.js';
 import { LIFE_EVENTS, NODES } from './graph-data.js';
 import { evaluateJourney, type UserContext, type Rule } from './rules.js';
+import type { Answer, FieldRule } from './answer-types.js';
+import { answerFor } from './answers.js';
+import { UserContextSchema } from './user-context.js';
 import { provenanceFor, provenanceSummary, sourcingSummary, ruleValueSourcing } from './provenance-view.js';
 
 // ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────
@@ -316,50 +319,6 @@ Use this when the user asks for more detail about a service, or when you need to
 // questions to ask next. Designed for progressive disclosure: call → ask →
 // call again with updated facts.
 
-const UserContextSchema = z.object({
-  age:                                     z.number().optional(),
-  nation:                                  z.enum(['england', 'scotland', 'wales', 'northern-ireland']).optional(),
-  is_uk_resident:                          z.boolean().optional(),
-  citizenship:                             z.string().optional(),
-  immigration_status:                      z.string().optional(),
-  employment_status:                       z.enum(['employed', 'self-employed', 'unemployed', 'director', 'retired', 'student']).optional(),
-  annual_income:                           z.number().optional(),
-  weekly_income:                           z.number().optional(),
-  weekly_earnings:                         z.number().optional(),
-  savings:                                 z.number().optional(),
-  ni_qualifying_years:                     z.number().optional(),
-  has_recent_ni_contributions:             z.boolean().optional(),
-  is_pregnant:                             z.boolean().optional(),
-  has_children:                            z.boolean().optional(),
-  youngest_child_age:                      z.number().optional(),
-  number_of_children:                      z.number().optional(),
-  is_single_parent:                        z.boolean().optional(),
-  relationship_status:                     z.enum(['single', 'married', 'civil_partnership', 'cohabiting', 'separated', 'divorced', 'widowed']).optional(),
-  has_disability:                          z.boolean().optional(),
-  has_terminal_illness:                    z.boolean().optional(),
-  has_long_term_health_condition:          z.boolean().optional(),
-  receives_pip:                            z.boolean().optional(),
-  pip_daily_living_rate:                   z.enum(['standard', 'enhanced']).nullable().optional(),
-  pip_mobility_rate:                       z.enum(['standard', 'enhanced']).nullable().optional(),
-  is_carer:                                z.boolean().optional(),
-  caring_hours_per_week:                   z.number().optional(),
-  cared_for_receives_qualifying_benefit:   z.boolean().optional(),
-  is_in_full_time_education:               z.boolean().optional(),
-  is_homeowner:                            z.boolean().optional(),
-  is_first_time_buyer:                     z.boolean().optional(),
-  property_value:                          z.number().optional(),
-  estate_value:                            z.number().optional(),
-  has_mortgage:                            z.boolean().optional(),
-  has_experienced_bereavement:             z.boolean().optional(),
-  death_registered:                        z.boolean().optional(),
-  estate_has_sole_assets:                  z.boolean().optional(),
-  assets_held_jointly:                     z.boolean().optional(),
-  services_receiving:                      z.array(z.string()).optional(),
-  services_completed:                      z.array(z.string()).optional(),
-  trigger_dates:                           z.record(z.string()).optional(),
-  custom_facts:                            z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-}).describe('Facts known about the user. All fields optional — the tool identifies what is missing and returns the questions to ask next.');
-
 server.tool(
   'check_eligibility',
   `Run structured eligibility rules against known user facts for every service in a journey.
@@ -452,17 +411,32 @@ interface InfoItem {
   field:    string | null;  // UserContext field name when known (structured rules)
   factors:  string[];       // eligibility factor categories this relates to
   neededBy: string[];       // service IDs that need this information
+  answer?:  Answer;         // the kind of answer the field takes (answers.ts)
 }
 
-/** Recursively pull { field, question } pairs out of a structured rule tree. */
-function collectRuleFields(rule: Rule): { field: string; question: string }[] {
+type RuleField = {
+  field:    string;
+  question: string;
+  rule:     FieldRule;
+};
+
+/** Recursively pull { field, question, rule } out of a structured rule tree. */
+function collectRuleFields(rule: Rule): RuleField[] {
   switch (rule.type) {
     case 'comparison':
     case 'boolean':
     case 'enum':
-      return [{ field: rule.field, question: rule.label }];
+      return [{
+        field:    rule.field,
+        question: rule.label,
+        rule,
+      }];
     case 'deadline':
-      return [{ field: `trigger_dates.${rule.triggerEvent}`, question: `What is the ${rule.triggerLabel}?` }];
+      return [{
+        field:    `trigger_dates.${rule.triggerEvent}`,
+        question: `What is the ${rule.triggerLabel}?`,
+        rule,
+      }];
     case 'dependency':
       return []; // graph-state dependency, not a user-facing question
     case 'all':
@@ -494,6 +468,12 @@ Each question item includes:
   factors   — eligibility factor categories the question relates to (age, income,
               disability, caring, residency, …)
   neededBy  — the service IDs that need this piece of information
+  answer    — the kind of answer the field takes, from the rules that read it
+              (only when field is set): { type: "boolean" }; { type: "string",
+              enum: [every allowed value] }; { type: "string", examples: [values
+              the rules name] }; { type: "number", thresholds: [values rules
+              compare it to] }; or { type: "string", format: "date" }. Use it to
+              offer quick replies, or a date picker for a date.
 
 Pass known_facts with whatever the user has already told you (same shape as check_eligibility's user_context). Any item whose field is already answered is dropped, so the returned questions list is always exactly what is still OUTSTANDING. When the list is empty, you have everything the journey needs.
 
@@ -523,6 +503,7 @@ Services without structured rules contribute their text keyQuestions (field: nul
 
     // Dedup key: the UserContext field when known, else the question text.
     const items = new Map<string, InfoItem>();
+    const rulesByField = new Map<string, FieldRule[]>();
     const add = (key: string, question: string, field: string | null, factors: string[], serviceId: string) => {
       const existing = items.get(key);
       if (existing) {
@@ -542,7 +523,9 @@ Services without structured rules contribute their text keyQuestions (field: nul
       if (elig.rules && elig.rules.length) {
         // Structured rules → precise field + question, deduped within the service
         const seen = new Set<string>();
-        for (const { field, question } of elig.rules.flatMap(collectRuleFields)) {
+        for (const { field, question, rule } of elig.rules.flatMap(collectRuleFields)) {
+          const rulesSoFar = rulesByField.get(field) ?? [];
+          rulesByField.set(field, [...rulesSoFar, rule]);
           if (seen.has(field)) continue;
           seen.add(field);
           add(field, question, field, factors, svc.id);
@@ -552,6 +535,13 @@ Services without structured rules contribute their text keyQuestions (field: nul
         for (const question of elig.keyQuestions) {
           add(`q:${question}`, question, null, factors, svc.id);
         }
+      }
+    }
+
+    for (const item of items.values()) {
+      if (item.field) {
+        const rules = rulesByField.get(item.field) ?? [];
+        item.answer = answerFor(item.field, rules);
       }
     }
 

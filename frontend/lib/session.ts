@@ -1,5 +1,7 @@
 "use client";
 
+import type { AnswerFormat } from "@/lib/answer-helpers";
+import type { AnsweredBy } from "@/lib/answer-tracking";
 import * as storage from "@/lib/storage";
 import type { ChatMessage, Plan } from "@/lib/types";
 
@@ -13,7 +15,10 @@ export type StoredJob = {
   confirmed?: boolean;
 };
 
-export type StoredChatJob = StoredJob & { text: string };
+export type StoredChatJob = StoredJob & {
+  text: string;
+  answeredBy?: AnsweredBy;
+};
 
 export type StoredConversation = {
   messages: ChatMessage[];
@@ -22,6 +27,9 @@ export type StoredConversation = {
   outstanding: string[];
   complete: boolean;
   situation: string;
+  // A conversation stored before quick replies has neither.
+  quickReplies?: string[];
+  answerFormat?: AnswerFormat;
 };
 
 export const emptyConversation: StoredConversation = {
@@ -31,6 +39,8 @@ export const emptyConversation: StoredConversation = {
   outstanding: [],
   complete: false,
   situation: "",
+  quickReplies: [],
+  answerFormat: "text",
 };
 
 /** AgentCore rejects session ids shorter than 33 characters; a UUID is 36. */

@@ -11,6 +11,7 @@
 
 import { NODES, type ServiceNode } from './graph-data.js';
 import type { JourneyResult } from './graph-engine.js';
+import { enumValuesOf } from './user-context.js';
 
 // ─── USER CONTEXT ─────────────────────────────────────────────────────────────
 // All fields optional — the whole point is to identify what's MISSING.
@@ -176,6 +177,35 @@ function compare(val: number, op: string, target: number): boolean {
   }
 }
 
+// A value the rule can't read ("unknown" for a yes/no fact) leaves it unknown, not failed.
+function readable(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown): boolean {
+  if (rule.type === 'comparison') {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  if (rule.type === 'boolean') {
+    return typeof value === 'boolean';
+  }
+
+  const allowed = enumValuesOf(rule.field);
+
+  if (allowed) {
+    const text = String(value);
+
+    return allowed.includes(text);
+  }
+
+  return typeof value === 'string' || typeof value === 'number';
+}
+
+function unanswered(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  return !readable(rule, value);
+}
+
 function diffDays(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 }
@@ -187,21 +217,21 @@ export function evaluateRule(rule: Rule, ctx: UserContext): RuleResult {
 
     case 'comparison': {
       const val = getField(ctx, rule.field);
-      if (val === undefined || val === null)
+      if (unanswered(rule, val))
         return { rule, verdict: 'unknown', missingField: rule.field, missingQuestion: rule.label };
       return { rule, verdict: compare(val as number, rule.operator, rule.value) ? 'pass' : 'fail' };
     }
 
     case 'boolean': {
       const val = getField(ctx, rule.field);
-      if (val === undefined || val === null)
+      if (unanswered(rule, val))
         return { rule, verdict: 'unknown', missingField: rule.field, missingQuestion: rule.label };
       return { rule, verdict: val === rule.expected ? 'pass' : 'fail' };
     }
 
     case 'enum': {
       const val = getField(ctx, rule.field);
-      if (val === undefined || val === null)
+      if (unanswered(rule, val))
         return { rule, verdict: 'unknown', missingField: rule.field, missingQuestion: rule.label };
       return { rule, verdict: rule.oneOf.includes(val as string) ? 'pass' : 'fail' };
     }

@@ -6,11 +6,25 @@ const NOT_COPIES = `filter @logStream not like "otel-rt-logs" and @logStream != 
 
 const TURN_STEPS = `["Backend called", "Job started", "Job done", "Job failed"]`;
 
+// An alias can't be its own field's name: Logs Insights calls that a cycle.
+const TURN_COLUMNS = [
+  "min(@timestamp) as started",
+  "latest(kind) as job",
+  "max(ms) as website_ms",
+  "max(seconds) as worker_seconds",
+  "latest(message) as last_step",
+  "latest(reason) as failure",
+  "latest(answered_by) as answered",
+  "max(quick_replies) as buttons",
+  "latest(answer_format) as format",
+  "latest(quick_replies_dropped) as buttons_dropped",
+].join(", ");
+
 // One row for each message and for the plan.
 export function turnsQuery(): string[] {
   return [
     `filter session_id = "${SESSION}" and message in ${TURN_STEPS}`,
-    "stats min(@timestamp) as started, latest(kind) as job, max(ms) as website_ms, max(seconds) as worker_seconds, latest(message) as last_step, latest(reason) as failure by trace_id",
+    `stats ${TURN_COLUMNS} by trace_id`,
     "sort started asc",
   ];
 }
@@ -24,10 +38,13 @@ export function browserQuery(): string[] {
   const detail =
     "coalesce(event_details.message, event_details.task, event_details.job_id, event_details.request.url)";
 
+  const answers =
+    "event_details.answered_by as answered, event_details.quick_replies as buttons";
+
   return [
     `filter metadata.appSessionId = "${SESSION}"`,
     `filter ${shown} or (event_type like "http_event" and (${failed}))`,
-    `fields @timestamp, ${event} as event, metadata.pageId as page, ${detail} as detail, event_details.response.status as status, user_details.sessionId as rum_session`,
+    `fields @timestamp, ${event} as event, metadata.pageId as page, ${detail} as detail, ${answers}, event_details.response.status as status, user_details.sessionId as rum_session`,
     "sort @timestamp asc",
     "limit 500",
   ];

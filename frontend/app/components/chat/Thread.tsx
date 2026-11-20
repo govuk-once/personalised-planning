@@ -1,3 +1,5 @@
+import type { RefObject } from "react";
+
 import styles from "@/app/page.module.css";
 import type { ChatMessage } from "@/lib/types";
 
@@ -10,29 +12,55 @@ type ThreadProps = {
   messages: ChatMessage[];
   pending: boolean;
   error: string | null;
+  latest?: RefObject<HTMLDivElement | null>;
 };
 
-export default function Thread({ messages, pending, error }: Readonly<ThreadProps>) {
+function bubbleStyle(message: ChatMessage): string {
+  if (message.role === "user") {
+    return styles.userMessage;
+  }
+
+  return styles.assistantMessage;
+}
+
+export default function Thread({ messages, pending, error, latest }: Readonly<ThreadProps>) {
+  const lastIndex = messages.length - 1;
+
   return (
     <>
-      <div className={styles.assistantMessage}>
-        <p>{WELCOME}</p>
-      </div>
-
-      {messages.map((message, index) => (
-        <div
-          key={`${index}-${message.role}`}
-          className={message.role === "user" ? styles.userMessage : styles.assistantMessage}
-        >
-          <p>{message.content}</p>
-        </div>
-      ))}
-
-      {pending && (
+      <div role="log" aria-live="polite" aria-relevant="additions" className={styles.messages}>
         <div className={styles.assistantMessage}>
-          <p className={styles.thinking}>Thinking<span className={styles.loadingEllipsis}>...</span></p>
+          <p>{WELCOME}</p>
         </div>
-      )}
+
+        {messages.map((message, index) => {
+          const key = `${index}-${message.role}`;
+          const isLast = index === lastIndex;
+          const isLatestQuestion = isLast && message.role === "assistant";
+
+          if (isLatestQuestion) {
+            return (
+              <div key={key} ref={latest} tabIndex={-1} className={styles.assistantMessage}>
+                <p>{message.content}</p>
+              </div>
+            );
+          }
+
+          return (
+            <div key={key} className={bubbleStyle(message)}>
+              <p>{message.content}</p>
+            </div>
+          );
+        })}
+
+        {pending && (
+          <div className={styles.assistantMessage} role="status">
+            <p className={styles.thinking}>
+              Thinking<span className={styles.loadingEllipsis}>...</span>
+            </p>
+          </div>
+        )}
+      </div>
 
       {error && (
         <div className={styles.chatError} role="alert">

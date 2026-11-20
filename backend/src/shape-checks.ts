@@ -25,6 +25,8 @@ export function chatSummary(turn: ChatTurn): Record<string, unknown> {
   return {
     complete: turn.complete,
     facts: facts.length,
+    quick_replies: turn.quick_replies.length,
+    answer_format: turn.answer_format,
   };
 }
 

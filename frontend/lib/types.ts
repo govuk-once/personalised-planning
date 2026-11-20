@@ -1,3 +1,5 @@
+import type { AnswerFormat } from "@/lib/answer-helpers";
+
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
@@ -10,6 +12,8 @@ export type ChatTurn = {
   outstanding: string[];
   complete: boolean;
   situation: string | null;
+  quick_replies?: string[];
+  answer_format?: AnswerFormat;
 };
 
 export type Task = {

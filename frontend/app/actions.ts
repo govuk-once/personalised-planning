@@ -31,14 +31,18 @@ export async function startChatTurn(input: ChatInput): Promise<ActionResult<JobR
     });
   }
 
-  const { sessionId, jobId } = parsed.data;
+  const { sessionId, jobId, answeredBy } = parsed.data;
   const body = chatBody(parsed.data);
 
-  const reply = await askBackend({
+  const event = {
     action: "start_chat",
     session_id: sessionId,
     job_id: jobId,
     ...body,
+  };
+
+  const reply = await askBackend(event, {
+    answered_by: answeredBy,
   });
 
   return toJobRef(reply);

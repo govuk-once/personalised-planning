@@ -1,11 +1,6 @@
+import type { ChatTurn } from "./chat-reply.ts";
 import type { Context, Kind } from "./requests.ts";
-import {
-  listOrEmpty,
-  outputOf,
-  recordOrEmpty,
-  recordOrNull,
-  textOrNull,
-} from "./reply-fields.ts";
+import { outputOf, recordOrNull } from "./reply-fields.ts";
 import {
   chatProblem,
   chatSummary,
@@ -13,14 +8,7 @@ import {
   planSummary,
 } from "./shape-checks.ts";
 
-export type ChatTurn = {
-  message: string;
-  life_event_ids: unknown[];
-  collected_facts: Record<string, unknown>;
-  outstanding: unknown[];
-  complete: boolean;
-  situation: string | null;
-};
+export { chatTurn, type ChatTurn } from "./chat-reply.ts";
 
 export type PlanResult = {
   plan: Record<string, unknown> | null;
@@ -46,20 +34,6 @@ export function withToday(
   return {
     today,
     ...userContext,
-  };
-}
-
-export function chatTurn(reply: unknown): ChatTurn {
-  const output = outputOf(reply);
-  const message = textOrNull(output.message) ?? "";
-
-  return {
-    message,
-    life_event_ids: listOrEmpty(output.life_event_ids),
-    collected_facts: recordOrEmpty(output.collected_facts),
-    outstanding: listOrEmpty(output.outstanding),
-    complete: output.complete === true,
-    situation: textOrNull(output.situation),
   };
 }
 

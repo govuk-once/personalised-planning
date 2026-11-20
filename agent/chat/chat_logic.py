@@ -151,6 +151,8 @@ async def run_chat(
             turn["collected_facts"] = baseline_facts
             turn["complete"] = True
             turn["message"] = FALLBACK_COMPLETE_MESSAGE
+            turn["quick_replies"] = []
+            turn["answer_format"] = "text"
 
         # Once the conversation is complete, distil the whole conversation into a
         # one-sentence `situation` the frontend can hand straight to /plan.

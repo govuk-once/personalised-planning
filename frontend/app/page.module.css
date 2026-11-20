@@ -1,4 +1,5 @@
-.page, .taskPage {
+.page,
+.taskPage {
   --background: #fafafa;
   --foreground: #fff;
 
@@ -56,7 +57,9 @@
   margin-bottom: 40px;
 }
 
-.intro h1, .intro h2, .intro h3 {
+.intro h1,
+.intro h2,
+.intro h3 {
   font-weight: bold;
   text-wrap: balance;
   color: var(--text-primary);
@@ -84,17 +87,19 @@
   color: var(--text-primary);
 }
 
-a:focus, button:focus:not(.ctaButton) {
+a:focus,
+button:focus:not(.ctaButton) {
   background: #ffdd00;
   border: none;
   outline: none;
   color: #000000;
 }
 
-.ctaButton, .formSubmit {
-  background-color: #1D70B8;
+.ctaButton,
+.formSubmit {
+  background-color: #1d70b8;
   color: #ffffff;
-  border: 2px solid #1D70B8;
+  border: 2px solid #1d70b8;
   font-size: 16px;
   font-weight: bold;
   border-radius: 15px;
@@ -104,8 +109,8 @@ a:focus, button:focus:not(.ctaButton) {
 }
 
 .ctaButton--complete {
-  background-color: #0F7A52;
-  border: 2px solid #0F7A52;
+  background-color: #0f7a52;
+  border: 2px solid #0f7a52;
 }
 
 .ctaButton:focus-visible {
@@ -117,14 +122,14 @@ a:focus, button:focus:not(.ctaButton) {
 
 .editButton {
   background: none;
-  color: #1D70B8;
+  color: #1d70b8;
   border: none;
 }
 
 .endSessionButton {
-  background-color: #CA3535;
+  background-color: #ca3535;
   color: #ffffff;
-  border: 2px solid #CA3535;
+  border: 2px solid #ca3535;
   font-size: 16px;
   font-weight: bold;
   border-radius: 15px;
@@ -133,12 +138,14 @@ a:focus, button:focus:not(.ctaButton) {
   padding: 15px;
 }
 
-.editButton:hover, .endSessionButton:hover {
+.editButton:hover,
+.endSessionButton:hover {
   cursor: pointer;
   text-decoration: underline;
 }
 
-.ctaButton:hover, .formSubmit:hover {
+.ctaButton:hover,
+.formSubmit:hover {
   cursor: pointer;
   background-color: #ffffff;
   color: #000000;
@@ -158,7 +165,8 @@ a:focus, button:focus:not(.ctaButton) {
   text-decoration: underline;
 }
 
-.backButtonLink:focus svg rect, .backButtonLink.backButtonLink--grey:focus svg rect {
+.backButtonLink:focus svg rect,
+.backButtonLink.backButtonLink--grey:focus svg rect {
   fill: #ffdd00;
 }
 
@@ -167,7 +175,7 @@ a:focus, button:focus:not(.ctaButton) {
 }
 
 .backButtonLink.backButtonLink--grey svg rect {
-  fill: #F2F2F7;
+  fill: #f2f2f7;
 }
 
 .backButtonLink:hover span {
@@ -175,19 +183,19 @@ a:focus, button:focus:not(.ctaButton) {
 }
 
 .backButtonLink:hover svg {
-  outline: 3px solid #1D70B8;
+  outline: 3px solid #1d70b8;
   border-radius: 100%;
 }
 
 .profileIconLink:hover .profileIconSvg {
-  background-color: #1D70B8;
+  background-color: #1d70b8;
   border-radius: 100%;
-  outline: 3px solid #1D70B8;
+  outline: 3px solid #1d70b8;
   outline-offset: -3px;
 }
 
 .profileIconLink:hover .profileIconSvg path {
-  fill: #E8F1F8;
+  fill: #e8f1f8;
 }
 
 .profileIconLink:focus {
@@ -199,9 +207,9 @@ a:focus, button:focus:not(.ctaButton) {
 }
 
 .profileIconLink:focus .profileIconSvg {
-  background-color: #1D70B8;
+  background-color: #1d70b8;
   border-radius: 100%;
-  outline: 3px solid #1D70B8;
+  outline: 3px solid #1d70b8;
   outline-offset: -3px;
 }
 
@@ -275,15 +283,14 @@ a.secondary {
   }
 }
 
-
 @media (prefers-color-scheme: dark) {
   .logo {
     filter: invert();
   }
 
   .page {
-    --background: #E8F1F8;
-    --foreground: #F9F9F9;
+    --background: #e8f1f8;
+    --foreground: #f9f9f9;
 
     --text-primary: #000;
     --text-secondary: #000;
@@ -313,7 +320,7 @@ a.secondary {
 }
 
 .priorityTag--high {
-  background: #FABB9C;
+  background: #fabb9c;
 }
 
 .list {
@@ -328,21 +335,23 @@ a.secondary {
 }
 
 .hintsList {
-  border-left: 4px solid #0F7A52;
+  border-left: 4px solid #0f7a52;
   padding: 20px;
   list-style: none;
   margin: 20px 0 0 -20px;
 }
 
-.lockedList li, .hintsList li {
+.lockedList li,
+.hintsList li {
   display: flex;
 }
 
-.lockedList ~.hintsList {
+.lockedList ~ .hintsList {
   margin-top: 5px;
 }
 
-.card, .stepCard {
+.card,
+.stepCard {
   background: #ffffff;
   border-radius: 15px;
   padding-top: 20px;
@@ -351,11 +360,13 @@ a.secondary {
   margin-bottom: 20px;
 }
 
-.card > *, .stepCard > * {
+.card > *,
+.stepCard > * {
   padding: 0 20px;
 }
 
-.cardBody, .stepCardBody {
+.cardBody,
+.stepCardBody {
   padding-top: 20px;
   padding-bottom: 20px;
 }
@@ -376,7 +387,8 @@ a.secondary {
   border-right: 1px solid #e8f1f8;
 }
 
-.stepCardStatusIcon, .taskCardStatusIcon {
+.stepCardStatusIcon,
+.taskCardStatusIcon {
   height: 36px;
   width: 36px;
   border-radius: 100%;
@@ -384,15 +396,15 @@ a.secondary {
 }
 
 .stepCardStatusIcon--notStarted {
-  background-color: #CECECE;
+  background-color: #cecece;
 }
 
 .stepCardStatusIcon--inProgress {
-  background-color: #0088FF;
+  background-color: #0088ff;
 }
 
 .stepCardStatusIcon--done {
-  background-color: #0F7A52;
+  background-color: #0f7a52;
 }
 
 .stepCardProgressIcon {
@@ -400,14 +412,16 @@ a.secondary {
   padding-left: 10px;
 }
 
-.stepCardStatus, .stepCardProgress {
+.stepCardStatus,
+.stepCardProgress {
   width: 50%;
   display: flex;
   padding: 15px 0;
 }
 
 @media (max-width: 400px) {
-  .stepCardStatus, .stepCardProgress {
+  .stepCardStatus,
+  .stepCardProgress {
     flex-direction: column;
     gap: 15px;
   }
@@ -422,7 +436,8 @@ a.secondary {
   }
 }
 
-.cardLink, .stepCardLink {
+.cardLink,
+.stepCardLink {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -431,12 +446,14 @@ a.secondary {
   border-top: 1px solid #e8f1f8;
 }
 
-.cardLink:hover, .stepCardLink:hover {
-  outline: 3px solid #1D70B8;
+.cardLink:hover,
+.stepCardLink:hover {
+  outline: 3px solid #1d70b8;
   border-radius: 0 0 15px 15px;
 }
 
-.cardLink:focus, .stepCardLink:focus {
+.cardLink:focus,
+.stepCardLink:focus {
   border-radius: 0 0 15px 15px;
 }
 
@@ -454,12 +471,14 @@ a.secondary {
   padding: 20px;
 }
 
-.taskCardLink:hover, .linkCardLink:hover {
-  outline: 3px solid #1D70B8;
+.taskCardLink:hover,
+.linkCardLink:hover {
+  outline: 3px solid #1d70b8;
   border-radius: 15px;
 }
 
-.taskCardLink:focus, .linkCardLink:focus {
+.taskCardLink:focus,
+.linkCardLink:focus {
   border-radius: 15px;
 }
 
@@ -471,11 +490,11 @@ a.secondary {
 }
 
 .taskStatus--complete {
-  background-color: #0F7A52;
+  background-color: #0f7a52;
 }
 
 .taskStatus--incomplete {
-  background-color: #CECECE;
+  background-color: #cecece;
 }
 
 .taskTable {
@@ -492,7 +511,7 @@ a.secondary {
 }
 
 .tableRow {
-  border-bottom: 1px solid #DADADA;
+  border-bottom: 1px solid #dadada;
   padding: 20px 0;
   display: flex;
   justify-content: space-between;
@@ -503,19 +522,19 @@ a.secondary {
 }
 
 .infoCard {
-  background-color: #F7F7F7;
+  background-color: #f7f7f7;
   border-radius: 15px;
   padding: 20px;
 }
 
 .listCard {
-  background-color: #FFFFFF;
+  background-color: #ffffff;
   border-radius: 15px;
   width: 100%;
 }
 
 .listCard.listCard--grey {
-  background-color: #F7F7F7;
+  background-color: #f7f7f7;
 }
 
 .listCard .listCardHeadingContainer {
@@ -547,7 +566,7 @@ a.secondary {
 }
 
 .linkCard {
-  background-color: #E8F1F8;
+  background-color: #e8f1f8;
   width: 100%;
   border-radius: 15px;
 }
@@ -557,14 +576,14 @@ a.secondary {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  color: #1D70B8;
+  color: #1d70b8;
   width: 100%;
 }
 
 .callout {
-  background: #F2F2F7;
+  background: #f2f2f7;
   width: 100%;
-  border-left: 4px solid #FEBC2F;
+  border-left: 4px solid #febc2f;
   border-radius: 5px;
 }
 
@@ -601,7 +620,7 @@ a.secondary {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  background-color: #E8F1F8;
+  background-color: #e8f1f8;
 }
 
 .chatMain {
@@ -621,7 +640,8 @@ a.secondary {
   gap: 12px;
 }
 
-.assistantMessage, .userMessage {
+.assistantMessage,
+.userMessage {
   max-width: 85%;
   padding: 16px;
   border-radius: 16px;
@@ -631,26 +651,27 @@ a.secondary {
 
 .assistantMessage {
   align-self: flex-start;
-  background-color: #FFFFFF;
-  color: #0B0C0C;
+  background-color: #ffffff;
+  color: #0b0c0c;
   border-bottom-left-radius: 4px;
   position: relative;
 }
 
 .userMessage {
   align-self: flex-end;
-  background-color: #0F385C;
-  color: #FFFFFF;
+  background-color: #0f385c;
+  color: #ffffff;
   border-bottom-right-radius: 4px;
 }
 
-.assistantMessage p, .userMessage p {
+.assistantMessage p,
+.userMessage p {
   margin: 0;
   white-space: pre-wrap;
 }
 
 .thinking {
-  color: #505A5F;
+  color: #505a5f;
   font-style: italic;
   padding-right: 16px;
 }
@@ -711,9 +732,9 @@ a.secondary {
 .chatError {
   align-self: stretch;
   padding: 16px;
-  border-left: 5px solid #D4351C;
-  background-color: #FFFFFF;
-  color: #0B0C0C;
+  border-left: 5px solid #d4351c;
+  background-color: #ffffff;
+  color: #0b0c0c;
 }
 
 .chatError p {
@@ -724,7 +745,7 @@ a.secondary {
   align-self: stretch;
   padding: 20px;
   border-radius: 16px;
-  background-color: #FFFFFF;
+  background-color: #ffffff;
 }
 
 .startPlanCard p {
@@ -741,7 +762,7 @@ a.secondary {
   margin: 0 0 16px;
   font-size: 16px;
   line-height: 1.5;
-  color: #383F43;
+  color: #383f43;
 }
 
 .startPlanButton {
@@ -749,15 +770,15 @@ a.secondary {
   padding: 14px;
   border: none;
   border-radius: 8px;
-  background-color: #0F7A52;
-  color: #FFFFFF;
+  background-color: #0f7a52;
+  color: #ffffff;
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
 }
 
 .startPlanButton:hover {
-  background-color: #0B5C3E;
+  background-color: #0b5c3e;
 }
 
 .composer {
@@ -766,17 +787,17 @@ a.secondary {
   position: sticky;
   bottom: 0;
   padding: 8px 0;
-  background-color: #E8F1F8;
+  background-color: #e8f1f8;
 }
 
 .composerInput {
   flex: 1;
   padding: 14px 18px;
-  border: 1px solid #B1B4B6;
+  border: 1px solid #b1b4b6;
   border-radius: 999px;
-  background-color: #FFFFFF;
+  background-color: #ffffff;
   font-size: 17px;
-  color: #0B0C0C;
+  color: #0b0c0c;
   min-width: 0;
 }
 
@@ -784,24 +805,26 @@ a.secondary {
   padding: 0 20px;
   border: none;
   border-radius: 999px;
-  background-color: #0F385C;
-  color: #FFFFFF;
+  background-color: #0f385c;
+  color: #ffffff;
   font-size: 16px;
   cursor: pointer;
 }
 
 .composerSubmit:hover {
   background-color: #ffffff;
-  color: #0F385C;
-  outline: 2px solid #0F385C;
+  color: #0f385c;
+  outline: 2px solid #0f385c;
   outline-offset: -2px;
 }
 
-.startPlanButton:focus:hover, .composerSubmit:focus:hover {
+.startPlanButton:focus:hover,
+.composerSubmit:focus:hover {
   text-decoration: underline;
 }
 
-.composerSubmit:disabled, .composerInput:disabled {
+.composerSubmit:disabled,
+.composerInput:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -811,7 +834,7 @@ a.secondary {
   padding: 0;
   border: none;
   background: none;
-  color: #1D70B8;
+  color: #1d70b8;
   font-size: 15px;
   cursor: pointer;
 }
@@ -831,22 +854,22 @@ a.secondary {
 
 .elapsed {
   margin: 0;
-  color: #505A5F;
+  color: #505a5f;
   font-size: 16px;
 }
 
 .ctaLink {
   padding: 12px 18px;
   border-radius: 4px;
-  background-color: #1D70B8;
-  color: #FFFFFF;
+  background-color: #1d70b8;
+  color: #ffffff;
   font-weight: bold;
 }
 
 .ctaLink:hover {
-  background-color: #FFFFFF;
-  color: #1D70B8;
-  outline: 3px solid #1D70B8;
+  background-color: #ffffff;
+  color: #1d70b8;
+  outline: 3px solid #1d70b8;
   outline-offset: -3px;
 }
 
@@ -855,8 +878,8 @@ a.secondary {
   padding: 24px;
   border: none;
   border-radius: 16px;
-  background-color: #FFFFFF;
-  color: #0B0C0C;
+  background-color: #ffffff;
+  color: #0b0c0c;
   margin: auto;
 }
 
@@ -875,11 +898,13 @@ a.secondary {
   gap: 12px;
 }
 
-.dialogDestructive:hover, .dialogCancel:hover {
+.dialogDestructive:hover,
+.dialogCancel:hover {
   text-decoration: underline;
 }
 
-.dialogDestructive, .dialogCancel {
+.dialogDestructive,
+.dialogCancel {
   padding: 12px 20px;
   border: none;
   border-radius: 8px;
@@ -888,20 +913,101 @@ a.secondary {
 }
 
 .dialogDestructive {
-  background-color: #D4351C;
-  color: #FFFFFF;
+  background-color: #d4351c;
+  color: #ffffff;
 }
 
 .dialogCancel {
-  background-color: #F3F2F1;
-  color: #0B0C0C;
+  background-color: #f3f2f1;
+  color: #0b0c0c;
 }
 
-.cardHeading, .stepCardHeading {
+.cardHeading,
+.stepCardHeading {
   font-size: 21px;
   font-weight: bold;
 }
 
-.stepCardStatusHeading, .stepCardProgressHeading {
+.stepCardStatusHeading,
+.stepCardProgressHeading {
   font-weight: bold;
+}
+
+/* Quick replies and the date picker */
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quickReplies,
+.dateAnswer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.quickReply,
+.dateAnswerSubmit {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 2px solid #0f385c;
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.quickReply {
+  background-color: #ffffff;
+  color: #0f385c;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.dateAnswerLabel {
+  width: 100%;
+  font-size: 16px;
+  color: #0b0c0c;
+}
+
+.dateAnswerInput {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #b1b4b6;
+  border-radius: 999px;
+  background-color: #ffffff;
+  font-size: 17px;
+  color: #0b0c0c;
+}
+
+.dateAnswerSubmit {
+  background-color: #0f385c;
+  color: #ffffff;
+}
+
+/* On a touch screen hover sticks. */
+@media (hover: hover) and (pointer: fine) {
+  .quickReply:hover {
+    background-color: #0f385c;
+    color: #ffffff;
+  }
+
+  .dateAnswerSubmit:hover {
+    background-color: #ffffff;
+    color: #0f385c;
+  }
+}
+
+/* The global focus rule removes borders and outlines. */
+button.quickReply:focus,
+button.dateAnswerSubmit:focus {
+  border: 2px solid #0f385c;
+  outline: 3px solid transparent;
+}
+
+.quickReply:focus:hover,
+.dateAnswerSubmit:focus:hover {
+  text-decoration: underline;
 }
