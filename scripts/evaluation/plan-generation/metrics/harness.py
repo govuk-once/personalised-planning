@@ -72,6 +72,84 @@ def _relevance_counts(repeats: list[list[list[dict]]]) -> tuple[int, int]:
     return len(tasks), sum(t["verdict"] == "unjudged" for t in tasks)
 
 
+def _resume_from(out_path: pathlib.Path, args: argparse.Namespace) -> dict | None:
+    """The plans file to continue, or None to start a new one.
+
+    Continuing keeps the file's `generated_at`, so results already scored
+    against it still pair with it, and records each resume in `config`. A file
+    made with a different G or profiles file is refused rather than mixed.
+    """
+    if not out_path.is_file():
+        if args.resume:
+            print(f"{out_path.name} does not exist yet; starting it", file=sys.stderr)
+        return None
+    if not args.resume:
+        print(
+            f"warning: overwriting {out_path.name} (use --resume to continue it instead)",
+            file=sys.stderr,
+        )
+        return None
+    doc = json.loads(out_path.read_text())
+    if not isinstance(doc, dict) or doc.get("kind") != _PLANS_KIND:
+        sys.exit(f"error: --resume: {out_path} is not a plans file")
+    config = doc.get("config") or {}
+    profiles_file = str(pathlib.Path(args.profiles).resolve())
+    if config.get("G") != args.G:
+        sys.exit(
+            f"error: --resume: {out_path.name} has G={config.get('G')}, not {args.G}"
+        )
+    if config.get("profiles_file") != profiles_file:
+        sys.exit(
+            f"error: --resume: {out_path.name} was made from {config.get('profiles_file')}, "
+            f"not {profiles_file}"
+        )
+    if config.get("agent_runtime_arn") != args.agent_runtime_arn:
+        print(
+            "warning: --resume: the agent runtime differs from the one that started this file",
+            file=sys.stderr,
+        )
+    return doc
+
+
+def _resume_from(out_path: pathlib.Path, args: argparse.Namespace) -> dict | None:
+    """The plans file to continue, or None to start a new one.
+
+    Continuing keeps the file's `generated_at`, so results already scored
+    against it still pair with it, and records each resume in `config`. A file
+    made with a different G or profiles file is refused rather than mixed.
+    """
+    if not out_path.is_file():
+        if args.resume:
+            print(f"{out_path.name} does not exist yet; starting it", file=sys.stderr)
+        return None
+    if not args.resume:
+        print(
+            f"warning: overwriting {out_path.name} (use --resume to continue it instead)",
+            file=sys.stderr,
+        )
+        return None
+    doc = json.loads(out_path.read_text())
+    if not isinstance(doc, dict) or doc.get("kind") != _PLANS_KIND:
+        sys.exit(f"error: --resume: {out_path} is not a plans file")
+    config = doc.get("config") or {}
+    profiles_file = str(pathlib.Path(args.profiles).resolve())
+    if config.get("G") != args.G:
+        sys.exit(
+            f"error: --resume: {out_path.name} has G={config.get('G')}, not {args.G}"
+        )
+    if config.get("profiles_file") != profiles_file:
+        sys.exit(
+            f"error: --resume: {out_path.name} was made from {config.get('profiles_file')}, "
+            f"not {profiles_file}"
+        )
+    if config.get("agent_runtime_arn") != args.agent_runtime_arn:
+        print(
+            "warning: --resume: the agent runtime differs from the one that started this file",
+            file=sys.stderr,
+        )
+    return doc
+
+
 def _cmd_generate(args: argparse.Namespace) -> int:
     """Generate G plans per profile from the hosted agent and save a plans file."""
     if args.max_attempts < 1:
@@ -130,35 +208,60 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
     out_path = _output_path(args.plans_out)
     profile_ids = [p.get("id", f"profile_{i}") for i, p in enumerate(all_profiles, 1)]
-    plans: dict[str, list[dict]] = {}
-    failures: dict[str, str] = {}
-    doc = {
-        "kind": _PLANS_KIND,
-        "version": _PLANS_VERSION,
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "config": {
-            "G": args.G,
-            "agent_runtime_arn": args.agent_runtime_arn,
-            "max_attempts": args.max_attempts,
-            "min_weight": args.min_weight,
-            "profiles_file": str(pathlib.Path(args.profiles).resolve()),
-            "profile": args.profile,
-        },
-        "below_min_weight": below,
-        "profile_ids": profile_ids,
-        "plans": plans,
-        "failures": failures,
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    doc = _resume_from(out_path, args)
+    if doc is None:
+        doc = {
+            "kind": _PLANS_KIND,
+            "version": _PLANS_VERSION,
+            "generated_at": now,
+            "config": {
+                "G": args.G,
+                "agent_runtime_arn": args.agent_runtime_arn,
+                "max_attempts": args.max_attempts,
+                "min_weight": args.min_weight,
+                "profiles_file": str(pathlib.Path(args.profiles).resolve()),
+                "profile": args.profile,
+            },
+            "below_min_weight": {},
+            "profile_ids": [],
+            "plans": {},
+            "failures": {},
+        }
+    else:
+        doc["config"].setdefault("resumed_at", []).append(now)
+        doc["config"]["min_weight"] = args.min_weight
+    plans: dict[str, list[dict]] = doc["plans"]
+    failures: dict[str, str] = doc["failures"]
+    doc["below_min_weight"] = {
+        **{k: v for k, v in doc["below_min_weight"].items() if k not in profile_ids},
+        **below,
     }
+    doc["profile_ids"] += [pid for pid in profile_ids if pid not in doc["profile_ids"]]
 
-    total = len(all_profiles)
-    for i, (pid, profile, situation) in enumerate(
-        zip(profile_ids, all_profiles, situations, strict=True), 1
-    ):
+    # On resume, profiles that already have G plans are kept as they are; one
+    # with fewer is topped up, and one that failed is tried again.
+    todo = [
+        (pid, profile, situation)
+        for pid, profile, situation in zip(
+            profile_ids, all_profiles, situations, strict=True
+        )
+        if len(plans.get(pid, [])) < args.G
+    ]
+    if len(todo) < len(profile_ids):
+        print(
+            f"resuming {out_path.name}: {len(profile_ids) - len(todo)} profile(s) already "
+            f"have {args.G} plans, {len(todo)} to do",
+            file=sys.stderr,
+        )
+
+    total = len(todo)
+    for i, (pid, profile, situation) in enumerate(todo, 1):
         print(f"[{i}/{total}] {pid}", file=sys.stderr)
         ctx = profile_context(profile)
-        gens = []
+        gens = list(plans.get(pid, []))
         last_error = None
-        for g in range(args.G):
+        for g in range(len(gens), args.G):
             gen, error = generate_one(
                 client, args.agent_runtime_arn, situation, ctx, args.max_attempts
             )
@@ -170,6 +273,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
         if gens:
             plans[pid] = gens
+            failures.pop(pid, None)
         else:
             failures[pid] = last_error
             print(f"  {pid}: all generations failed, skipping", file=sys.stderr)
@@ -177,16 +281,58 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         # Save after every profile so an interrupted run keeps the work done so far.
         _write_json_atomic(out_path, doc)
 
+    if not todo:
+        _write_json_atomic(out_path, doc)
     print(f"wrote plans to {args.plans_out}", file=sys.stderr)
 
-    short = _short_profiles(plans, args.G)
-    print(f"generated plans for {len(plans)}/{total} profiles", file=sys.stderr)
-    for pid, error in failures.items():
+    wanted = set(profile_ids)
+    short = [pid for pid in _short_profiles(plans, args.G) if pid in wanted]
+    failed = {pid: e for pid, e in failures.items() if pid in wanted}
+    done = sum(1 for pid in profile_ids if pid in plans)
+    print(f"plans for {done}/{len(profile_ids)} profiles", file=sys.stderr)
+    for pid, error in failed.items():
         print(f"  skipped {pid}: {error}", file=sys.stderr)
     for pid in short:
         print(f"  short {pid}: {len(plans[pid])}/{args.G} plans", file=sys.stderr)
+    if failed or short:
+        print("  run the same command with --resume to retry these", file=sys.stderr)
 
-    return 1 if failures or short else 0
+    return 1 if failed or short else 0
+
+
+def _load_checkpoint(
+    path: pathlib.Path, signature: dict, resume: bool
+) -> tuple[dict, dict]:
+    """Judgements saved by an earlier `score` run, as (consistency, relevance).
+
+    The checkpoint holds every profile judged so far, so a run cut short (by
+    expiring credentials, say) can carry on with --resume. Its settings must
+    match this run's: judgements made with another N, judge or plans file are
+    refused rather than mixed. Without --resume, an old checkpoint is discarded.
+    """
+    if not path.is_file():
+        if resume:
+            print(
+                f"no partial results at {path.name}; starting from the first profile",
+                file=sys.stderr,
+            )
+        return {}, {}
+    if not resume:
+        print(
+            f"warning: discarding partial results in {path.name} "
+            "(use --resume to continue them instead)",
+            file=sys.stderr,
+        )
+        path.unlink()
+        return {}, {}
+    data = json.loads(path.read_text())
+    saved = data.get("signature") or {}
+    if diff := sorted(k for k in signature if saved.get(k) != signature[k]):
+        sys.exit(
+            f"error: --resume: {path.name} was scored with different settings "
+            f"({', '.join(f'{k}: {saved.get(k)} vs {signature[k]}' for k in diff)})"
+        )
+    return data.get("consistency") or {}, data.get("relevance") or {}
 
 
 def _cmd_score(args: argparse.Namespace) -> int:
@@ -311,12 +457,45 @@ def _cmd_score(args: argparse.Namespace) -> int:
 
         relevance_template = load_relevance_prompt()
 
-    consistency_scores: dict[str, list] = {}
-    relevance_scores: dict[str, list] = {}
+    # Saved after every profile, so a run cut short can be continued with --resume.
+    checkpoint = out_path.with_name(out_path.name + ".partial")
+    signature = {
+        k: config[k]
+        for k in (
+            "plans_file",
+            "plans_generated_at",
+            "N",
+            "metrics",
+            "judge_model",
+            "judge_region",
+        )
+    }
+    consistency_scores, relevance_scores = _load_checkpoint(
+        checkpoint, signature, args.resume
+    )
     # Running (judgements, unjudged) per metric, for the summary at the end.
     totals = {"consistency": [0, 0], "relevance": [0, 0]}
 
+    def done(pid):
+        return ("consistency" not in args.metrics or pid in consistency_scores) and (
+            "relevance" not in args.metrics or pid in relevance_scores
+        )
+
+    if already := sum(1 for pid in plans if done(pid)):
+        print(
+            f"resuming: {already} of {len(plans)} profile(s) already scored",
+            file=sys.stderr,
+        )
+
     for i, (pid, gens) in enumerate(plans.items(), 1):
+        if done(pid):
+            for name, counts in (
+                ("consistency", _consistency_counts(consistency_scores.get(pid) or [])),
+                ("relevance", _relevance_counts(relevance_scores.get(pid) or [])),
+            ):
+                totals[name][0] += counts[0]
+                totals[name][1] += counts[1]
+            continue
         print(f"[{i}/{len(plans)}] {pid}", file=sys.stderr)
 
         if "consistency" in args.metrics:
@@ -353,13 +532,22 @@ def _cmd_score(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
 
+        _write_json_atomic(
+            checkpoint,
+            {
+                "signature": signature,
+                "consistency": consistency_scores,
+                "relevance": relevance_scores,
+            },
+        )
+
     from metrics.aggregate import compute_results
 
     results = compute_results(
         profile_ids,
         plans,
-        consistency_scores,
-        relevance_scores,
+        {pid: v for pid, v in consistency_scores.items() if pid in plans},
+        {pid: v for pid, v in relevance_scores.items() if pid in plans},
         config,
         failures,
         weights,
@@ -371,6 +559,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
         # The ARN carries the AWS account ID, and AWS error messages can quote it.
         text = text.replace(runtime_arn, "<runtime-arn>")
     out_path.write_text(text)
+    checkpoint.unlink(missing_ok=True)
     print(f"wrote results to {args.results_out}", file=sys.stderr)
 
     units = {"consistency": "pairs and fact checks", "relevance": "tasks"}
@@ -447,6 +636,15 @@ def _parser() -> argparse.ArgumentParser:
         default="plans.json",
         help="Where to write the plans file (default: plans.json)",
     )
+    gen.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Continue --plans-out if it exists: keep profiles that already have G "
+            "plans, top up any with fewer and retry any that failed. It must have "
+            "the same G and profiles file. Without it, an existing file is overwritten"
+        ),
+    )
     gen.set_defaults(func=_cmd_generate)
 
     score = sub.add_parser(
@@ -495,6 +693,15 @@ def _parser() -> argparse.ArgumentParser:
         default="results.json",
         help="Path for the results JSON output (default: results.json)",
     )
+    score.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Continue a run that stopped part-way, from the judgements saved in "
+            "<results-out>.partial: profiles already scored are not judged again. "
+            "Needs the same plans file, N, metrics and judge"
+        ),
+    )
     score.set_defaults(func=_cmd_score)
     return ap
 
@@ -505,10 +712,12 @@ def main(argv=None):
     try:
         return args.func(args)
     except FatalJudgeError as exc:
-        # Nothing is written: results.json is only written once judging is done.
+        # results.json is only written once judging is done; the profiles judged
+        # so far are kept in <results-out>.partial for --resume.
         sys.exit(
             f"error: scoring stopped, no results written: {exc}\n"
-            "Fix the AWS credentials or Bedrock access and rerun `score`."
+            "Fix the AWS credentials or Bedrock access and rerun `score` with "
+            "--resume to continue from the last profile it finished."
         )
 
 

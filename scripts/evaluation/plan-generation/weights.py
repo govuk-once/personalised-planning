@@ -10,6 +10,9 @@ profile gets a `weight` (all weights sum to 1) by raking: for each targeted
 question in turn, the weights of the profiles asked it are rescaled until each
 answer's share of their total weight matches the target, and this repeats
 until nothing moves. Questions without a target keep the spread they have.
+For a multi-select question, each option's target is the share of people asked
+who choose it (shares may overlap), and each option is raked as its own yes/no
+question.
 
 With `--sample N`, N profiles are drawn at random in proportion to their weight
 (seeded), and only the distinct ones are written, each with weight draws / N.
@@ -60,7 +63,8 @@ def load_targets(targets, profiles):
     given = defaultdict(set)
     for p in profiles:
         for q, a in p["answers"].items():
-            given[q].add(a)
+            if q in targets:
+                given[q].add(a)
 
     out = {}
     for q, table in targets.items():
@@ -81,6 +85,55 @@ def load_targets(targets, profiles):
             raise ValueError(f"{q}: targets must be non-negative and not all zero")
         out[q] = {a: v / total for a, v in kept.items()}
     return out
+
+
+def expand_multi(targets, profiles):
+    """Turn each targeted multi-select question into yes/no questions.
+
+    A multi-select target gives each option's share of the people asked, and
+    the shares overlap, so they cannot be raked as one question. Each option
+    becomes its own question `q:option`, answered "yes" if the profile chose it
+    and "no" otherwise, with target `s` for "yes" and `1 - s` for "no".
+
+    Args:
+        targets: Targets as read from the weights file.
+        profiles: Synthetic profile records.
+
+    Returns:
+        The targets and a copy of the profiles with each targeted multi-select
+        answer replaced by its yes/no questions. Weight the copy; the profiles
+        themselves are unchanged.
+
+    Raises:
+        ValueError: If a share is outside 0 to 1, or a profile chose an option
+            that has no target.
+    """
+    multi = {
+        q
+        for p in profiles
+        for q, a in p["answers"].items()
+        if q in targets and isinstance(a, list)
+    }
+    out = {q: t for q, t in targets.items() if q not in multi}
+    options = {}
+    for q in multi:
+        options[q] = [o for o in targets[q] if not o.startswith("_")]
+        for o in options[q]:
+            s = targets[q][o]
+            if not 0 <= s <= 1:
+                raise ValueError(f"{q}: share for {o} must be between 0 and 1")
+            out[f"{q}:{o}"] = {"yes": s, "no": 1 - s}
+    view = []
+    for p in profiles:
+        answers = {q: a for q, a in p["answers"].items() if q not in multi}
+        for q in multi & p["answers"].keys():
+            chosen = set(p["answers"][q])
+            if missing := chosen - set(options[q]):
+                raise ValueError(f"{q}: no target for {', '.join(sorted(missing))}")
+            for o in options[q]:
+                answers[f"{q}:{o}"] = "yes" if o in chosen else "no"
+        view.append({**p, "answers": answers})
+    return out, view
 
 
 def rake(profiles, targets, rounds=100, tol=1e-9):
@@ -202,14 +255,15 @@ def main(argv=None):
         return 1
 
     try:
-        targets = load_targets(spec["targets"], profiles)
+        targets, view = expand_multi(spec["targets"], profiles)
+        targets = load_targets(targets, view)
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
-    weights, rounds = rake(profiles, targets)
+    weights, rounds = rake(view, targets)
     ess = 1 / sum(v * v for v in weights.values())
-    report(profiles, targets, weights, rounds, ess)
+    report(view, targets, weights, rounds, ess)
 
     if args.sample:
         written = sample(profiles, weights, args.sample, args.seed)
