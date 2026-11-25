@@ -199,7 +199,7 @@ function readable(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown)
   return typeof value === 'string' || typeof value === 'number';
 }
 
-function unanswered(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown): boolean {
+export function unanswered(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown): boolean {
   if (value === undefined || value === null) {
     return true;
   }

@@ -70,7 +70,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { buildJourney, getServiceWithContext } from './graph-engine.js';
 import { LIFE_EVENTS, NODES } from './graph-data.js';
-import { evaluateJourney, type UserContext, type Rule } from './rules.js';
+import { evaluateJourney, unanswered, type UserContext, type Rule } from './rules.js';
 import type { Answer, FieldRule } from './answer-types.js';
 import { answerFor } from './answers.js';
 import { UserContextSchema } from './user-context.js';
@@ -446,11 +446,12 @@ function collectRuleFields(rule: Rule): RuleField[] {
   }
 }
 
-/** Resolve a (possibly dotted) UserContext field path against known facts. */
-function factIsKnown(facts: UserContext | undefined, field: string | null): boolean {
+/** Known only when every rule that reads the field can read its value, as in check_eligibility. */
+function factIsKnown(facts: UserContext | undefined, field: string | null, rules: FieldRule[]): boolean {
   if (!field || !facts) return false;
   const val = field.split('.').reduce((obj: any, key) => obj?.[key], facts as any);
-  return val !== undefined && val !== null;
+  if (val === undefined || val === null) return false;
+  return rules.every(rule => (rule.type === 'deadline' ? Boolean(val) : !unanswered(rule, val)));
 }
 
 server.tool(
@@ -475,7 +476,7 @@ Each question item includes:
               compare it to] }; or { type: "string", format: "date" }. Use it to
               offer quick replies, or a date picker for a date.
 
-Pass known_facts with whatever the user has already told you (same shape as check_eligibility's user_context). Any item whose field is already answered is dropped, so the returned questions list is always exactly what is still OUTSTANDING. When the list is empty, you have everything the journey needs.
+Pass known_facts with whatever the user has already told you (same shape as check_eligibility's user_context). Any item whose field is already answered is dropped (a value the rules can't read, such as "yes" for a yes/no fact, doesn't count), so the returned questions list is always exactly what is still OUTSTANDING. When the list is empty, you have everything the journey needs.
 
 Services without structured rules contribute their text keyQuestions (field: null); these are never auto-dropped, so use judgement to skip ones the conversation has already covered.`,
   {
@@ -546,7 +547,11 @@ Services without structured rules contribute their text keyQuestions (field: nul
     }
 
     const all         = [...items.values()];
-    const outstanding = all.filter(i => !factIsKnown(known_facts, i.field));
+    const outstanding = all.filter(item => {
+      const rules = rulesByField.get(item.field ?? '') ?? [];
+
+      return !factIsKnown(known_facts, item.field, rules);
+    });
 
     return {
       content: [{
