@@ -11,61 +11,63 @@
 
 import { NODES, type ServiceNode } from './graph-data.js';
 import type { JourneyResult } from './graph-engine.js';
+import { enumValuesOf } from './user-context.js';
 
 // ─── USER CONTEXT ─────────────────────────────────────────────────────────────
 // All fields optional — the whole point is to identify what's MISSING.
 
 export interface UserContext {
   // Demographics
-  age?:                number;
-  nation?:             'england' | 'scotland' | 'wales' | 'northern-ireland';
-  is_uk_resident?:     boolean;
-  citizenship?:        string;
+  age?: number;
+  nation?: 'england' | 'scotland' | 'wales' | 'northern-ireland';
+  is_uk_resident?: boolean;
+  citizenship?: string;
   immigration_status?: string;
 
   // Employment & income
-  employment_status?:           'employed' | 'self-employed' | 'unemployed' | 'director' | 'retired' | 'student';
-  annual_income?:               number;
-  weekly_income?:               number;
-  weekly_earnings?:             number;
-  savings?:                     number;
-  ni_qualifying_years?:         number;
+  employment_status?: 'employed' | 'self-employed' | 'unemployed' | 'director' | 'retired' | 'student';
+  annual_income?: number;
+  weekly_income?: number;
+  weekly_earnings?: number;
+  savings?: number;
+  ni_qualifying_years?: number;
   has_recent_ni_contributions?: boolean;
 
   // Family
-  is_pregnant?:        boolean;
-  has_children?:       boolean;
+  is_pregnant?: boolean;
+  has_children?: boolean;
   youngest_child_age?: number;
   number_of_children?: number;
-  is_single_parent?:   boolean;
-  relationship_status?: 'single' | 'married' | 'civil_partnership' | 'cohabiting' | 'separated' | 'divorced' | 'widowed';
+  is_single_parent?: boolean;
+  relationship_status?:
+    'single' | 'married' | 'civil_partnership' | 'cohabiting' | 'separated' | 'divorced' | 'widowed';
 
   // Health & disability
-  has_disability?:               boolean;
-  has_terminal_illness?:         boolean;
+  has_disability?: boolean;
+  has_terminal_illness?: boolean;
   has_long_term_health_condition?: boolean;
-  receives_pip?:                 boolean;
-  pip_daily_living_rate?:        'standard' | 'enhanced' | null;
-  pip_mobility_rate?:            'standard' | 'enhanced' | null;
+  receives_pip?: boolean;
+  pip_daily_living_rate?: 'standard' | 'enhanced' | null;
+  pip_mobility_rate?: 'standard' | 'enhanced' | null;
 
   // Caring
-  is_carer?:                               boolean;
-  caring_hours_per_week?:                  number;
-  cared_for_receives_qualifying_benefit?:  boolean;
-  is_in_full_time_education?:              boolean;
+  is_carer?: boolean;
+  caring_hours_per_week?: number;
+  cared_for_receives_qualifying_benefit?: boolean;
+  is_in_full_time_education?: boolean;
 
   // Property & assets
-  is_homeowner?:       boolean;
+  is_homeowner?: boolean;
   is_first_time_buyer?: boolean;
-  property_value?:     number;
-  estate_value?:       number;
-  has_mortgage?:       boolean;
+  property_value?: number;
+  estate_value?: number;
+  has_mortgage?: boolean;
 
   // Bereavement
   has_experienced_bereavement?: boolean;
-  death_registered?:            boolean;
-  estate_has_sole_assets?:      boolean;
-  assets_held_jointly?:         boolean;
+  death_registered?: boolean;
+  estate_has_sole_assets?: boolean;
+  assets_held_jointly?: boolean;
 
   // Graph state — what services the user is already interacting with
   services_receiving?: string[];
@@ -80,34 +82,28 @@ export interface UserContext {
 
 // ─── RULE TYPES (discriminated union) ─────────────────────────────────────────
 
-export type Rule =
-  | ComparisonRule
-  | BooleanRule
-  | EnumRule
-  | DependencyRule
-  | DeadlineRule
-  | CompositeRule;
+export type Rule = ComparisonRule | BooleanRule | EnumRule | DependencyRule | DeadlineRule | CompositeRule;
 
 /** Numeric comparison: age >= 18, savings < 16000 */
 export interface ComparisonRule {
-  type:     'comparison';
-  field:    string;
+  type: 'comparison';
+  field: string;
   operator: '>=' | '>' | '<=' | '<' | '==' | '!=';
-  value:    number;
-  label:    string;
+  value: number;
+  label: string;
 }
 
 /** Boolean fact check: is_uk_resident === true */
 export interface BooleanRule {
-  type:     'boolean';
-  field:    string;
+  type: 'boolean';
+  field: string;
   expected: boolean;
-  label:    string;
+  label: string;
 }
 
 /** Set membership: nation in ['scotland'] */
 export interface EnumRule {
-  type:  'enum';
+  type: 'enum';
   field: string;
   oneOf: (string | number)[];
   label: string;
@@ -115,24 +111,24 @@ export interface EnumRule {
 
 /** Graph-aware dependency: receiving a benefit, completed a service */
 export interface DependencyRule {
-  type:      'dependency';
+  type: 'dependency';
   serviceId: string;
   condition: 'receiving' | 'completed';
-  label:     string;
+  label: string;
 }
 
 /** Deadline from trigger event: days_since(birth_date) <= 42 */
 export interface DeadlineRule {
-  type:         'deadline';
+  type: 'deadline';
   triggerEvent: string;
   triggerLabel: string;
-  maxDays:      number;
-  label:        string;
+  maxDays: number;
+  label: string;
 }
 
 /** Composite: ALL / ANY / NOT */
 export interface CompositeRule {
-  type:  'all' | 'any' | 'not';
+  type: 'all' | 'any' | 'not';
   rules: Rule[];
   label: string;
 }
@@ -142,20 +138,20 @@ export interface CompositeRule {
 export type RuleVerdict = 'pass' | 'fail' | 'unknown';
 
 export interface RuleResult {
-  rule:             Rule;
-  verdict:          RuleVerdict;
-  missingField?:    string;
+  rule: Rule;
+  verdict: RuleVerdict;
+  missingField?: string;
   missingQuestion?: string;
 }
 
 export interface ServiceEligibilityResult {
-  serviceId:        string;
-  serviceName:      string;
-  serviceType:      string;
-  verdict:          'eligible' | 'not_eligible' | 'needs_more_info';
-  details:          RuleResult[];
-  pendingQuestions:  string[];
-  deadlineStatus?:  'ok' | 'overdue' | 'unknown_trigger_date';
+  serviceId: string;
+  serviceName: string;
+  serviceType: string;
+  verdict: 'eligible' | 'not_eligible' | 'needs_more_info';
+  details: RuleResult[];
+  pendingQuestions: string[];
+  deadlineStatus?: 'ok' | 'overdue' | 'unknown_trigger_date';
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -166,14 +162,49 @@ function getField(ctx: UserContext, path: string): unknown {
 
 function compare(val: number, op: string, target: number): boolean {
   switch (op) {
-    case '>=': return val >= target;
-    case '>':  return val > target;
-    case '<=': return val <= target;
-    case '<':  return val < target;
-    case '==': return val === target;
-    case '!=': return val !== target;
-    default:   return false;
+    case '>=':
+      return val >= target;
+    case '>':
+      return val > target;
+    case '<=':
+      return val <= target;
+    case '<':
+      return val < target;
+    case '==':
+      return val === target;
+    case '!=':
+      return val !== target;
+    default:
+      return false;
   }
+}
+
+function readable(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown): boolean {
+  if (rule.type === 'comparison') {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  if (rule.type === 'boolean') {
+    return typeof value === 'boolean';
+  }
+
+  const allowed = enumValuesOf(rule.field);
+
+  if (allowed) {
+    const text = String(value);
+
+    return allowed.includes(text);
+  }
+
+  return typeof value === 'string' || typeof value === 'number';
+}
+
+export function unanswered(rule: ComparisonRule | BooleanRule | EnumRule, value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  return !readable(rule, value);
 }
 
 function diffDays(from: Date, to: Date): number {
@@ -184,32 +215,29 @@ function diffDays(from: Date, to: Date): number {
 
 export function evaluateRule(rule: Rule, ctx: UserContext): RuleResult {
   switch (rule.type) {
-
     case 'comparison': {
       const val = getField(ctx, rule.field);
-      if (val === undefined || val === null)
+      if (unanswered(rule, val))
         return { rule, verdict: 'unknown', missingField: rule.field, missingQuestion: rule.label };
       return { rule, verdict: compare(val as number, rule.operator, rule.value) ? 'pass' : 'fail' };
     }
 
     case 'boolean': {
       const val = getField(ctx, rule.field);
-      if (val === undefined || val === null)
+      if (unanswered(rule, val))
         return { rule, verdict: 'unknown', missingField: rule.field, missingQuestion: rule.label };
       return { rule, verdict: val === rule.expected ? 'pass' : 'fail' };
     }
 
     case 'enum': {
       const val = getField(ctx, rule.field);
-      if (val === undefined || val === null)
+      if (unanswered(rule, val))
         return { rule, verdict: 'unknown', missingField: rule.field, missingQuestion: rule.label };
       return { rule, verdict: rule.oneOf.includes(val as string) ? 'pass' : 'fail' };
     }
 
     case 'dependency': {
-      const list = rule.condition === 'receiving'
-        ? (ctx.services_receiving ?? [])
-        : (ctx.services_completed ?? []);
+      const list = rule.condition === 'receiving' ? (ctx.services_receiving ?? []) : (ctx.services_completed ?? []);
       if (list.includes(rule.serviceId)) return { rule, verdict: 'pass' };
       // Can't confirm it's definitively false — user might not have listed everything
       return { rule, verdict: 'unknown', missingQuestion: rule.label };
@@ -218,22 +246,27 @@ export function evaluateRule(rule: Rule, ctx: UserContext): RuleResult {
     case 'deadline': {
       const dateStr = ctx.trigger_dates?.[rule.triggerEvent];
       if (!dateStr)
-        return { rule, verdict: 'unknown', missingField: `trigger_dates.${rule.triggerEvent}`, missingQuestion: `What is the ${rule.triggerLabel}?` };
+        return {
+          rule,
+          verdict: 'unknown',
+          missingField: `trigger_dates.${rule.triggerEvent}`,
+          missingQuestion: `What is the ${rule.triggerLabel}?`,
+        };
       const days = diffDays(new Date(dateStr), new Date());
       return { rule, verdict: days <= rule.maxDays ? 'pass' : 'fail' };
     }
 
     case 'all': {
       const results = rule.rules.map(r => evaluateRule(r, ctx));
-      if (results.some(r => r.verdict === 'fail'))    return { rule, verdict: 'fail' };
-      if (results.some(r => r.verdict === 'unknown'))  return { rule, verdict: 'unknown', missingQuestion: rule.label };
+      if (results.some(r => r.verdict === 'fail')) return { rule, verdict: 'fail' };
+      if (results.some(r => r.verdict === 'unknown')) return { rule, verdict: 'unknown', missingQuestion: rule.label };
       return { rule, verdict: 'pass' };
     }
 
     case 'any': {
       const results = rule.rules.map(r => evaluateRule(r, ctx));
-      if (results.some(r => r.verdict === 'pass'))     return { rule, verdict: 'pass' };
-      if (results.every(r => r.verdict === 'fail'))    return { rule, verdict: 'fail' };
+      if (results.some(r => r.verdict === 'pass')) return { rule, verdict: 'pass' };
+      if (results.every(r => r.verdict === 'fail')) return { rule, verdict: 'fail' };
       return { rule, verdict: 'unknown', missingQuestion: rule.label };
     }
 
@@ -247,11 +280,7 @@ export function evaluateRule(rule: Rule, ctx: UserContext): RuleResult {
 
 // ─── SERVICE-LEVEL EVALUATION ────────────────────────────────────────────────
 
-export function evaluateServiceEligibility(
-  node: ServiceNode,
-  ctx: UserContext,
-): ServiceEligibilityResult {
-
+export function evaluateServiceEligibility(node: ServiceNode, ctx: UserContext): ServiceEligibilityResult {
   const base = { serviceId: node.id, serviceName: node.name, serviceType: node.serviceType };
 
   // Nation pre-filter: reject if service is devolved and user is in a different nation
@@ -274,7 +303,7 @@ export function evaluateServiceEligibility(
   // Evaluate all rules
   const details = rules.map(r => evaluateRule(r, ctx));
 
-  const anyFail    = details.some(r => r.verdict === 'fail');
+  const anyFail = details.some(r => r.verdict === 'fail');
   const anyUnknown = details.some(r => r.verdict === 'unknown');
 
   const pendingQuestions = details
@@ -282,9 +311,9 @@ export function evaluateServiceEligibility(
     .map(r => r.missingQuestion!);
 
   let verdict: 'eligible' | 'not_eligible' | 'needs_more_info';
-  if (anyFail)         verdict = 'not_eligible';
+  if (anyFail) verdict = 'not_eligible';
   else if (anyUnknown) verdict = 'needs_more_info';
-  else                 verdict = 'eligible';
+  else verdict = 'eligible';
 
   // Deadline status
   let deadlineStatus: 'ok' | 'overdue' | 'unknown_trigger_date' | undefined;
@@ -292,7 +321,7 @@ export function evaluateServiceEligibility(
   if (deadlineRule) {
     const dateStr = ctx.trigger_dates?.[deadlineRule.triggerEvent];
     if (!dateStr) deadlineStatus = 'unknown_trigger_date';
-    else          deadlineStatus = diffDays(new Date(dateStr), new Date()) <= deadlineRule.maxDays ? 'ok' : 'overdue';
+    else deadlineStatus = diffDays(new Date(dateStr), new Date()) <= deadlineRule.maxDays ? 'ok' : 'overdue';
   }
 
   return { ...base, verdict, details, pendingQuestions, deadlineStatus };
@@ -300,11 +329,6 @@ export function evaluateServiceEligibility(
 
 // ─── JOURNEY-LEVEL EVALUATION ────────────────────────────────────────────────
 
-export function evaluateJourney(
-  journey: JourneyResult,
-  ctx: UserContext,
-): ServiceEligibilityResult[] {
-  return journey.phases.flatMap(phase =>
-    phase.services.map(svc => evaluateServiceEligibility(NODES[svc.id], ctx)),
-  );
+export function evaluateJourney(journey: JourneyResult, ctx: UserContext): ServiceEligibilityResult[] {
+  return journey.phases.flatMap(phase => phase.services.map(svc => evaluateServiceEligibility(NODES[svc.id], ctx)));
 }
