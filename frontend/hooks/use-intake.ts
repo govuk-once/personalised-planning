@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { useChatPolling } from "@/hooks/use-chat-polling";
 import { useChatStart } from "@/hooks/use-chat-start";
 import { useShownError } from "@/hooks/use-shown-error";
+import { helpersShown } from "@/lib/answer-helpers";
+import { type Answer, sentDetails, TYPED } from "@/lib/answer-tracking";
+import { chatJobFor } from "@/lib/chat-job";
 import { withUserMessage } from "@/lib/conversation";
-import { freshJob } from "@/lib/job-id";
 import { track } from "@/lib/monitoring";
 import {
   clearSession,
@@ -30,6 +32,8 @@ export function useIntake() {
   const chatJob = useChatJob();
   const [draft, setDraft] = useState("");
   const [error, setError] = useShownError("chat");
+  const pending = chatJob !== null;
+  const helpers = helpersShown(conversation, pending);
 
   const feedback = {
     setDraft,
@@ -43,31 +47,23 @@ export function useIntake() {
   };
   useChatPolling(chatJob, conversation, CHAT_POLLING, handlers);
 
-  function send(text: string) {
+  function send(text: string, answer: Answer = TYPED) {
     const trimmed = text.trim();
 
     if (!trimmed || chatJob) {
       return;
     }
 
-    const fresh = freshJob("chat");
-    const job = {
-      ...fresh,
-      text: trimmed,
-    };
+    const job = chatJobFor(trimmed, answer);
     const withUser = withUserMessage(conversation, trimmed);
+    const sent = sentDetails(job, answer, helpers);
 
     setError(null);
     setDraft("");
     saveConversation(withUser);
     saveChatJob(job);
     getSessionId();
-
-    track("message_sent", {
-      job_id: job.jobId,
-      chars: trimmed.length,
-    });
-
+    track("message_sent", sent);
     begin(job, withUser);
   }
 
@@ -82,7 +78,6 @@ export function useIntake() {
     setError(null);
   }
 
-  const pending = chatJob !== null;
   const started = conversation.messages.length > 0;
 
   return {
@@ -95,5 +90,6 @@ export function useIntake() {
     startPlan,
     startAgain,
     started,
+    helpers,
   };
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useJobPolling } from "@/hooks/use-job-polling";
+import { helpersShown } from "@/lib/answer-helpers";
+import { offeredDetails } from "@/lib/answer-tracking";
 import { withReply } from "@/lib/conversation";
 import { track } from "@/lib/monitoring";
 import type { Outcome, PollSettings } from "@/lib/poll";
@@ -26,6 +28,8 @@ export function useChatPolling(
   function settle(outcome: Outcome<ChatTurn>) {
     if (outcome.ok) {
       const answered = withReply(conversation, outcome.result);
+      const helpers = helpersShown(answered, false);
+      const offered = offeredDetails(helpers);
 
       saveConversation(answered);
       clearChatJob();
@@ -33,6 +37,7 @@ export function useChatPolling(
       track("reply_shown", {
         job_id: chatJob?.jobId ?? "",
         complete: answered.complete,
+        ...offered,
       });
 
       return;

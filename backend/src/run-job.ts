@@ -3,17 +3,17 @@ import { errorLogFields } from "./errors.ts";
 import { failJob } from "./fail-job.ts";
 import { type ClaimedJob, SOMETHING_WRONG, TOO_LARGE_TO_KEEP } from "./jobs.ts";
 import { keepResult } from "./keep-result.ts";
-import { type Shaped, shapeProblem } from "./outputs.ts";
+import { shapeProblem } from "./outputs.ts";
 import type { AgentRequest } from "./requests.ts";
 import { MAX_RESULT_LENGTH } from "./results.ts";
-import { askAgent } from "./turns.ts";
+import { type Answer, askAgent } from "./turns.ts";
 import type { Run } from "./worker.ts";
 
 function ask(
   run: Run,
   request: AgentRequest,
   timeoutMs: number
-): Promise<Shaped> {
+): Promise<Answer> {
   const now = new Date(run.startedMs);
 
   const call = {
@@ -32,12 +32,12 @@ export async function runJob(
   request: AgentRequest,
   timeoutMs: number
 ): Promise<void> {
-  let shaped: Shaped;
+  let answer: Answer;
 
   try {
     const askedMs = run.deps.nowMs();
 
-    shaped = await ask(run, request, timeoutMs);
+    answer = await ask(run, request, timeoutMs);
 
     const repliedMs = run.deps.nowMs();
 
@@ -57,6 +57,7 @@ export async function runJob(
     throw error;
   }
 
+  const { shaped } = answer;
   const problem = shapeProblem(run.kind, shaped);
 
   if (problem) {
@@ -71,5 +72,5 @@ export async function runJob(
     return failJob(run, reason, { result_length: text.length });
   }
 
-  await keepResult(run, job, shaped, text);
+  await keepResult(run, job, answer, text);
 }

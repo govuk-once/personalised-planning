@@ -1,5 +1,6 @@
 import * as z from "zod";
 
+import { ANSWERED_BY } from "@/lib/answer-tracking";
 import { fitsFacts, fitsTranscript, TOO_LONG_ISSUE } from "@/lib/input-limits";
 
 // validate every input.
@@ -21,13 +22,11 @@ const message = z.object({
   content: z.string().max(20_000),
 });
 
-const transcript = z
-  .array(message)
-  .min(1)
-  .max(60)
-  .refine(fitsTranscript, TOO_LONG_ISSUE);
+const transcript = z.array(message).min(1).max(60).refine(fitsTranscript, TOO_LONG_ISSUE);
 
 const facts = z.record(z.string(), z.unknown()).refine(fitsFacts, TOO_LONG_ISSUE);
+
+const answeredBy = z.enum(ANSWERED_BY).optional().catch(undefined);
 
 function ownJobId(kind: "chat" | "plan") {
   const pattern = new RegExp(`^${kind}-[0-9a-f]{32}$`);
@@ -38,6 +37,7 @@ function ownJobId(kind: "chat" | "plan") {
 export const chatInput = z.object({
   sessionId,
   jobId: ownJobId("chat").optional(),
+  answeredBy,
   messages: transcript,
   collectedFacts: facts.optional(),
   lifeEventIds: z.array(z.string()).optional(),

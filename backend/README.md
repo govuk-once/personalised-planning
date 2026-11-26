@@ -39,4 +39,5 @@ sam local start-lambda --template .local/cdk.out/PpLocal.template.json --port 80
 
 - `LOCAL_MODE=true` uses agents on ports 8080 and 8081. Leave it out to use the deployed agents: set `AGENT_RUNTIME_ARN` and `CHAT_AGENT_RUNTIME_ARN`, and start SAM with AWS credentials.
 - Start the frontend with `BACKEND_FUNCTION_NAME=$(jq -r .apiFunction ../.local/backend.json)` and `BACKEND_LAMBDA_ENDPOINT=http://127.0.0.1:8000`.
+- `QUICK_REPLIES=on` offers answer buttons and a date picker under the agent's questions: `QUICK_REPLIES=on make local`, or the same variable on an Amplify branch. Anything else, or nothing, is off.
 - After changing `backend/src`, run `npm run backend:local` again.

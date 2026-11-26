@@ -1,7 +1,9 @@
 import type { InvokeAgent } from "./agents.ts";
 import type { Settings } from "./config.ts";
 import mockPlan from "./mock-plan.json" with { type: "json" };
-import { chatTurn, planResult, type Shaped, withToday } from "./outputs.ts";
+import { offerLogFields } from "./answer-helpers.ts";
+import { chatReply } from "./chat-reply.ts";
+import { planResult, type Shaped, withToday } from "./outputs.ts";
 import type {
   AgentRequest,
   ChatRequest,
@@ -17,7 +19,19 @@ export type AgentCall = {
   timeoutMs: number;
 };
 
-async function chat(request: ChatRequest, call: AgentCall): Promise<Shaped> {
+export type Answer = {
+  shaped: Shaped;
+  logFields: Record<string, unknown>;
+};
+
+function withoutLogFields(shaped: Shaped): Answer {
+  return {
+    shaped,
+    logFields: {},
+  };
+}
+
+async function chat(request: ChatRequest, call: AgentCall): Promise<Answer> {
   const userContext = withToday(request.user_context, call.now);
 
   const payload = {
@@ -33,12 +47,20 @@ async function chat(request: ChatRequest, call: AgentCall): Promise<Shaped> {
     call.timeoutMs
   );
 
-  return chatTurn(reply);
+  const { turn, offer } = chatReply(reply, call.settings.quickReplies);
+  const logFields = offerLogFields(offer);
+
+  return {
+    shaped: turn,
+    logFields,
+  };
 }
 
-async function plan(request: PlanRequest, call: AgentCall): Promise<Shaped> {
+async function plan(request: PlanRequest, call: AgentCall): Promise<Answer> {
   if (request.mock) {
-    return planResult(mockPlan);
+    const mock = planResult(mockPlan);
+
+    return withoutLogFields(mock);
   }
 
   const userContext = withToday(request.user_context, call.now);
@@ -56,14 +78,16 @@ async function plan(request: PlanRequest, call: AgentCall): Promise<Shaped> {
     call.timeoutMs
   );
 
-  return planResult(reply);
+  const result = planResult(reply);
+
+  return withoutLogFields(result);
 }
 
 export function askAgent(
   kind: Kind,
   request: AgentRequest,
   call: AgentCall
-): Promise<Shaped> {
+): Promise<Answer> {
   if (kind === "chat") {
     return chat(request as ChatRequest, call);
   }

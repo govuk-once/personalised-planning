@@ -12,7 +12,7 @@ local-setup:
 	cd frontend && pnpm install
 
 local: check
-	@$(CLEAN_ENV) LOCAL_MODE=true npm run --silent backend:local
+	@$(CLEAN_ENV) LOCAL_MODE=true QUICK_REPLIES='$(QUICK_REPLIES)' npm run --silent backend:local
 	@creds=$$(gds-cli aws "$(AWS_PROFILE)" -r eu-west-2 -e) || exit 1; \
 	eval "$$creds"; \
 	api=$$(jq -r .apiFunction $(SUMMARY)); \

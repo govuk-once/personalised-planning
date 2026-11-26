@@ -1,14 +1,15 @@
 import { errorLogFields } from "./errors.ts";
 import { failJob } from "./fail-job.ts";
 import { type ClaimedJob, SOMETHING_WRONG } from "./jobs.ts";
-import { type Shaped, summaryOf } from "./outputs.ts";
+import { summaryOf } from "./outputs.ts";
 import { splitIntoParts, utf8Bytes } from "./results.ts";
+import type { Answer } from "./turns.ts";
 import type { Run } from "./worker.ts";
 
 export async function keepResult(
   run: Run,
   job: ClaimedJob,
-  shaped: Shaped,
+  answer: Answer,
   text: string
 ): Promise<void> {
   const { deps, log } = run;
@@ -29,7 +30,7 @@ export async function keepResult(
   const elapsedMs = deps.nowMs() - run.startedMs;
   const seconds = Math.round(elapsedMs / 100) / 10;
   const resultBytes = utf8Bytes(text);
-  const summary = summaryOf(run.kind, shaped);
+  const summary = summaryOf(run.kind, answer.shaped);
 
   const fields = {
     job_id: run.jobId,
@@ -38,6 +39,7 @@ export async function keepResult(
     result_bytes: resultBytes,
     result_parts: parts.length,
     ...summary,
+    ...answer.logFields,
   };
 
   if (stored) {
