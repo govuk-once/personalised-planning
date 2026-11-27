@@ -5,11 +5,9 @@ Density: discuss
 Notes: A made-up service, used to show the parts for discussion decks: eyebrow, lede, callout, cards, numbered cards and a scorecard table, at discuss density.
 
 ## Most people renew online, but the paper route still costs the most
-Eyebrow: The case in brief
 Online renewals now take minutes. The paper route takes weeks and accounts for most calls to the helpline.
 
 ## [cards] What we found
-Eyebrow: The case in brief
 Three things came out of the last quarter's data and research.
 
 ### Paper is slow
@@ -24,7 +22,6 @@ A small group can't use the online route, and won't be able to.
 Evidence: 6 of 14 research participants who used paper had no other option.
 
 ## [numbered] What any option has to do
-Eyebrow: What we need
 
 ### Keep a paper route
 For people who can't renew online.
@@ -40,6 +37,19 @@ Than the current manual check.
 
 ! **Not decided yet.** Whether to charge for the paper route. That is a policy question, not one for this team.
 
+## [cards] Three options for the paper route
+Eyebrow: Options · 1 of 2
+We looked at keeping things as they are, moving paper renewals to the phone, and scanning the forms.
+
+### Keep as is
+No change and no cost, but the wait and the calls stay.
+
+### Phone renewals
+Same-day renewals, but no paper route for the people who need one.
+
+### Scan the forms
+Paper stays, and the forms join the online route's automatic check.
+
 ## [table] Against the four needs
 Eyebrow: Options · 2 of 2
 Scanning the forms comes closest, without removing paper for the people who need it.
@@ -52,7 +62,6 @@ Scanning the forms comes closest, without removing paper for the people who need
 | Cost less to run | [no] | [no] more staff | [yes] automatic check |
 
 ## We recommend scanning the paper forms
-Eyebrow: Decision sought
 ! **One decision needed today:** whether to fund the scanning pilot for the next quarter.
 - Paper stays for the people who need it
 - Renewals come down to about a week

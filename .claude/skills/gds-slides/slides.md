@@ -55,15 +55,15 @@ A deck read close up, on a screen, before or during a discussion can carry more 
 
 | Write | What it adds | Where it works |
 |---|---|---|
-| `Eyebrow: Why not the existing repos? · 1 of 3` | A short muted line above the heading, for where the reader is in the argument | Any slide except section and quote slides |
+| `Eyebrow: Why not the existing repos? · 1 of 3` | Optional, and usually left out: a short muted line above the heading, to mark a run of related slides | Any slide except section and quote slides |
 | A plain sentence after the heading | A lede: one larger sentence before the cards or table | `cards` and `table` slides (text and diagram slides already have one) |
 | `! **Bold lead.** The rest` | A callout: a tinted band with a navy rule. Before any other content it sits under the heading; after it, under the content | Text, `cards`, `table`, `split` and `diagram` slides |
 | `## [cards] Heading`, then two to four `### Title` blocks, each a sentence or a short list and an optional `Evidence:` line | Panels across the slide with a navy top rule; evidence sits under a thin rule in muted type | One row of two to four |
 | `## [numbered] Heading`, written like `cards` | The same panels with a large navy number in each | Requirements, steps or principles |
-| `[yes]`, `[partly]` or `[no]` at the start of a table cell, then an optional note | A scorecard tag with the note under it. The word always shows, so colour is never the only signal | `table` slides |
+| `[yes]`, `[partly]` or `[no]` at the start of a table cell, then an optional note | A scorecard tag: a filled, half-filled or empty circle and the word, with the note under it. Shape and word carry the meaning, not colour | `table` slides |
 | `{highlight}` at the end of a table header cell | Shades that column, for the option you are proposing | `table` slides |
 
-In PowerPoint, cards and callouts are ordinary rectangles and text boxes, and tags are highlighted text in real table cells, so all of it stays editable. A text slide with a callout is laid out like the composed types, with the heading at the top.
+In PowerPoint, cards and callouts are ordinary rectangles and text boxes, and tags are text in real table cells, so all of it stays editable. A text slide with a callout is laid out like the composed types, with the heading at the top.
 
 ## Not built yet
 
