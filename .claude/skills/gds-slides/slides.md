@@ -31,7 +31,7 @@ Notes: Speaker notes for the title slide.
 | `## Heading` then a sentence, or a `-` list | `text` | Off-white, bold 36pt heading, 24pt body, GDS tag bottom left | Almost everything |
 | `## [quote]` then `> the quote` and an optional `Source: who said it` line | `quote` | The quote in navy bold beside a navy rule, the source below | A callout, or something a user said, in one or two lines |
 | `## [section] Heading` | `section` | Navy, white 72pt bold line | A signpost between parts of the argument |
-| `## [photo] Heading` | `photo-section` | Template photo under a navy tint, white 72pt bold line | Text over an image: a signpost with more weight, at most once a deck |
+| `## [photo] Heading`, optionally with an image line `![alt](photo.jpg)` | `photo-section` | Your photo, or the template's, under a navy tint, with a white 72pt bold line | Text over an image: a signpost with more weight, at most once a deck |
 
 End any slide with a `Notes:` paragraph. Everything after it, up to the next `##`, goes into the PowerPoint file's speaker notes and into the HTML deck, where N shows them.
 
@@ -65,6 +65,18 @@ A deck read close up, on a screen, before or during a discussion can carry more 
 
 In PowerPoint, cards and callouts are ordinary rectangles and text boxes, and tags are text in real table cells, so all of it stays editable. A text slide with a callout is laid out like the composed types, with the heading at the top.
 
-## Not built yet
+## Photos and screenshots
 
-The template also has an image-beside-text slide (sample 3) and four photo-grid slides (samples 7 to 10). They need a picture swapped in, which the script doesn't do. Leave them out, or build the deck and add those slides by hand in PowerPoint for the web.
+Give Claude the photos or screenshots you want in the deck, as PNG or JPEG files. Image lines are `![alt text](path)`, with the path relative to the outline. Every photo is cropped from the centre to fill its frame, so crop it yourself first if the subject is near an edge. `examples/using-gds-slides.md` uses every one of these.
+
+| Write | What you get |
+|---|---|
+| `Cover: images/cover.jpg` under the deck title | The photo fills the right half of the title slide. The lockup and title stay on the left, at a smaller size, because the template has no white lockup to put over a photo |
+| `## [image] Heading`, a sentence or up to four bullets, then an image line | The template's image-beside-text slide: text on the left, the photo filling the right half. For illustration, or a screenshot with a point beside it |
+| `## [photo] Heading` then an image line | A section slide with your photo under the navy tint, instead of the template's |
+| `## [photos] Heading`, then two or three image lines | The template's photo slides: two photos side by side, or one large and two small, on a cyan frame, or navy with `{navy}` after the heading. The heading isn't shown; it names the slide for screen readers |
+| A PNG or JPEG on a `[diagram]` or `[split]` slide | A screenshot in place of an SVG diagram, scaled to fit rather than cropped |
+
+Where a photo crosses the top centre of the slide, the build repeats the OFFICIAL marking on a small label above it, because the master draws the marking behind everything else.
+
+Alt text matters: write it as a sentence describing what the photo shows, unless the photo is decorative, as a cover is. Only use photos you have the right to use, and don't use photos of identifiable people without their agreement. The template's own photos, in `examples/images/`, are fine to reuse.

@@ -29,6 +29,8 @@ TYPES = {
     "split": "split",
     "cards": "cards",
     "numbered": "cards",
+    "image": "image",
+    "photos": "photos",
 }
 # Lines under the title, "Key: value" -> outline field. Notes comes last and runs on.
 DECK = {
@@ -41,6 +43,7 @@ DECK = {
     "name": "name_",
     "sizes": "sizes",
     "density": "density",
+    "cover": "cover",
 }
 
 
@@ -85,6 +88,10 @@ def parse(path):
         }
     if fields.get("density", "present").lower() not in ("present", "discuss"):
         raise OutlineError("'Density:' is 'present' (the default) or 'discuss'.")
+    if "cover" in fields:
+        # "Cover: file.jpg" or "Cover: ![alt](file.jpg)"; the cover photo is decorative either way.
+        m = re.match(r"!\[.*\]\((.*)\)$", fields["cover"])
+        fields["cover"] = m.group(1) if m else fields["cover"]
     outline.update(fields)
     for n, (level, heading, body) in enumerate(sections[1:], 2):
         if level == 1:
@@ -123,6 +130,8 @@ def slide(n, heading, lines):
         s["numbered"] = True
     if (m.group(2) if m else heading):
         s["heading"] = m.group(2) if m else heading
+    if s.get("heading", "").endswith("{navy}"):
+        s["heading"], s["navy"] = s["heading"][: -len("{navy}")].strip(), True
 
     para, paras, bullets, quote, rows, blocks, notes = [], [], [], [], [], [], None
     seen = False  # any content yet; a callout before it goes at the top of the slide
@@ -161,7 +170,9 @@ def slide(n, heading, lines):
         elif re.match(r"!\[.*\]\(.*\)$", t):
             end_para()
             alt, src = re.match(r"!\[(.*)\]\((.*)\)$", t).groups()
-            s["alt"], s["diagram"] = alt, src
+            s.setdefault("images", []).append({"alt": alt, "src": src})
+            if "diagram" not in s:
+                s["alt"], s["diagram"] = alt, src
         elif t.startswith(">"):
             quote.append(t[1:].strip())
         elif t.lower().startswith("source:"):
@@ -200,6 +211,10 @@ def slide(n, heading, lines):
     if kind in need and need[kind] not in s:
         what = {"quote": "a '>' quote", "table": "a Markdown table", "diagram": "an image line ![alt](file.svg)"}
         raise OutlineError(f"Slide {n}: a [{kind}] slide needs {what[need[kind]]}.")
+    if kind == "image" and "diagram" not in s:
+        raise OutlineError(f"Slide {n}: an [image] slide needs an image line ![alt](photo.jpg).")
+    if kind == "photos" and len(s.get("images", [])) not in (2, 3):
+        raise OutlineError(f"Slide {n}: a [photos] slide needs two or three image lines ![alt](photo.jpg).")
     if kind == "cards" and not 2 <= len(blocks) <= 4:
         raise OutlineError(f"Slide {n}: a [{m.group(1)}] slide needs two to four cards, each a '### Title'.")
     if kind not in ("quote",) and "heading" not in s:

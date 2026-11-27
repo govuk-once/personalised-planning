@@ -27,7 +27,7 @@ SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(SKILL, "template.pptx")
 
 # 0-based index of the sample slide each type copies, in template.pptx
-SAMPLES = {"title": 1, "text": 2, "quote": 2, "section": 4, "photo-section": 5, "closing": 11}
+SAMPLES = {"title": 1, "text": 2, "quote": 2, "image": 3, "section": 4, "photo-section": 5, "photos": 7, "closing": 11}
 # Slide types built from parts rather than from one sample slide. Diagrams need macOS Quick Look for PowerPoint.
 COMPOSED = ("table", "split", "diagram", "cards")
 # Template media used by the HTML deck
@@ -71,7 +71,8 @@ def expand(outline):
     """The outline's slides with the title and closing slides added: [(type, heading, lines, notes, slide)]."""
     p = outline["presenter"]
     who = [p["name"], p["role"], p.get("org", "Government Digital Service")]
-    slides = [("title", None, [outline["title"]] + who, outline.get("notes", ""), {})]
+    cover = {"cover": outline["cover"]} if outline.get("cover") else {}
+    slides = [("title", None, [outline["title"]] + who, outline.get("notes", ""), cover)]
     for s in outline["slides"]:
         body = s.get("bullets") or ([s["body"]] if s.get("body") else [])
         slides.append((s["type"], s.get("heading"), body, s.get("notes", ""), s))
@@ -106,6 +107,15 @@ def check(slides, sizes):
                 words = len(b.get("text", "") or " ".join(b.get("bullets", []))) + len(b.get("evidence", ""))
                 if words > cap:
                     warn.append(f"slide {n}: card {b['label'][:25]!r} {words} chars, limit {cap}")
+        if kind == "image":
+            # The text sits in the left 40% of the slide, so it holds about half as much.
+            if len(head or "") > int(lim["heading"] * 0.6):
+                warn.append(f"slide {n}: image heading {len(head)} chars, limit {int(lim['heading'] * 0.6)}")
+            if len(body) > 4:
+                warn.append(f"slide {n}: {len(body)} bullets beside an image, limit 4")
+            if len(body) == 1 and len(body[0]) > int(lim["body"] * 0.45):
+                warn.append(f"slide {n}: body {len(body[0])} chars beside an image, limit {int(lim['body'] * 0.45)}")
+            continue
         if kind in COMPOSED:
             if len(head or "") > one_line:
                 warn.append(f"slide {n}: {kind} heading {len(head)} chars, one line is {one_line} at this size")
@@ -144,10 +154,60 @@ INK, NAVY, RULE, MUTED = "0B0C0C", "04084A", "CBCBCB", "434343"
 NO_STYLE = "{2D5ABB26-0587-4C30-8999-92F81FD0307C}"  # PowerPoint's "No Style, No Grid" table style
 
 
+PHOTO_TYPES = (".png", ".jpg", ".jpeg")
+# Template sample slides for photo grids: (number of photos, navy frame) -> sample index.
+PHOTO_GRIDS = {(2, False): 7, (2, True): 8, (3, False): 9, (3, True): 10}
+# Where each photo sits on those samples, in slide points (x, y, w, h), for the HTML deck.
+GRID_BOXES = {2: [(17, 17, 333, 371), (369, 17, 333, 371)],
+              3: [(17, 16, 333, 372), (370, 17, 333, 175), (370, 212, 333, 175)]}
+HALF = (357, 0, 363, 405)  # the right half of the slide, as on the template's image-beside-text sample
+CYAN = "16EEEE"
+
+
+def photo(base, src, folder):
+    """A user's PNG or JPEG, turned upright and scaled to at most 2400px on its long side,
+    saved in folder. Returns (path, width, height)."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        sys.exit("Images need Pillow. Run scripts/check.py to set it up.")
+    path = os.path.join(base, src)
+    if not os.path.exists(path):
+        sys.exit(f"Image not found: {src}. Image paths are relative to the outline.")
+    if not src.lower().endswith(PHOTO_TYPES):
+        sys.exit(f"{src}: use a PNG or JPEG photo, or an SVG on a diagram or split slide.")
+    im = ImageOps.exif_transpose(Image.open(path))
+    im.thumbnail((2400, 2400))
+    os.makedirs(folder, exist_ok=True)
+    import hashlib
+
+    # The source path in the name, so two photos with the same file name don't overwrite each other.
+    stem = os.path.splitext(os.path.basename(src))[0] + "-" + hashlib.md5(src.encode()).hexdigest()[:6]
+    if src.lower().endswith(".png"):
+        out = os.path.join(folder, stem + ".png")
+        im.save(out)
+    else:
+        out = os.path.join(folder, stem + ".jpg")
+        im.convert("RGB").save(out, quality=88)
+    return out, im.size[0], im.size[1]
+
+
+def photo_uri(base, src, folder):
+    """The photo as a data URI, so the HTML deck stays one file."""
+    path, _, _ = photo(base, src, folder)
+    kind = "png" if path.endswith(".png") else "jpeg"
+    with open(path, "rb") as f:
+        return f"data:image/{kind};base64," + base64.b64encode(f.read()).decode()
+
+
 def picture(base, s, folder):
-    """The slide's SVG as a PNG on the slide background, through Quick Look. Returns (path, aspect)."""
+    """The slide's diagram as a PNG: an SVG on the slide background through Quick Look, or a
+    PNG or JPEG as it is. Returns (path, aspect)."""
     import re
 
+    if not s["diagram"].lower().endswith(".svg"):
+        path, w, h = photo(base, s["diagram"], folder)
+        return path, w / h
     try:
         from PIL import Image
     except ImportError:
@@ -289,6 +349,13 @@ def paragraphs(frame, paras):
             p.append(end)
 
 
+def sample_for(kind, s):
+    """The template sample slide a slide of this type copies."""
+    if kind == "photos":
+        return PHOTO_GRIDS[(len(s["images"]), bool(s.get("navy")))]
+    return SAMPLES.get(kind, SAMPLES["text"])
+
+
 def text_height(text, size, width):
     """Points of height for text at this size in this width, at about half an em a character."""
     per_line = max(1, int(width / (size * 0.47)))
@@ -342,7 +409,7 @@ def cell_borders(cell, bottom, width, fill=None):
         etree.SubElement(tcpr, qn("a:noFill"))
 
 
-def build_pptx(slides, path, sizes, base):
+def build_pptx(slides, path, sizes, base, marking="OFFICIAL"):
     from pptx import Presentation
     from pptx.dml.color import RGBColor
     from pptx.enum.text import MSO_ANCHOR
@@ -514,8 +581,50 @@ def build_pptx(slides, path, sizes, base):
                              HIGHLIGHT if c in hl else None)
         return y + sum(heights)
 
-    for kind, *_ in slides:
-        copy_slide(prs, src[SAMPLES.get(kind, SAMPLES["text"])])
+    photos_dir = os.path.join(os.path.dirname(path), "render", "images")
+
+    def fill(pic, path, w, h, alt, slide, box=None):
+        """Put the photo in a picture shape, cropped from the centre to fill its frame."""
+        part, rid = slide.part.get_or_add_image_part(path)
+        blip = pic._element.find(".//" + qn("a:blip"))
+        old = blip.get(qn("r:embed"))
+        blip.set(qn("r:embed"), rid)
+        if old and old != rid and not any(
+            b.get(qn("r:embed")) == old for b in slide._element.iter(qn("a:blip"))
+        ):
+            slide.part.drop_rel(old)
+        if box:
+            pic.left, pic.top, pic.width, pic.height = (Pt(v) for v in box)
+        frame, image = pic.width / pic.height, w / h
+        pic.crop_left = pic.crop_right = pic.crop_top = pic.crop_bottom = 0
+        if image > frame:
+            pic.crop_left = pic.crop_right = (1 - frame / image) / 2
+        else:
+            pic.crop_top = pic.crop_bottom = (1 - image / frame) / 2
+        pic._element.nvPicPr.cNvPr.set("descr", alt)
+
+    def photo_shapes(slide):
+        """The sample slide's photos, in order: every picture except the small GDS tag."""
+        return [sh for sh in slide.shapes if sh.shape_type == 13 and sh.width > Pt(100)]
+
+    def marking_label(slide):
+        """The master's marking sits behind a photo that crosses the top centre, so repeat it on a label."""
+        for y in (3, 389):  # the master marks the top and the foot of every slide
+            label = rect(slide, 330, y, 60, 13, "F8F8F8")
+            frame = label.text_frame
+            frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
+            frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            paragraphs(frame, [{"text": marking, "size": 7, "color": MUTED}])
+            frame.paragraphs[0].alignment = 2  # centre
+
+    def add_photo(slide, src, box, alt=""):
+        path, w, h = photo(base, src, photos_dir)
+        pic = slide.shapes.add_picture(path, *(Pt(v) for v in box))
+        fill(pic, path, w, h, alt, slide)
+        return pic
+
+    for kind, _, _, _, s in slides:
+        copy_slide(prs, src[sample_for(kind, s)])
     drop_slides(prs, samples)
 
     assert len(prs.slides) == len(slides)
@@ -525,8 +634,15 @@ def build_pptx(slides, path, sizes, base):
         if kind == "title":
             # The first text box is the template's "add a classification" prompt; the master already marks OFFICIAL.
             texts[0]._element.getparent().remove(texts[0]._element)
-        box = texts[-1]
-        if kind in ("title", "closing"):
+        box = texts[-1] if texts else None  # photo grids have no text
+        if kind == "photos":
+            # Photos on the template's cyan or navy frame, and nothing else.
+            frames = photo_shapes(slide)  # the sample has exactly as many as the slide's images
+            for k, img in enumerate(s["images"]):
+                pic = frames[k]
+                img_path, w, h = photo(base, img["src"], photos_dir)
+                fill(pic, img_path, w, h, img["alt"], slide)
+        elif kind in ("title", "closing"):
             strong = {0} | ({2} if kind == "closing" else set())
             paragraphs(
                 box.text_frame,
@@ -535,10 +651,41 @@ def build_pptx(slides, path, sizes, base):
                     for n, t in enumerate(body)
                 ],
             )
+            if s.get("cover"):
+                # The cover photo fills the right half; the lockup and title keep the left.
+                add_photo(slide, s["cover"], HALF)
+                marking_label(slide)
+                # A narrower box from just below the lockup, at a size that keeps the title clear of it.
+                box.left, box.top = Pt(40), Pt(150)
+                box.width, box.height = Pt(HALF[0] - 80), Pt(230)
+                box.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+                paragraphs(box.text_frame, [
+                    {"text": t, "size": SIZE["title"] * 0.8, "bold": n == 0, "color": None, "after": 6 if n == 0 else 0}
+                    for n, t in enumerate(body)
+                ])
+        elif kind == "image":
+            # The template's image-beside-text slide: text on the left, the photo filling the right half.
+            pic = photo_shapes(slide)[0]
+            img_path, w, h = photo(base, s["diagram"], photos_dir)
+            fill(pic, img_path, w, h, s.get("alt", ""), slide)
+            marking_label(slide)
+            size = sizes["body"] * 0.85
+            eyebrow = s.get("eyebrow")
+            paragraphs(
+                box.text_frame,
+                ([{"text": eyebrow, "size": sizes["body"] * 0.65, "color": MUTED, "after": 6}] if eyebrow else [])
+                + [{"text": head, "size": sizes["heading"] * 0.8, "bold": True, "after": 12}]
+                + [{"text": t, "size": size, "bullet": len(body) > 1, "indent": 18, "after": 4} for t in body],
+            )
         elif kind in ("section", "photo-section"):
             rpr = box._element.find(".//" + qn("a:rPr"))
             size = sizes["section"] if sizes["section"] != 72 else None
             paragraphs(box.text_frame, [{"text": head, "size": size, "rpr": rpr}])
+            if kind == "photo-section" and s.get("diagram"):
+                # Your photo instead of the template's, under the same navy tint, filling the slide.
+                pic = photo_shapes(slide)[0]
+                img_path, w, h = photo(base, s["diagram"], photos_dir)
+                fill(pic, img_path, w, h, s.get("alt", ""), slide, box=(0, 0, 720, 405))
         elif kind == "quote":
             # Callout: the quote large and navy, set off by a navy rule, with an optional attribution.
             q = sizes["heading"] * 0.8
@@ -578,7 +725,7 @@ def build_pptx(slides, path, sizes, base):
             e = sizes["body"] * 0.72
             eh = e * 1.3 + 2 if s.get("eyebrow") else 0
             # Text slides moved here by a callout can have a two-line heading; the others have one.
-            hh = text_height(head, sizes["heading"], width) * 1.02 if kind == "text" else sizes["heading"] * 1.25
+            hh = text_height(head, sizes["heading"] * 1.08, width) * 1.02 if kind == "text" else sizes["heading"] * 1.25
             gap = sizes["heading"] * 0.45
             cs = sizes["body"] * 0.78
             ch = text_height(s["callout"], cs, width - 30) + 14 if s.get("callout") else 0
@@ -679,8 +826,11 @@ def esc(t):
     return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def svg(base, s):
-    """The slide's diagram, inlined so the deck stays one file."""
+def svg(base, s, folder):
+    """The slide's diagram, inlined so the deck stays one file: an SVG as markup, a photo as a data URI."""
+    if not s["diagram"].lower().endswith(".svg"):
+        alt = esc(s.get("alt", ""))
+        return f'<figure class="diagram"><img src="{photo_uri(base, s["diagram"], folder)}" alt="{alt}"></figure>'
     with open(os.path.join(base, s["diagram"])) as f:
         art = f.read()
     art = art[art.index("<svg") :]
@@ -761,17 +911,43 @@ def build_html(slides, outline, path, base):
     # The lockup and tag are CSS backgrounds, defined once, so each slide doesn't carry its own copy.
     lockup = '<span class="lockup" role="img" aria-label="Government Digital Service, Department for Digital, Culture, Media and Sport"></span>'
     out = []
+    pics = os.path.join(os.path.dirname(path), "render", "images")
+
+    def boxed(src, box, alt=""):
+        """A photo placed in slide points (x, y, w, h) and cropped to fill, as in PowerPoint."""
+        x, y, w, h = box
+        style = f"left: {x / 7.2}%; top: {y / 4.05}%; width: {w / 7.2}%; height: {h / 4.05}%"
+        return f'<img class="photo" src="{photo_uri(base, src, pics)}" alt="{esc(alt)}" style="{style}">'
+
     for n, (kind, head, body, notes, s) in enumerate(slides, 1):
         foot = f'<span class="tag" role="img" aria-label="GDS"></span><span class="num">{n}</span>'
-        if kind in ("title", "closing"):
+        style = ""
+        if kind == "photos":
+            grid = GRID_BOXES[len(s["images"])]
+            imgs = "".join(boxed(i["src"], grid[k], i["alt"]) for k, i in enumerate(s["images"]))
+            inner, cls = imgs, "photos" + (" navy" if s.get("navy") else "")
+        elif kind in ("title", "closing"):
             strong = {0} | ({2} if kind == "closing" else set())
             lines = "".join(
                 f"<p{' class=strong' if i in strong else ''}>{esc(t) or '&nbsp;'}</p>"
                 for i, t in enumerate(body)
             )
             inner, cls, foot = f'{lockup}<div class="text">{lines}</div>', "title", ""
+            if s.get("cover"):
+                inner += boxed(s["cover"], HALF)
+                cls += " has-cover"
+        elif kind == "image":
+            if len(body) > 1:
+                text = "<ul>" + "".join(f"<li>{esc(b)}</li>" for b in body) + "</ul>"
+            else:
+                text = "".join(f"<p>{esc(b)}</p>" for b in body)
+            inner = (f'<div class="text side">{eyebrow(s)}<h2>{esc(head)}</h2>{text}</div>'
+                     + boxed(s["diagram"], HALF, s.get("alt", "")))
+            cls = "image"
         elif kind in ("section", "photo-section"):
             inner, cls = f'<div class="text"><h1>{esc(head)}</h1></div>', kind
+            if kind == "photo-section" and s.get("diagram"):
+                style = f' style="background-image: url({photo_uri(base, s["diagram"], pics)})"'
         elif kind == "quote":
             attr = f"<footer>{esc(s['attribution'])}</footer>" if s.get("attribution") else ""
             inner = f'<div class="text"><blockquote><p>{esc(s["quote"])}</p>{attr}</blockquote></div>'
@@ -783,9 +959,9 @@ def build_html(slides, outline, path, base):
             elif kind == "cards":
                 content = cards_html(s)
             elif kind == "split":
-                content = f'<div class="cols"><div class="col">{blocks(s)}</div>{svg(base, s)}</div>'
+                content = f'<div class="cols"><div class="col">{blocks(s)}</div>{svg(base, s, pics)}</div>'
             else:
-                content = blocks(s) + svg(base, s)
+                content = blocks(s) + svg(base, s, pics)
             # Tables and cards sit in the middle of the slide, like text; diagrams fill it from the top.
             place_cls = "text" if kind in ("table", "cards") else "text top"
             inner = (
@@ -804,7 +980,7 @@ def build_html(slides, outline, path, base):
             )
             cls = ""
         out.append(
-            f'<section class="slide {cls}" aria-label="Slide {n}">'
+            f'<section class="slide {cls}"{style} aria-label="Slide {n}">'
             f'<div class="marking">{esc(marking)}</div>{inner}{foot}</section>'
         )
         if notes:
@@ -896,6 +1072,20 @@ HTML = """<!doctype html>
   .title .text { top: 42%; height: auto; justify-content: flex-start; }
   .title .text p { font-size: calc(32 * var(--pt)); line-height: 1.2; }
   .title .text p.strong { font-weight: 700; }
+  /* Photos: cropped to fill their frame, as in PowerPoint. */
+  .photo { position: absolute; object-fit: cover; }
+  .has-cover .text { width: 39%; top: 37%; }
+  .has-cover .text p { font-size: calc(25.6 * var(--pt)); }
+  .has-cover .text p.strong { margin-bottom: calc(6 * var(--pt)); }
+  .has-cover .marking, .image .marking { z-index: 2; left: 45.8%; right: 45.8%; background: var(--paper); }
+  .image .text.side { left: 5.5%; top: 9.6%; width: 39%; height: 80.5%; }
+  .image h2 { font-size: calc(var(--h) * .8 * var(--pt)); }
+  .image .text p, .image .text li { font-size: calc(var(--b) * .85 * var(--pt)); }
+  .photos { background: #16EEEE; }
+  .photos.navy { background: var(--navy); }
+  .photos .marking { color: var(--ink); }
+  .photos.navy .marking, .photos.navy .num { color: #c9cbe0; }
+  .diagram img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .section, .photo-section { background: var(--navy); color: #fff; }
   .section h1, .photo-section h1 { font-size: calc(var(--s) * var(--pt)); }
   .section .marking, .section .num, .photo-section .marking, .photo-section .num { color: #c9cbe0; }
@@ -984,7 +1174,8 @@ def main():
         formats = [f for f in formats if f != "pptx"]
     if "pptx" in formats:
         pptx = os.path.join(out, name + ".pptx")
-        build_pptx(slides, pptx, deck_sizes(outline), os.path.dirname(os.path.abspath(a.outline)))
+        build_pptx(slides, pptx, deck_sizes(outline), os.path.dirname(os.path.abspath(a.outline)),
+                   outline.get("marking", "OFFICIAL"))
         print("pptx", pptx)
         if find_cli():
             sheet = render(pptx, os.path.join(out, "render"))

@@ -19,6 +19,7 @@ The template's own guidance, on its first sample slide: left-aligned Helvetica N
 
 - **Lead with the user or citizen problem**, then the offer, then evidence, then the ask.
 - **Use section slides as signposts.** The navy `section` slide and the photo `photo-section` slide carry one short line each, and that line should work as a heading for what follows. Two or three per deck is plenty.
+- **Use photos for a reason.** A photo earns its place when it shows the thing itself: the people, the place, the screen. Use one or two photo slides in a deck, not one per section.
 - **End on the ask.** The last content slide says what you need from the room, and who holds each item.
 - **Ten slides is a lot.** A pitch is usually six to eight content slides between the title and closing slides.
 
