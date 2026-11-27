@@ -36,7 +36,7 @@ A `Density: discuss` deck is read, not presented, so it can say more. The rules 
 ## Accessibility
 
 - When text doesn't fit, cut words rather than shrinking type. The build script's character limits assume the template's sizes.
-- For a lighter deck with more space, set the outline's `sizes` for the whole deck (26pt headings and 16pt body work well). Never shrink one slide to make it fit.
+- The defaults, 30pt headings and 18pt body, leave space around the text. To change them, set the outline's `sizes` for the whole deck. Never shrink one slide to make it fit.
 - Make every heading unique, so slide titles work for navigation and screen readers.
 - Never use colour as the only signal of meaning. The template's colours are for structure, not emphasis.
 

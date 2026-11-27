@@ -28,14 +28,14 @@ Notes: Speaker notes for the title slide.
 
 | Write | Type | Looks like | Use for |
 |---|---|---|---|
-| `## Heading` then a sentence, or a `-` list | `text` | Off-white, bold 36pt heading, 24pt body, GDS tag bottom left | Almost everything |
+| `## Heading` then a sentence, or a `-` list | `text` | Off-white, bold 30pt heading, 18pt body, GDS tag bottom left | Almost everything |
 | `## [quote]` then `> the quote` and an optional `Source: who said it` line | `quote` | The quote in navy bold beside a navy rule, the source below | A callout, or something a user said, in one or two lines |
 | `## [section] Heading` | `section` | Navy, white 72pt bold line | A signpost between parts of the argument |
 | `## [photo] Heading`, optionally with an image line `![alt](photo.jpg)` | `photo-section` | Your photo, or the template's, under a navy tint, with a white 72pt bold line | Text over an image: a signpost with more weight, at most once a deck |
 
 End any slide with a `Notes:` paragraph. Everything after it, up to the next `##`, goes into the PowerPoint file's speaker notes and into the HTML deck, where N shows them.
 
-Body text is 24pt under a 36pt heading, smaller than the template's 40 and 32, and a list of six drops to about 21pt. `LIMITS` in `scripts/build.py` holds the character limits, and the script warns about anything over them.
+Body text is 18pt under a 30pt heading, well under the template's 40 and 32, so slides keep space around the text. A list of six drops to about 15pt. Quotes stay large, at about 29pt. `LIMITS` in `scripts/build.py` holds the character limits, and the script warns about anything over them.
 
 ## Tables and diagrams
 
@@ -51,7 +51,7 @@ The image path is relative to the outline, and the SVG is inlined into the HTML 
 
 ## Decks for discussion
 
-A deck read close up, on a screen, before or during a discussion can carry more words than one presented to a room, as long as they come in small labelled pieces. `Density: discuss` under the title sets 26pt headings, 16pt body and 48pt sections, and loosens the character limits to match. `examples/discuss.md` uses every part below at that density.
+A deck read close up, on a screen, before or during a discussion can carry more words than one presented to a room, as long as they come in small labelled pieces. `Density: discuss` under the title sets 26pt headings, 16pt body and 48pt sections, a little smaller than the defaults,, and loosens the character limits to match. `examples/discuss.md` uses every part below at that density.
 
 | Write | What it adds | Where it works |
 |---|---|---|

@@ -7,7 +7,7 @@
 <style>
   /* From the GDS 2025 slide template: 10 x 5.625 in slide, 720 pt wide. */
   :root { --paper: #F8F8F8; --navy: #04084A; --ink: #0B0C0C; --muted: #434343; --rule: #CBCBCB;
-          --font: "Helvetica Neue", Helvetica, Arial, sans-serif; --h: 36; --b: 24; --s: 72; }
+          --font: "Helvetica Neue", Helvetica, Arial, sans-serif; --h: 30; --b: 18; --s: 72; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #1d1d1d; font-family: var(--font); }
   .deck { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 16px; }
@@ -30,8 +30,8 @@
   .text li::before { content: "\2022"; position: absolute; left: 0; }
   .dense li { font-size: calc(var(--b) * .86 * var(--pt)); margin-bottom: calc(2 * var(--pt)); }
   blockquote { border-left: calc(6 * var(--pt)) solid var(--navy); padding-left: calc(18 * var(--pt)); }
-  blockquote p { font-size: calc(var(--h) * .8 * var(--pt)) !important; font-weight: 700; color: var(--navy); line-height: 1.2 !important; }
-  blockquote footer { font-size: calc(var(--b) * .72 * var(--pt)); color: var(--muted); margin-top: calc(12 * var(--pt)); }
+  blockquote p { font-size: calc(var(--h) * .96 * var(--pt)) !important; font-weight: 700; color: var(--navy); line-height: 1.2 !important; }
+  blockquote footer { font-size: calc(var(--b) * .96 * var(--pt)); color: var(--muted); margin-top: calc(12 * var(--pt)); }
   /* Composed types: table, split (text beside a diagram) and diagram. */
   .wide .text.top { top: 11%; height: 76%; justify-content: flex-start; }
   .text p.lead { margin-bottom: calc(var(--b) * .8 * var(--pt)); }

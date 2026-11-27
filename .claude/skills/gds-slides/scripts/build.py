@@ -39,8 +39,10 @@ MEDIA = {
 # Characters. Over these, the text does not fit the template's type sizes.
 LIMITS = {"heading": 65, "body": 170, "bullet": 55, "bullets": 6, "section": 45, "quote": 140,
           "eyebrow": 60, "lede": 150, "callout": 120, "card": 110}
-# Points, on a 720pt-wide slide. The template asks for 40 and 32; these leave more room around the text.
-SIZE = {"heading": 36, "body": 24, "title": 32}
+# Points, on a 720pt-wide slide. The template asks for 40 and 32; these leave room around the text.
+SIZE = {"heading": 30, "body": 18, "title": 32}
+# The sizes LIMITS was set for. Smaller type than this fits more characters, and limits() allows for it.
+LIMIT_SIZE = {"heading": 36, "body": 24}
 # `Density: discuss` decks are read close up, on a screen, so they carry more words at smaller sizes.
 DISCUSS = {"heading": 26, "body": 16, "section": 48}
 # Scorecard tags in tables: the word always shows, so colour is never the only signal.
@@ -82,8 +84,10 @@ def expand(outline):
 
 def limits(sizes):
     """LIMITS at the deck's sizes: line length grows with smaller type, and so does the number of lines."""
-    k, kh = SIZE["body"] / sizes["body"], SIZE["heading"] / sizes["heading"]
+    k, kh = LIMIT_SIZE["body"] / sizes["body"], LIMIT_SIZE["heading"] / sizes["heading"]
     out = {key: int(v * k * k) for key, v in LIMITS.items() if key in ("body", "quote", "lede", "callout", "card")}
+    # Quotes are set at 0.96 of the heading; LIMITS["quote"] was set for 28.8pt.
+    out["quote"] = int(LIMITS["quote"] * (28.8 / (sizes["heading"] * 0.96)) ** 2)
     out.update(heading=int(LIMITS["heading"] * kh), bullet=int(LIMITS["bullet"] * k),
                bullets=int(LIMITS["bullets"] * k), eyebrow=int(LIMITS["eyebrow"] * k), section=LIMITS["section"])
     return out
@@ -688,11 +692,11 @@ def build_pptx(slides, path, sizes, base, marking="OFFICIAL"):
                 fill(pic, img_path, w, h, s.get("alt", ""), slide, box=(0, 0, 720, 405))
         elif kind == "quote":
             # Callout: the quote large and navy, set off by a navy rule, with an optional attribution.
-            q = sizes["heading"] * 0.8
+            q = sizes["heading"] * 0.96  # quotes stay large: 28.8pt at the default sizes
             attr = s.get("attribution")
             paras = [{"text": s["quote"], "size": q, "bold": True, "color": NAVY, "after": 12 if attr else 0}]
             if attr:
-                paras.append({"text": attr, "size": sizes["body"] * 0.72, "color": MUTED})
+                paras.append({"text": attr, "size": sizes["body"] * 0.96, "color": MUTED})
             left, width = FRAME["left"] + 24, FRAME["width"] - 24
             box.left, box.width = Pt(left), Pt(width)
             frame = box.text_frame
@@ -700,7 +704,7 @@ def build_pptx(slides, path, sizes, base, marking="OFFICIAL"):
             paragraphs(frame, paras)
             # The text box is centred vertically, so the rule is sized to an estimate of the text's height.
             lines = -(-len(s["quote"]) // int(width / (q * 0.52)))
-            h = lines * q * 1.2 + (12 + sizes["body"] * 0.72 * 1.3 if attr else 0)
+            h = lines * q * 1.2 + (12 + sizes["body"] * 0.96 * 1.3 if attr else 0)
             mid = (box.top + box.height / 2) / 12700
             bar = slide.shapes.add_shape(1, Pt(FRAME["left"]), Pt(mid - h / 2), Pt(6), Pt(h))
             bar.fill.solid()
@@ -1031,8 +1035,8 @@ HTML = """<!doctype html>
   .text li::before { content: "\\2022"; position: absolute; left: 0; }
   .dense li { font-size: calc(var(--b) * .86 * var(--pt)); margin-bottom: calc(2 * var(--pt)); }
   blockquote { border-left: calc(6 * var(--pt)) solid var(--navy); padding-left: calc(18 * var(--pt)); }
-  blockquote p { font-size: calc(var(--h) * .8 * var(--pt)) !important; font-weight: 700; color: var(--navy); line-height: 1.2 !important; }
-  blockquote footer { font-size: calc(var(--b) * .72 * var(--pt)); color: var(--muted); margin-top: calc(12 * var(--pt)); }
+  blockquote p { font-size: calc(var(--h) * .96 * var(--pt)) !important; font-weight: 700; color: var(--navy); line-height: 1.2 !important; }
+  blockquote footer { font-size: calc(var(--b) * .96 * var(--pt)); color: var(--muted); margin-top: calc(12 * var(--pt)); }
   /* Composed types: table, split (text beside a diagram) and diagram. */
   .wide .text.top { top: 11%; height: 76%; justify-content: flex-start; }
   .text p.lead { margin-bottom: calc(var(--b) * .8 * var(--pt)); }
