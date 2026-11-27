@@ -29,7 +29,7 @@ except ImportError:
 report(
     pil,
     f"Pillow, for {sys.executable}",
-    f"{sys.executable} -m pip install --user Pillow   (needed for diagrams in PowerPoint)",
+    f"{sys.executable} -m pip install --user Pillow   (needed for photos, and for diagrams in PowerPoint)",
 )
 cli = next(
     (

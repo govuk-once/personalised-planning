@@ -12,7 +12,7 @@ Organisation: Government Digital Service
 Notes: Speaker notes for the title slide.
 ```
 
-`Presenter` and `Role` are required. The rest are optional:
+`Presenter` and `Role` are required. The title slide sets the title large and bold, with the presenter's name, role and organisation as a small byline under it and a small GDS and DSIT lockup above. The rest are optional:
 
 - `Organisation` defaults to Government Digital Service.
 - `Closing` replaces "Thanks!" on the last slide.
@@ -28,14 +28,14 @@ Notes: Speaker notes for the title slide.
 
 | Write | Type | Looks like | Use for |
 |---|---|---|---|
-| `## Heading` then a sentence, or a `-` list | `text` | Off-white, bold 36pt heading, 24pt body, GDS tag bottom left | Almost everything |
+| `## Heading` then a sentence, or a `-` list | `text` | Off-white, bold 30pt heading, 18pt body, GDS tag bottom left | Almost everything |
 | `## [quote]` then `> the quote` and an optional `Source: who said it` line | `quote` | The quote in navy bold beside a navy rule, the source below | A callout, or something a user said, in one or two lines |
 | `## [section] Heading` | `section` | Navy, white 72pt bold line | A signpost between parts of the argument |
-| `## [photo] Heading` | `photo-section` | Template photo under a navy tint, white 72pt bold line | Text over an image: a signpost with more weight, at most once a deck |
+| `## [photo] Heading`, optionally with an image line `![alt](photo.jpg)` | `photo-section` | Your photo, or the template's, under a navy tint, with a white 72pt bold line | Text over an image: a signpost with more weight, at most once a deck |
 
 End any slide with a `Notes:` paragraph. Everything after it, up to the next `##`, goes into the PowerPoint file's speaker notes and into the HTML deck, where N shows them.
 
-Body text is 24pt under a 36pt heading, smaller than the template's 40 and 32, and a list of six drops to about 21pt. `LIMITS` in `scripts/build.py` holds the character limits, and the script warns about anything over them.
+Body text is 18pt under a 30pt heading, well under the template's 40 and 32, so slides keep space around the text. A list of six drops to about 15pt. Quotes stay large, at about 29pt. `LIMITS` in `scripts/build.py` holds the character limits, and the script warns about anything over them.
 
 ## Tables and diagrams
 
@@ -49,6 +49,34 @@ Three more types are built from parts rather than from one sample slide. Their h
 
 The image path is relative to the outline, and the SVG is inlined into the HTML deck. The alt text describes the diagram for screen readers, so write it as a sentence. The character limits assume the default sizes.
 
-## Not built yet
+## Decks for discussion
 
-The template also has an image-beside-text slide (sample 3) and four photo-grid slides (samples 7 to 10). They need a picture swapped in, which the script doesn't do. Leave them out, or build the deck and add those slides by hand in PowerPoint for the web.
+A deck read close up, on a screen, before or during a discussion can carry more words than one presented to a room, as long as they come in small labelled pieces. `Density: discuss` under the title sets 26pt headings, 16pt body and 48pt sections, a little smaller than the defaults,, and loosens the character limits to match. `examples/discuss.md` uses every part below at that density.
+
+| Write | What it adds | Where it works |
+|---|---|---|
+| `Eyebrow: Why not the existing repos? · 1 of 3` | Optional, and usually left out: a short muted line above the heading, to mark a run of related slides | Any slide except section and quote slides |
+| A plain sentence after the heading | A lede: one larger sentence before the cards or table | `cards` and `table` slides (text and diagram slides already have one) |
+| `! **Bold lead.** The rest` | A callout: a tinted band with a navy rule. Before any other content it sits under the heading; after it, under the content | Text, `cards`, `table`, `split` and `diagram` slides |
+| `## [cards] Heading`, then two to four `### Title` blocks, each a sentence or a short list and an optional `Evidence:` line | Panels across the slide with a navy top rule; evidence sits under a thin rule in muted type | One row of two to four |
+| `## [numbered] Heading`, written like `cards` | The same panels with a large navy number in each | Requirements, steps or principles |
+| `[yes]`, `[partly]` or `[no]` at the start of a table cell, then an optional note | A scorecard tag: a filled, half-filled or empty circle and the word, with the note under it. Shape and word carry the meaning, not colour | `table` slides |
+| `{highlight}` at the end of a table header cell | Shades that column, for the option you are proposing | `table` slides |
+
+In PowerPoint, cards and callouts are ordinary rectangles and text boxes, and tags are text in real table cells, so all of it stays editable. A text slide with a callout is laid out like the composed types, with the heading at the top.
+
+## Photos and screenshots
+
+Give Claude the photos or screenshots you want in the deck, as PNG or JPEG files. Image lines are `![alt text](path)`, with the path relative to the outline. Every photo is cropped from the centre to fill its frame, so crop it yourself first if the subject is near an edge. `examples/using-gds-slides.md` uses every one of these.
+
+| Write | What you get |
+|---|---|
+| `Cover: images/cover.jpg` under the deck title | The photo or illustration fills the right half of the title slide, and the lockup and title keep the left, because the template has no white lockup to put over a photo. `examples/images/make.py` draws the how-to deck's illustrations, as a starting point for your own |
+| `## [image] Heading`, a sentence or up to four bullets, then an image line | The template's image-beside-text slide: text on the left, the photo filling the right half. For illustration, or a screenshot with a point beside it |
+| `## [photo] Heading` then an image line | A section slide with your photo under the navy tint, instead of the template's |
+| `## [photos] Heading`, then two or three image lines | The template's photo slides: two photos side by side, or one large and two small, on a cyan frame, or navy with `{navy}` after the heading. The heading isn't shown; it names the slide for screen readers |
+| A PNG or JPEG on a `[diagram]` or `[split]` slide | A screenshot in place of an SVG diagram, scaled to fit rather than cropped |
+
+Where a photo crosses the top centre of the slide, the build repeats the OFFICIAL marking on a small label above it, because the master draws the marking behind everything else.
+
+Alt text matters: write it as a sentence describing what the photo shows, unless the photo is decorative, as a cover is. Only use photos you have the right to use, and don't use photos of identifiable people without their agreement. The template's own photos, in `examples/images/`, are fine to reuse.
