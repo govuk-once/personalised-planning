@@ -2,8 +2,8 @@
 Presenter: Maxwell Riess
 Role: Lead Product Manager
 Organisation: Government Digital Service
-Cover: images/papers.jpg
-Notes: How the gds-slides plugin works and how to use it. Also the example outline for every slide type at the default sizes. Run examples/diagrams/make.py before building it. The photos are the GDS slide template's own, in examples/images.
+Cover: images/cover-claude-slides.png
+Notes: How the gds-slides plugin works and how to use it. Also the example outline for every slide type at the default sizes. Run examples/diagrams/make.py before building it. The photos are the GDS slide template's own, and the two illustrations are drawn by examples/images/make.py, all in examples/images.
 
 ## Claude turns your notes into a deck with GDS branding
 Making slides in the GDS template is easy, and going from a set of notes to a finished deck is much faster than building it by hand.
@@ -13,7 +13,7 @@ Notes: The point of the plugin. The rest of the deck shows how it works, and dou
 ## [image] Describe the deck, and Claude builds it
 Give Claude your notes. It agrees the headings, then builds the deck.
 
-![Two colleagues arranging sticky notes on a yellow wall.](images/sticky-notes.jpg)
+![Notes and a sticky note pass through a Claude Code terminal and come out as a slide deck.](images/notes-to-deck.png)
 
 Notes: An image slide: text on the left, your photo or screenshot filling the right half. The plugin is a Claude Code skill. It works from whatever you point it at: notes, documents, a brief.
 

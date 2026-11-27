@@ -12,7 +12,7 @@ Organisation: Government Digital Service
 Notes: Speaker notes for the title slide.
 ```
 
-`Presenter` and `Role` are required. The rest are optional:
+`Presenter` and `Role` are required. The title slide sets the title large and bold, with the presenter's name, role and organisation as a small byline under it and a small GDS and DSIT lockup above. The rest are optional:
 
 - `Organisation` defaults to Government Digital Service.
 - `Closing` replaces "Thanks!" on the last slide.
@@ -71,7 +71,7 @@ Give Claude the photos or screenshots you want in the deck, as PNG or JPEG files
 
 | Write | What you get |
 |---|---|
-| `Cover: images/cover.jpg` under the deck title | The photo fills the right half of the title slide. The lockup and title stay on the left, at a smaller size, because the template has no white lockup to put over a photo |
+| `Cover: images/cover.jpg` under the deck title | The photo or illustration fills the right half of the title slide, and the lockup and title keep the left, because the template has no white lockup to put over a photo. `examples/images/make.py` draws the how-to deck's illustrations, as a starting point for your own |
 | `## [image] Heading`, a sentence or up to four bullets, then an image line | The template's image-beside-text slide: text on the left, the photo filling the right half. For illustration, or a screenshot with a point beside it |
 | `## [photo] Heading` then an image line | A section slide with your photo under the navy tint, instead of the template's |
 | `## [photos] Heading`, then two or three image lines | The template's photo slides: two photos side by side, or one large and two small, on a cyan frame, or navy with `{navy}` after the heading. The heading isn't shown; it names the slide for screen readers |

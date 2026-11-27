@@ -164,7 +164,10 @@ PHOTO_GRIDS = {(2, False): 7, (2, True): 8, (3, False): 9, (3, True): 10}
 # Where each photo sits on those samples, in slide points (x, y, w, h), for the HTML deck.
 GRID_BOXES = {2: [(17, 17, 333, 371), (369, 17, 333, 371)],
               3: [(17, 16, 333, 372), (370, 17, 333, 175), (370, 212, 333, 175)]}
-HALF = (357, 0, 363, 405)  # the right half of the slide, as on the template's image-beside-text sample
+HALF = (357, 0, 363, 405)
+# The title slide's own lockup, at about 60% of the template's (x, y, width), and its type sizes.
+LOCKUP = (37, 36, 185)
+TITLE = {"title": 36, "byline": 14}  # the right half of the slide, as on the template's image-beside-text sample
 CYAN = "16EEEE"
 
 
@@ -225,6 +228,13 @@ def picture(base, s, folder):
     with open(os.path.join(base, s["diagram"])) as f:
         art = f.read()
     w, h = map(float, re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', art).groups())
+    if h > w:
+        # Quick Look fits an SVG to its width, which would cut the top and bottom off a tall one,
+        # so widen the view to a square, centred; the crop below takes the drawing back out.
+        pad = (h - w) / 2
+        art = re.sub(r'viewBox="0 0 [\d.]+ [\d.]+"', f'viewBox="{-pad} 0 {h} {h}"', art, count=1)
+        art = re.sub(r'(<svg[^>]*?)\swidth="[\d.]+"', r"\1", art, count=1)
+        art = re.sub(r'(<svg[^>]*?)\sheight="[\d.]+"', r"\1", art, count=1)
     art = re.sub(
         r"(<svg[^>]*>)", r'\1<rect width="100%" height="100%" fill="#F8F8F8"/>', art, count=1
     )
@@ -646,27 +656,39 @@ def build_pptx(slides, path, sizes, base, marking="OFFICIAL"):
                 pic = frames[k]
                 img_path, w, h = photo(base, img["src"], photos_dir)
                 fill(pic, img_path, w, h, img["alt"], slide)
-        elif kind in ("title", "closing"):
-            strong = {0} | ({2} if kind == "closing" else set())
-            paragraphs(
-                box.text_frame,
-                [
-                    {"text": t, "size": SIZE["title"], "bold": n in strong, "color": None}
-                    for n, t in enumerate(body)
-                ],
-            )
+        elif kind == "title":
+            # The title leads; the lockup and the presenter's name, role and organisation step back.
+            # The template's lockup is on the layout the closing slide shares, so this slide hides
+            # the layout's graphics and draws its own, smaller lockup and the marking.
+            slide._element.set("showMasterSp", "0")
+            os.makedirs(photos_dir, exist_ok=True)
+            mark = os.path.join(photos_dir, "lockup.png")
+            with zipfile.ZipFile(TEMPLATE) as z, open(mark, "wb") as f:
+                f.write(z.read(MEDIA["lockup"]))
+            lock = slide.shapes.add_picture(mark, Pt(LOCKUP[0]), Pt(LOCKUP[1]), Pt(LOCKUP[2]))
+            lock._element.nvPicPr.cNvPr.set(
+                "descr", "Government Digital Service, Department for Digital, Culture, Media and Sport")
+            width = HALF[0] - 80 if s.get("cover") else 560
             if s.get("cover"):
                 # The cover photo fills the right half; the lockup and title keep the left.
                 add_photo(slide, s["cover"], HALF)
-                marking_label(slide)
-                # A narrower box from just below the lockup, at a size that keeps the title clear of it.
-                box.left, box.top = Pt(40), Pt(150)
-                box.width, box.height = Pt(HALF[0] - 80), Pt(230)
-                box.text_frame.vertical_anchor = MSO_ANCHOR.TOP
-                paragraphs(box.text_frame, [
-                    {"text": t, "size": SIZE["title"] * 0.8, "bold": n == 0, "color": None, "after": 6 if n == 0 else 0}
+            marking_label(slide)  # after the photo, so it sits on top
+            box.left, box.top, box.width, box.height = Pt(40), Pt(130), Pt(width), Pt(240)
+            box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            box.text_frame.word_wrap = True
+            paragraphs(box.text_frame, [
+                {"text": body[0], "size": TITLE["title"], "bold": True, "after": 18},
+                *({"text": t, "size": TITLE["byline"], "bold": n == 0, "color": INK if n == 0 else MUTED, "after": 2}
+                  for n, t in enumerate(body[1:])),
+            ])
+        elif kind == "closing":
+            paragraphs(
+                box.text_frame,
+                [
+                    {"text": t, "size": SIZE["title"], "bold": n in {0, 2}, "color": None}
                     for n, t in enumerate(body)
-                ])
+                ],
+            )
         elif kind == "image":
             # The template's image-beside-text slide: text on the left, the photo filling the right half.
             pic = photo_shapes(slide)[0]
@@ -936,7 +958,7 @@ def build_html(slides, outline, path, base):
                 f"<p{' class=strong' if i in strong else ''}>{esc(t) or '&nbsp;'}</p>"
                 for i, t in enumerate(body)
             )
-            inner, cls, foot = f'{lockup}<div class="text">{lines}</div>', "title", ""
+            inner, cls, foot = f'{lockup}<div class="text">{lines}</div>', "title" + (" first" if kind == "title" else ""), ""
             if s.get("cover"):
                 inner += boxed(s["cover"], HALF)
                 cls += " has-cover"
@@ -1078,9 +1100,14 @@ HTML = """<!doctype html>
   .title .text p.strong { font-weight: 700; }
   /* Photos: cropped to fill their frame, as in PowerPoint. */
   .photo { position: absolute; object-fit: cover; }
-  .has-cover .text { width: 39%; top: 37%; }
-  .has-cover .text p { font-size: calc(25.6 * var(--pt)); }
-  .has-cover .text p.strong { margin-bottom: calc(6 * var(--pt)); }
+  /* The title slide: a smaller lockup, the title leading, the presenter as a byline. */
+  .first .lockup { left: 5.14%; top: 8.9%; width: 25.7%; }
+  .first .text { top: 32%; height: 59%; width: 78%; justify-content: center; }
+  .has-cover .text { width: 38.5%; }
+  .title.first .text p { font-size: calc(14 * var(--pt)); color: var(--muted); line-height: 1.35; }
+  .title.first .text p.strong { font-size: calc(36 * var(--pt)); color: var(--ink); line-height: 1.12;
+          margin-bottom: calc(18 * var(--pt)); }
+  .title.first .text p:nth-child(2) { color: var(--ink); font-weight: 700; }
   .has-cover .marking, .image .marking { z-index: 2; left: 45.8%; right: 45.8%; background: var(--paper); }
   .image .text.side { left: 5.5%; top: 9.6%; width: 39%; height: 80.5%; }
   .image h2 { font-size: calc(var(--h) * .8 * var(--pt)); }
