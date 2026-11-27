@@ -15,7 +15,7 @@ Read [writing.md](writing.md) before drafting, [slides.md](slides.md) before wri
 
 1. **Brief.** Establish the audience, the purpose, and the one thing the room should leave with. Draw the content from the user's material and the project's documents. Note any source that is marked draft. Done when you can state the one thing in a sentence.
 2. **Headings.** Draft the deck as a list of slide types and headings only, and show it to the user. Done when the user has approved the list, or has already given you the structure. Changing the story costs nothing at this stage and a rebuild later.
-3. **Outline.** Write the full outline as `<name>.md` in the output folder, in the format [slides.md](slides.md) describes, following the examples in `examples/`. The user can read and edit it, so show it to them when they ask to see the deck's content. The output folder is `decks/<name>/` in the working directory, unless the user or the project's CLAUDE.md names another. Put detail and sources in `notes`.
+3. **Outline.** Write the full outline as `<name>.md` in the output folder, in the format [slides.md](slides.md) describes, following the examples in `examples/`. The user can read and edit it, so show it to them when they ask to see the deck's content. The output folder is `decks/<name>/` in the working directory, unless the user or the project's CLAUDE.md names another. Put detail and sources in `notes`. If the deck will be read on screens rather than presented, set `Density: discuss` and use the parts in the "Decks for discussion" section of [slides.md](slides.md).
 4. **Build.**
 
    ```bash

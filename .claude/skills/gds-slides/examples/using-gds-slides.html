@@ -47,6 +47,28 @@
        padding: 0 calc(10 * var(--pt)) calc(5 * var(--pt)) 0; }
   td { vertical-align: top; border-bottom: 1px solid var(--rule); padding: calc(4.5 * var(--pt)) calc(10 * var(--pt)) calc(4.5 * var(--pt)) 0; }
   td:first-child { font-weight: 700; width: 34%; }
+  /* Eyebrow, lede, callout, cards and scorecard tags. */
+  .text p.eyebrow { font-size: calc(var(--b) * .72 * var(--pt)); color: var(--muted); margin-bottom: calc(4 * var(--pt)); }
+  .text p.lede { font-size: calc(var(--b) * .88 * var(--pt)); margin-bottom: calc(10 * var(--pt)); }
+  .callout { border-left: calc(5 * var(--pt)) solid var(--navy); background: #E6E7EF;
+             padding: calc(7 * var(--pt)) calc(12 * var(--pt)); font-size: calc(var(--b) * .78 * var(--pt)); line-height: 1.3; }
+  .callout.top { margin-bottom: calc(10 * var(--pt)); }
+  .callout.bottom { margin-top: calc(10 * var(--pt)); }
+  .cards { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: calc(12 * var(--pt)); }
+  .card { background: #ECECEE; border-top: calc(4 * var(--pt)) solid var(--navy); padding: calc(11 * var(--pt)); }
+  .card h3 { font-size: calc(var(--b) * .88 * var(--pt)); font-weight: 700; margin-bottom: calc(4 * var(--pt)); line-height: 1.2; }
+  .text .card p, .text .card li { font-size: calc(var(--b) * .76 * var(--pt)); line-height: 1.3; }
+  .text .card li { padding-left: calc(var(--b) * .5 * var(--pt)); margin-bottom: calc(2 * var(--pt)); }
+  .cnum { display: block; font-size: calc(var(--h) * .85 * var(--pt)); font-weight: 700; color: var(--navy);
+          line-height: 1; margin-bottom: calc(4 * var(--pt)); }
+  .text .card p.evidence { font-size: calc(var(--b) * .66 * var(--pt)); color: var(--muted);
+          border-top: 1px solid var(--rule); margin-top: calc(8 * var(--pt)); padding-top: calc(6 * var(--pt)); }
+  .tg { display: inline-block; padding: 0 .35em; font-weight: 700; font-size: .92em; }
+  .tg.yes { background: #04084A; color: #fff; }
+  .tg.partly { background: #D9DBE8; color: #04084A; }
+  .tg.no { background: #E3E3E3; color: #383838; }
+  .tnote { display: block; color: var(--muted); font-size: .8em; font-weight: 400; margin-top: calc(2 * var(--pt)); }
+  th.hl, td.hl { background: #ECEDF4; padding-left: calc(6 * var(--pt)); }
   .title .text { top: 42%; height: auto; justify-content: flex-start; }
   .title .text p { font-size: calc(32 * var(--pt)); line-height: 1.2; }
   .title .text p.strong { font-weight: 700; }

@@ -27,6 +27,8 @@ TYPES = {
     "table": "table",
     "diagram": "diagram",
     "split": "split",
+    "cards": "cards",
+    "numbered": "cards",
 }
 # Lines under the title, "Key: value" -> outline field. Notes comes last and runs on.
 DECK = {
@@ -38,6 +40,7 @@ DECK = {
     "closing": "closing",
     "name": "name_",
     "sizes": "sizes",
+    "density": "density",
 }
 
 
@@ -80,6 +83,8 @@ def parse(path):
         outline["sizes"] = {
             k: float(v) for k, v in re.findall(r"(heading|body|section)\s+([\d.]+)", fields.pop("sizes"))
         }
+    if fields.get("density", "present").lower() not in ("present", "discuss"):
+        raise OutlineError("'Density:' is 'present' (the default) or 'discuss'.")
     outline.update(fields)
     for n, (level, heading, body) in enumerate(sections[1:], 2):
         if level == 1:
@@ -114,10 +119,13 @@ def slide(n, heading, lines):
         raise OutlineError(f"Slide {n}: unknown tag [{m.group(1)}]. Use one of {sorted(TYPES)}.")
     kind = TYPES[m.group(1)] if m else "text"
     s = {"type": kind}
+    if m and m.group(1) == "numbered":
+        s["numbered"] = True
     if (m.group(2) if m else heading):
         s["heading"] = m.group(2) if m else heading
 
     para, paras, bullets, quote, rows, blocks, notes = [], [], [], [], [], [], None
+    seen = False  # any content yet; a callout before it goes at the top of the slide
 
     def end_para():
         if para:
@@ -138,6 +146,15 @@ def slide(n, heading, lines):
             notes = [t[6:]]
         elif not t:
             end_para()
+        elif t.lower().startswith("eyebrow:"):
+            s["eyebrow"] = t[8:].strip()
+        elif t.startswith("! "):
+            end_para()
+            s["callout"] = t[2:].strip()
+            s["callout_at"] = "bottom" if seen else "top"
+        elif t.lower().startswith("evidence:") and blocks:
+            end_para()
+            blocks[-1]["evidence"] = t[9:].strip()
         elif t.startswith("### "):
             end_para()
             blocks.append({"label": t[4:].strip()})
@@ -162,6 +179,8 @@ def slide(n, heading, lines):
                 bullets.append(item)
         else:
             para.append(t)
+        if t and not t.lower().startswith(("eyebrow:", "! ", "notes:")):
+            seen = True
     end_para()
 
     if paras:
@@ -181,6 +200,8 @@ def slide(n, heading, lines):
     if kind in need and need[kind] not in s:
         what = {"quote": "a '>' quote", "table": "a Markdown table", "diagram": "an image line ![alt](file.svg)"}
         raise OutlineError(f"Slide {n}: a [{kind}] slide needs {what[need[kind]]}.")
+    if kind == "cards" and not 2 <= len(blocks) <= 4:
+        raise OutlineError(f"Slide {n}: a [{m.group(1)}] slide needs two to four cards, each a '### Title'.")
     if kind not in ("quote",) and "heading" not in s:
         raise OutlineError(f"Slide {n}: needs a heading after the '##'.")
     return s

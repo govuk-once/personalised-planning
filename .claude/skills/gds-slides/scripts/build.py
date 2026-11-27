@@ -29,7 +29,7 @@ TEMPLATE = os.path.join(SKILL, "template.pptx")
 # 0-based index of the sample slide each type copies, in template.pptx
 SAMPLES = {"title": 1, "text": 2, "quote": 2, "section": 4, "photo-section": 5, "closing": 11}
 # Slide types built from parts rather than from one sample slide. Diagrams need macOS Quick Look for PowerPoint.
-COMPOSED = ("table", "split", "diagram")
+COMPOSED = ("table", "split", "diagram", "cards")
 # Template media used by the HTML deck
 MEDIA = {
     "lockup": "ppt/media/image1.png",
@@ -37,9 +37,15 @@ MEDIA = {
     "photo": "ppt/media/image6.jpg",
 }
 # Characters. Over these, the text does not fit the template's type sizes.
-LIMITS = {"heading": 65, "body": 170, "bullet": 55, "bullets": 6, "section": 45, "quote": 140}
+LIMITS = {"heading": 65, "body": 170, "bullet": 55, "bullets": 6, "section": 45, "quote": 140,
+          "eyebrow": 60, "lede": 150, "callout": 120, "card": 110}
 # Points, on a 720pt-wide slide. The template asks for 40 and 32; these leave more room around the text.
 SIZE = {"heading": 36, "body": 24, "title": 32}
+# `Density: discuss` decks are read close up, on a screen, so they carry more words at smaller sizes.
+DISCUSS = {"heading": 26, "body": 16, "section": 48}
+# Scorecard tags in tables: the word always shows, so colour is never the only signal.
+TAGS = {"yes": ("Yes", "04084A", "FFFFFF"), "partly": ("Partly", "D9DBE8", "04084A"), "no": ("No", "E3E3E3", "383838")}
+CARD, TINT, HIGHLIGHT = "ECECEE", "E6E7EF", "ECEDF4"  # card panel, callout band, highlighted table column
 
 
 def find_cli():
@@ -71,11 +77,33 @@ def expand(outline):
     return slides
 
 
+def limits(sizes):
+    """LIMITS at the deck's sizes: line length grows with smaller type, and so does the number of lines."""
+    k, kh = SIZE["body"] / sizes["body"], SIZE["heading"] / sizes["heading"]
+    out = {key: int(v * k * k) for key, v in LIMITS.items() if key in ("body", "quote", "lede", "callout", "card")}
+    out.update(heading=int(LIMITS["heading"] * kh), bullet=int(LIMITS["bullet"] * k),
+               bullets=int(LIMITS["bullets"] * k), eyebrow=int(LIMITS["eyebrow"] * k), section=LIMITS["section"])
+    return out
+
+
 def check(slides, sizes):
     warn = []
+    lim = limits(sizes)
     # Composed types have one line for the heading: the frame's width at about 0.5em a character.
     one_line = int(FRAME["heading"][2] / (sizes["heading"] * 0.5))
     for n, (kind, head, body, _, s) in enumerate(slides, 1):
+        for key in ("eyebrow", "callout"):
+            if len(s.get(key, "")) > lim[key]:
+                warn.append(f"slide {n}: {key} {len(s[key])} chars, limit {lim[key]}")
+        if kind in ("cards", "table") and len(s.get("body", "")) > lim["lede"]:
+            warn.append(f"slide {n}: lede {len(s['body'])} chars, limit {lim['lede']}")
+        if kind == "cards":
+            # Narrower cards hold less: the limit is for three across.
+            cap = int(lim["card"] * 3 / max(3, len(s["blocks"])))
+            for b in s["blocks"]:
+                words = len(b.get("text", "") or " ".join(b.get("bullets", []))) + len(b.get("evidence", ""))
+                if words > cap:
+                    warn.append(f"slide {n}: card {b['label'][:25]!r} {words} chars, limit {cap}")
         if kind in COMPOSED:
             if len(head or "") > one_line:
                 warn.append(f"slide {n}: {kind} heading {len(head)} chars, one line is {one_line} at this size")
@@ -85,25 +113,25 @@ def check(slides, sizes):
                 f"Slide {n}: unknown type {kind!r}. Use one of {sorted(SAMPLES) + list(COMPOSED)}."
             )
         if kind in ("section", "photo-section"):
-            if len(head or "") > LIMITS["section"]:
+            if len(head or "") > lim["section"]:
                 warn.append(
-                    f"slide {n}: section heading {len(head)} chars, limit {LIMITS['section']}"
+                    f"slide {n}: section heading {len(head)} chars, limit {lim['section']}"
                 )
         elif kind == "quote":
-            if len(s.get("quote", "")) > LIMITS["quote"]:
-                warn.append(f"slide {n}: quote {len(s['quote'])} chars, limit {LIMITS['quote']}")
+            if len(s.get("quote", "")) > lim["quote"]:
+                warn.append(f"slide {n}: quote {len(s['quote'])} chars, limit {lim['quote']}")
         elif kind == "text":
-            if len(head or "") > LIMITS["heading"]:
-                warn.append(f"slide {n}: heading {len(head)} chars, limit {LIMITS['heading']}")
-            if len(body) > LIMITS["bullets"]:
-                warn.append(f"slide {n}: {len(body)} bullets, limit {LIMITS['bullets']}")
+            if len(head or "") > lim["heading"]:
+                warn.append(f"slide {n}: heading {len(head)} chars, limit {lim['heading']}")
+            if len(body) > lim["bullets"]:
+                warn.append(f"slide {n}: {len(body)} bullets, limit {lim['bullets']}")
             for b in body if len(body) > 1 else []:
-                if len(b) > LIMITS["bullet"]:
+                if len(b) > lim["bullet"]:
                     warn.append(
-                        f"slide {n}: bullet {len(b)} chars, limit {LIMITS['bullet']}: {b[:30]}..."
+                        f"slide {n}: bullet {len(b)} chars, limit {lim['bullet']}: {b[:30]}..."
                     )
-            if len(body) == 1 and len(body[0]) > LIMITS["body"]:
-                warn.append(f"slide {n}: body {len(body[0])} chars, limit {LIMITS['body']}")
+            if len(body) == 1 and len(body[0]) > lim["body"]:
+                warn.append(f"slide {n}: body {len(body[0])} chars, limit {lim['body']}")
     return warn
 
 
@@ -238,20 +266,56 @@ def paragraphs(frame, paras):
             if color:
                 fill = etree.SubElement(rpr, qn("a:solidFill"))
                 etree.SubElement(fill, qn("a:srgbClr"), val=color)
+            if para.get("highlight"):  # after the fill and before the fonts, as the schema orders them
+                mark = etree.SubElement(rpr, qn("a:highlight"))
+                etree.SubElement(mark, qn("a:srgbClr"), val=para["highlight"])
             for tag in ("a:latin", "a:ea", "a:cs", "a:sym"):
                 etree.SubElement(rpr, qn(tag), typeface=FONT)
-        if para["text"]:
+        # "runs": [(text, bold)] for a paragraph with a bold lead-in; otherwise one run.
+        runs = para.get("runs") or ([(para["text"], None)] if para["text"] else [])
+        for text, bold in runs:
             run = etree.SubElement(p, qn("a:r"))
-            run.append(rpr)
-            etree.SubElement(run, qn("a:t")).text = para["text"]
-        else:
+            r = copy.deepcopy(rpr)
+            if bold is not None:
+                r.set("b", "1" if bold else "0")
+            run.append(r)
+            etree.SubElement(run, qn("a:t")).text = text
+        if not runs:
             end = copy.deepcopy(rpr)
             end.tag = qn("a:endParaRPr")
             p.append(end)
 
 
-def cell_borders(cell, bottom, width):
-    """No fill and no lines except a bottom rule, written in the order PowerPoint expects."""
+def text_height(text, size, width):
+    """Points of height for text at this size in this width, at about half an em a character."""
+    per_line = max(1, int(width / (size * 0.5)))
+    return -(-len(text) // per_line) * size * 1.22
+
+
+def split_lead(text):
+    """'**Bold lead.** The rest' -> ('Bold lead.', 'The rest'); otherwise ('', text)."""
+    import re
+
+    m = re.match(r"\*\*(.+?)\*\*\s*(.*)$", text)
+    return (m.group(1), m.group(2)) if m else ("", text)
+
+
+def tag_cell(value):
+    """'[yes] a snapshot of the real one' -> ('yes', 'a snapshot of the real one'); else (None, None)."""
+    import re
+
+    m = re.match(r"\[(yes|partly|no)\]\s*(.*)$", value.strip(), re.IGNORECASE)
+    return (m.group(1).lower(), m.group(2)) if m else (None, None)
+
+
+def scorecard_header(columns):
+    """Header cells with '{highlight}' removed, and the indexes of the columns it marked."""
+    marked = [i for i, c in enumerate(columns) if c.rstrip().endswith("{highlight}")]
+    return [c.replace("{highlight}", "").strip() for c in columns], marked
+
+
+def cell_borders(cell, bottom, width, fill=None):
+    """No lines except a bottom rule, and no fill unless given, in the order PowerPoint expects."""
     from lxml import etree
     from pptx.oxml.ns import qn
 
@@ -268,12 +332,17 @@ def cell_borders(cell, bottom, width):
             etree.SubElement(etree.SubElement(ln, qn("a:solidFill")), qn("a:srgbClr"), val=bottom)
         else:
             etree.SubElement(ln, qn("a:noFill"))
-    etree.SubElement(tcpr, qn("a:noFill"))
+    if fill:
+        tcpr.set("marL", str(6 * 12700))
+        etree.SubElement(etree.SubElement(tcpr, qn("a:solidFill")), qn("a:srgbClr"), val=fill)
+    else:
+        etree.SubElement(tcpr, qn("a:noFill"))
 
 
 def build_pptx(slides, path, sizes, base):
     from pptx import Presentation
     from pptx.dml.color import RGBColor
+    from pptx.enum.text import MSO_ANCHOR
     from pptx.oxml.ns import qn
     from pptx.util import Pt
 
@@ -281,6 +350,60 @@ def build_pptx(slides, path, sizes, base):
     samples = len(prs.slides)
     src = list(prs.slides)
     art = os.path.join(os.path.dirname(path), "render", "diagrams")
+
+    def add_text(slide, x, y, w, h, paras):
+        box = slide.shapes.add_textbox(Pt(x), Pt(y), Pt(w), Pt(h))
+        frame = box.text_frame
+        frame.word_wrap = True
+        frame.vertical_anchor = MSO_ANCHOR.TOP
+        frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
+        paragraphs(frame, paras)
+        return box
+
+    def rect(slide, x, y, w, h, color):
+        shape = slide.shapes.add_shape(1, Pt(x), Pt(y), Pt(w), Pt(h))  # 1: rectangle
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor.from_string(color)
+        shape.line.fill.background()
+        shape.shadow.inherit = False
+        return shape
+
+    def callout(slide, text, x, y, w, h, size):
+        """A tinted band with a navy rule on the left; a **bold** opening phrase stays bold."""
+        rect(slide, x, y, w, h, TINT)
+        rect(slide, x, y, 5, h, NAVY)
+        lead, rest = split_lead(text)
+        runs = ([(lead + " ", True)] if lead else []) + [(rest, False)]
+        add_text(slide, x + 17, y + 7, w - 30, h - 14, [{"text": text, "size": size, "runs": runs}])
+
+    def cards(slide, s, top, bottom):
+        """Two to four panels across, each with a navy top rule: number, title, text, evidence."""
+        blocks = s["blocks"]
+        n, gap, pad = len(blocks), 12, 11
+        cw = (FRAME["width"] - gap * (n - 1)) / n
+        inner = cw - 2 * pad
+        sets = []
+        for i, b in enumerate(blocks):
+            paras = []
+            if s.get("numbered"):
+                paras.append({"text": str(i + 1), "size": sizes["heading"] * 0.85, "bold": True,
+                              "color": NAVY, "after": 4})
+            paras.append({"text": b["label"], "size": sizes["body"] * 0.88, "bold": True, "after": 4})
+            items = b.get("bullets") or ([b["text"]] if b.get("text") else [])
+            paras += [{"text": t, "size": sizes["body"] * 0.76, "bullet": bool(b.get("bullets")),
+                       "indent": 10, "after": 3} for t in items]
+            if b.get("evidence"):
+                paras[-1]["after"] = 8
+                paras.append({"text": b["evidence"], "size": sizes["body"] * 0.66, "color": MUTED})
+            sets.append(paras)
+        need = max(sum(text_height(p["text"], p["size"], inner) + p.get("after", 0) for p in ps) for ps in sets)
+        h = min(bottom - top, need * 1.08 + 2 * pad + 4)
+        for i, paras in enumerate(sets):
+            x = FRAME["left"] + i * (cw + gap)
+            rect(slide, x, top, cw, h, CARD)
+            rect(slide, x, top, cw, 4, NAVY)
+            add_text(slide, x + pad, top + pad + 4, inner, h - 2 * pad - 4, paras)
+        return top + h
 
     def place(slide, s, x, y, w, h):
         os.makedirs(art, exist_ok=True)
@@ -319,10 +442,13 @@ def build_pptx(slides, path, sizes, base):
         paragraphs(frame, paras)
 
     def table(slide, t, y):
-        rows = [t["columns"]] + t["rows"]
-        cols = len(t["columns"])
+        head, hl = scorecard_header(t["columns"])
+        rows = [head] + t["rows"]
+        cols = len(head)
+        noted = [any(tag_cell(c)[1] for c in r) for r in rows]
+        heights = [20 + (11 if n else 0) for n in noted]
         frame = slide.shapes.add_table(
-            len(rows), cols, Pt(FRAME["left"]), Pt(y), Pt(FRAME["width"]), Pt(20 * len(rows))
+            len(rows), cols, Pt(FRAME["left"]), Pt(y), Pt(FRAME["width"]), Pt(sum(heights))
         )
         tbl = frame.table
         pr = frame._element.graphic.graphicData.tbl.tblPr
@@ -338,15 +464,24 @@ def build_pptx(slides, path, sizes, base):
         tbl.columns[0].width = Pt(first)
         for c in range(1, cols):
             tbl.columns[c].width = Pt((FRAME["width"] - first) / (cols - 1))
+        size = sizes["body"] * 0.78
         for r, row in enumerate(rows):
-            tbl.rows[r].height = Pt(20)
+            tbl.rows[r].height = Pt(heights[r])
             for c, value in enumerate(row):
                 cell = tbl.cell(r, c)
-                paragraphs(
-                    cell.text_frame,
-                    [{"text": value, "size": sizes["body"] * 0.78, "bold": r == 0 or c == 0}],
-                )
-                cell_borders(cell, NAVY if r == 0 else RULE, 1.5 if r == 0 else 0.75)
+                tag, note = tag_cell(value) if r else (None, None)
+                if tag:
+                    word, back, fore = TAGS[tag]
+                    paras = [{"text": f" {word} ", "size": size * 0.92, "bold": True,
+                              "color": fore, "highlight": back, "after": 2}]
+                    if note:
+                        paras.append({"text": note, "size": size * 0.8, "color": MUTED})
+                else:
+                    paras = [{"text": value, "size": size, "bold": r == 0 or c == 0}]
+                paragraphs(cell.text_frame, paras)
+                cell_borders(cell, NAVY if r == 0 else RULE, 1.5 if r == 0 else 0.75,
+                             HIGHLIGHT if c in hl else None)
+        return y + sum(heights)
 
     for kind, *_ in slides:
         copy_slide(prs, src[SAMPLES.get(kind, SAMPLES["text"])])
@@ -393,31 +528,76 @@ def build_pptx(slides, path, sizes, base):
             bar.fill.solid()
             bar.fill.fore_color.rgb = RGBColor.from_string(NAVY)
             bar.line.fill.background()
-        elif kind == "text":
+        elif kind == "text" and not s.get("callout"):
             size = sizes["body"] * 0.86 if len(body) > 5 else sizes["body"]
+            eyebrow = s.get("eyebrow")
             paragraphs(
                 box.text_frame,
-                [{"text": head, "size": sizes["heading"], "bold": True, "after": 14}]
+                ([{"text": eyebrow, "size": sizes["body"] * 0.72, "color": MUTED, "after": 6}] if eyebrow else [])
+                + [{"text": head, "size": sizes["heading"], "bold": True, "after": 14}]
                 + [
                     {"text": t, "size": size, "bullet": len(body) > 1, "indent": 22, "after": 4}
                     for t in body
                 ],
             )
         else:
-            # Heading in the template's text box, moved to the top; the rest drawn below it.
+            # Heading in the template's text box, moved to the top; the rest stacked below it:
+            # eyebrow, heading, callout (top), lede, content, callout (bottom).
+            left, width = FRAME["left"], FRAME["width"]
+            y = 28
+            if s.get("eyebrow"):
+                e = sizes["body"] * 0.72
+                add_text(slide, left, y, width, e * 1.3, [{"text": s["eyebrow"], "size": e, "color": MUTED}])
+                y += e * 1.3 + 2
+            # Text slides moved here by a callout can have a two-line heading; the others have one.
+            hh = text_height(head, sizes["heading"], width) * 1.02 if kind == "text" else sizes["heading"] * 1.25
             paragraphs(box.text_frame, [{"text": head, "size": sizes["heading"], "bold": True}])
-            box.left, box.top, box.width, box.height = (Pt(v) for v in FRAME["heading"])
-            top, left, width = FRAME["top"], FRAME["left"], FRAME["width"]
+            if s.get("eyebrow") or kind == "text":
+                box.left, box.top, box.width, box.height = Pt(left), Pt(y), Pt(width), Pt(hh)
+                frame = box.text_frame
+                frame.vertical_anchor = MSO_ANCHOR.TOP
+                frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
+                top = max(FRAME["top"], y + hh + sizes["heading"] * 0.45)
+            else:
+                # Without an eyebrow, the heading sits exactly where it always has.
+                box.left, box.top, box.width, box.height = (Pt(v) for v in FRAME["heading"])
+                top = FRAME["top"]
+            bottom = FRAME["bottom"]
+            after = None  # a bottom callout, drawn once the content's foot is known
+            if s.get("callout"):
+                cs = sizes["body"] * 0.78
+                ch = text_height(s["callout"], cs, width - 30) + 14
+                if s.get("callout_at") == "top":
+                    callout(slide, s["callout"], left, top, width, ch, cs)
+                    top += ch + 10
+                else:
+                    bottom -= ch + 10
+                    after = (ch, cs)
+            if kind in ("table", "cards") and s.get("body"):
+                ls = sizes["body"] * 0.88
+                lh = text_height(s["body"], ls, width)
+                add_text(slide, left, top, width, lh, [{"text": s["body"], "size": ls}])
+                top += lh + 10
+            foot = bottom  # where the content ends: known for tables and cards, the frame otherwise
             if kind == "table":
-                table(slide, s["table"], top)
+                foot = table(slide, s["table"], top)
+            elif kind == "cards":
+                foot = cards(slide, s, top, bottom)
+            elif kind == "text":
+                size = sizes["body"] * 0.86 if len(body) > 5 else sizes["body"]
+                add_text(slide, left, top, width, bottom - top, [
+                    {"text": t, "size": size, "bullet": len(body) > 1, "indent": 22, "after": 4} for t in body
+                ])
             elif kind == "split":
                 half = (width - 36) / 2
-                text_box(slide, s, left, top, half, FRAME["bottom"] - top)
-                place(slide, s, left + half + 36, top, half, FRAME["bottom"] - top)
+                text_box(slide, s, left, top, half, bottom - top)
+                place(slide, s, left + half + 36, top, half, bottom - top)
             else:
                 lead = 34 if s.get("body") else 0
                 text_box(slide, s, left, top, width, lead)
-                place(slide, s, left, top + lead, width, FRAME["bottom"] - top - lead)
+                place(slide, s, left, top + lead, width, bottom - top - lead)
+            if after:
+                callout(slide, s["callout"], left, min(foot, bottom) + 10, width, *after)
         if notes:
             slide.notes_slide.notes_text_frame.text = notes
     prs.save(path)
@@ -473,19 +653,53 @@ def blocks(s):
 
 
 def table(t):
-    head = "".join(f"<th>{esc(c)}</th>" for c in t["columns"])
-    rows = "".join("<tr>" + "".join(f"<td>{esc(c)}</td>" for c in r) + "</tr>" for r in t["rows"])
+    columns, hl = scorecard_header(t["columns"])
+
+    def cell(c, value):
+        tag, note = tag_cell(value)
+        if tag:
+            word = TAGS[tag][0]
+            value_html = f'<span class="tg {tag}">{word}</span>' + (f'<span class="tnote">{esc(note)}</span>' if note else "")
+        else:
+            value_html = esc(value)
+        return f"<td{' class=hl' if c in hl else ''}>{value_html}</td>"
+
+    head = "".join(f"<th{' class=hl' if i in hl else ''}>{esc(c)}</th>" for i, c in enumerate(columns))
+    rows = "".join("<tr>" + "".join(cell(c, v) for c, v in enumerate(r)) + "</tr>" for r in t["rows"])
     return f"<table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table>"
+
+
+def eyebrow(s):
+    return f'<p class="eyebrow">{esc(s["eyebrow"])}</p>' if s.get("eyebrow") else ""
+
+
+def callout_html(s, where):
+    if not s.get("callout") or s.get("callout_at", "top") != where:
+        return ""
+    lead, rest = split_lead(s["callout"])
+    lead = f"<strong>{esc(lead)}</strong> " if lead else ""
+    return f'<div class="callout {where}">{lead}{esc(rest)}</div>'
+
+
+def cards_html(s):
+    out = []
+    for i, b in enumerate(s["blocks"], 1):
+        num = f'<span class="cnum">{i}</span>' if s.get("numbered") else ""
+        if b.get("bullets"):
+            text = "<ul>" + "".join(f"<li>{esc(t)}</li>" for t in b["bullets"]) + "</ul>"
+        else:
+            text = f"<p>{esc(b.get('text', ''))}</p>"
+        ev = f'<p class="evidence">{esc(b["evidence"])}</p>' if b.get("evidence") else ""
+        out.append(f'<div class="card">{num}<h3>{esc(b["label"])}</h3>{text}{ev}</div>')
+    return f'<div class="cards" style="--n: {len(out)}">{"".join(out)}</div>'
 
 
 def deck_sizes(outline):
     """Type sizes in points, with the outline's optional `sizes` over the template's."""
-    return {
-        "heading": SIZE["heading"],
-        "body": SIZE["body"],
-        "section": 72,
-        **outline.get("sizes", {}),
-    }
+    base = {"heading": SIZE["heading"], "body": SIZE["body"], "section": 72}
+    if outline.get("density", "present").lower() == "discuss":
+        base.update(DISCUSS)
+    return {**base, **outline.get("sizes", {})}
 
 
 def build_html(slides, outline, path, base):
@@ -514,28 +728,30 @@ def build_html(slides, outline, path, base):
             attr = f"<footer>{esc(s['attribution'])}</footer>" if s.get("attribution") else ""
             inner = f'<div class="text"><blockquote><p>{esc(s["quote"])}</p>{attr}</blockquote></div>'
             cls = ""
-        elif kind == "table":
-            inner, cls = (
-                f'<div class="text top"><h2>{esc(head)}</h2>{table(s["table"])}</div>',
-                "wide",
-            )
-        elif kind == "split":
+        elif kind in COMPOSED:
+            lede = f'<p class="lede">{esc(s["body"])}</p>' if s.get("body") and kind in ("table", "cards") else ""
+            if kind == "table":
+                content = table(s["table"])
+            elif kind == "cards":
+                content = cards_html(s)
+            elif kind == "split":
+                content = f'<div class="cols"><div class="col">{blocks(s)}</div>{svg(base, s)}</div>'
+            else:
+                content = blocks(s) + svg(base, s)
             inner = (
-                f'<div class="text top"><h2>{esc(head)}</h2><div class="cols">'
-                f'<div class="col">{blocks(s)}</div>{svg(base, s)}</div></div>'
+                f'<div class="text top">{eyebrow(s)}<h2>{esc(head)}</h2>{callout_html(s, "top")}'
+                f'{lede}{content}{callout_html(s, "bottom")}</div>'
             )
             cls = "wide"
-        elif kind == "diagram":
-            inner, cls = (
-                f'<div class="text top"><h2>{esc(head)}</h2>{blocks(s)}{svg(base, s)}</div>',
-                "wide",
-            )
         else:
             if len(body) > 1:
                 text = "<ul>" + "".join(f"<li>{esc(b)}</li>" for b in body) + "</ul>"
             else:
                 text = "".join(f"<p>{esc(b)}</p>" for b in body)
-            inner = f'<div class="text{" dense" if len(body) > 5 else ""}"><h2>{esc(head)}</h2>{text}</div>'
+            inner = (
+                f'<div class="text{" dense" if len(body) > 5 else ""}">{eyebrow(s)}<h2>{esc(head)}</h2>'
+                f'{callout_html(s, "top")}{text}{callout_html(s, "bottom")}</div>'
+            )
             cls = ""
         out.append(
             f'<section class="slide {cls}" aria-label="Slide {n}">'
@@ -606,6 +822,28 @@ HTML = """<!doctype html>
        padding: 0 calc(10 * var(--pt)) calc(5 * var(--pt)) 0; }
   td { vertical-align: top; border-bottom: 1px solid var(--rule); padding: calc(4.5 * var(--pt)) calc(10 * var(--pt)) calc(4.5 * var(--pt)) 0; }
   td:first-child { font-weight: 700; width: 34%; }
+  /* Eyebrow, lede, callout, cards and scorecard tags. */
+  .text p.eyebrow { font-size: calc(var(--b) * .72 * var(--pt)); color: var(--muted); margin-bottom: calc(4 * var(--pt)); }
+  .text p.lede { font-size: calc(var(--b) * .88 * var(--pt)); margin-bottom: calc(10 * var(--pt)); }
+  .callout { border-left: calc(5 * var(--pt)) solid var(--navy); background: #E6E7EF;
+             padding: calc(7 * var(--pt)) calc(12 * var(--pt)); font-size: calc(var(--b) * .78 * var(--pt)); line-height: 1.3; }
+  .callout.top { margin-bottom: calc(10 * var(--pt)); }
+  .callout.bottom { margin-top: calc(10 * var(--pt)); }
+  .cards { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: calc(12 * var(--pt)); }
+  .card { background: #ECECEE; border-top: calc(4 * var(--pt)) solid var(--navy); padding: calc(11 * var(--pt)); }
+  .card h3 { font-size: calc(var(--b) * .88 * var(--pt)); font-weight: 700; margin-bottom: calc(4 * var(--pt)); line-height: 1.2; }
+  .text .card p, .text .card li { font-size: calc(var(--b) * .76 * var(--pt)); line-height: 1.3; }
+  .text .card li { padding-left: calc(var(--b) * .5 * var(--pt)); margin-bottom: calc(2 * var(--pt)); }
+  .cnum { display: block; font-size: calc(var(--h) * .85 * var(--pt)); font-weight: 700; color: var(--navy);
+          line-height: 1; margin-bottom: calc(4 * var(--pt)); }
+  .text .card p.evidence { font-size: calc(var(--b) * .66 * var(--pt)); color: var(--muted);
+          border-top: 1px solid var(--rule); margin-top: calc(8 * var(--pt)); padding-top: calc(6 * var(--pt)); }
+  .tg { display: inline-block; padding: 0 .35em; font-weight: 700; font-size: .92em; }
+  .tg.yes { background: #04084A; color: #fff; }
+  .tg.partly { background: #D9DBE8; color: #04084A; }
+  .tg.no { background: #E3E3E3; color: #383838; }
+  .tnote { display: block; color: var(--muted); font-size: .8em; font-weight: 400; margin-top: calc(2 * var(--pt)); }
+  th.hl, td.hl { background: #ECEDF4; padding-left: calc(6 * var(--pt)); }
   .title .text { top: 42%; height: auto; justify-content: flex-start; }
   .title .text p { font-size: calc(32 * var(--pt)); line-height: 1.2; }
   .title .text p.strong { font-weight: 700; }
